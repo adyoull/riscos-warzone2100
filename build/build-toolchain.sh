@@ -21,7 +21,13 @@ unset CC CXX AR RANLIB STRIP CFLAGS CXXFLAGS CPPFLAGS LDFLAGS PKG_CONFIG_LIBDIR 
 WHAT=${1:-all}
 T=arm-riscos-gnueabihf
 mkdir -p "$TC" "$GCCSDK_ENV"; cd "$TC"
-[ -d gccsdk ] || { tar xf "$DL"/gccsdk-64c6f81.tar.gz; mv riscos-gccsdk-64c6f81* gccsdk; }
+[ -d gccsdk ] || { tar xf "$DL"/gccsdk-64c6f81.tar.gz; mv riscos-gccsdk-64c6f81* gccsdk
+  # UnixLib changes from the RISC OS OpenTTD port (riscos-openttd
+  # patches/unixlib): real wide-character functions (the stubs printed
+  # "Not implemented" and aborted: libstdc++'s locale setup calls wctype()),
+  # a high resolution monotonic clock, nanosleep accuracy, no mmap for
+  # large blocks.
+  for p in "$REPO_DIR"/patches/unixlib/*.diff; do patch -d gccsdk -p1 -s < "$p"; done; }
 H=$TC/gccsdk/autobuilder/develop/gcc
 UL=$TC/gccsdk/gcc4/recipe/files/gcc/libunixlib
 
