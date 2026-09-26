@@ -1,0 +1,42 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Andrew Youll <adyoull@users.noreply.github.com>
+Date: Sun, 27 Sep 2026 00:17:32 +0100
+Subject: [PATCH] RISC OS: terrain textures wrap with GL_REPEAT
+
+swrast draws a textured triangle through its fast integer path
+(persp_textured_triangle) only when the texture has one level in use,
+the same min and mag filter, and GL_REPEAT wrapping. The terrain pages
+used GL_CLAMP_TO_EDGE, so every terrain pixel went through the general
+per-fragment path (fetch_texel_2d, lerp_rgba_2d, linear_texel_locations:
+two thirds of the frame). With GL_REPEAT, and the "fast" or "nearest"
+filter, the terrain takes the fast path: CAM_1A at 800x600 goes from 30
+to 51 fps on the profiling host. The picture is the same apart from
+rounding (at most 2/255 per channel); the wrap mode only changes the
+outer half texel of each page.
+---
+ src/texture.c | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+diff --git a/src/texture.c b/src/texture.c
+index e844a10..f5dc3f5 100644
+--- a/src/texture.c
++++ b/src/texture.c
+@@ -111,8 +111,18 @@ static int newPage(const char *name, int level, int width, int height, int count
+ 	             GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+ 	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+ 	pie_Set3DTextureFilter();
++#if defined(WZ_OS_RISCOS)
++	// Software OpenGL only has a fast path for textured triangles with
++	// GL_REPEAT (swrast's persp_textured_triangle); anything else samples
++	// each pixel through the general code, at half the frame rate. The
++	// wrap mode only affects the outer half texel of a page, and tiles
++	// already blend into their neighbours inside the page.
++	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
++	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
++#else
+ 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+ 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
++#endif
+ 
+ 	return texPage;
+ }

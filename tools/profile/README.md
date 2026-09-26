@@ -53,8 +53,17 @@ It prints the frame rate every 5 seconds and leaves a screenshot in
 | `fast` without mipmaps (0011) | 25 | bilinear sampling, fog 8% |
 | "Fog Of War" instead of "Mist" (0013) | 28 | bilinear sampling |
 | shadows off (0013) | 30 | bilinear sampling of RGBA8 (Mesa) |
+| terrain `GL_REPEAT` (0014) | 51 | `persp_textured_triangle` 58% (swrast's fast path) |
+| (riscos-mesa 20.3.5-7pre6 instead of 7pre4, riscos11 settings) | 30.5 | +1-2%: its new fast paths need GL_REPEAT or constant q |
+| (all texture pages `GL_REPEAT`, not done: UI images could bleed at page edges) | 55 | |
 | (`nearest`, for comparison, with mipmaps) | 29 | |
 
-What's left is Mesa's own texture sampling (`fetch_texel_2d_*`,
-`lerp_rgba_2d`, `linear_texel_locations`, `_swrast_texture_span`): the
-game's code is under 1% of the time.
+What's left is Mesa's fast textured-triangle loop, mostly its per-pixel
+perspective divide (`persp_textured_triangle`), and blending. The game's
+code is under 1% of the time.
+
+swrast's fast path (`_swrast_choose_triangle` in `s_triangle.c`) needs:
+one 2D texture unit, `GL_REPEAT` both ways, a power-of-two RGBA8/RGB8
+texture, min filter = mag filter (so no mipmapping), no fog, no separate
+specular, env mode not `GL_COMBINE`. Anything else goes through the
+general per-fragment path at about half the speed.

@@ -22,6 +22,7 @@ them in order with `patch -p1`. To edit them, use `tools/wz-patches.sh`
 | 0011 | Texture filtering setting: config `textureFilter`, `--texfilter=best\|smooth\|fast\|nearest`; RISC OS defaults to `fast` (bilinear, no mipmaps). |
 | 0012 | No compressed textures on RISC OS: swrast decoded a DXT3 block per texel (half the frame time). |
 | 0013 | A new config on RISC OS has shadows off and "Fog Of War" instead of "Mist" (GL fog on every pixel). |
+| 0014 | Terrain textures use `GL_REPEAT` on RISC OS: swrast's fast textured-triangle path needs it (30 -> 51 fps). |
 
 ## physfs/ (PhysicsFS 2.0.3)
 
