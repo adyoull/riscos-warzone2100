@@ -1,0 +1,178 @@
+From 59af2c667b2ac820baafc74b60e7f733334fe9b8 Mon Sep 17 00:00:00 2001
+From: Andrew Youll <adyoull@users.noreply.github.com>
+Date: Sat, 26 Sep 2026 20:26:52 +0100
+Subject: [PATCH] RISC OS: cheaper 3D texture filtering (Warzone2100$Filter);
+ 800x600 window by default
+
+Terrain and model textures used trilinear filtering with 4x anisotropy.
+Mesa's software rasteriser implements anisotropy with several trilinear
+lookups per pixel, the slowest texture path it has. On RISC OS the new
+pie_Set3DTextureFilter() uses bilinear filtering from the nearest mipmap
+level and no anisotropy by default; Warzone2100$Filter = best | smooth |
+fast | nearest selects upstream's filtering, trilinear, the default, or
+unfiltered. Other platforms keep upstream's settings.
+
+A desktop window now defaults to 800x600 (was 1024x768 since 0007).
+---
+ lib/ivis_common/tex.h    |  3 ++
+ lib/ivis_opengl/screen.c |  8 ++---
+ lib/ivis_opengl/tex.c    | 68 +++++++++++++++++++++++++++++++++-------
+ src/texture.c            | 12 +------
+ 4 files changed, 65 insertions(+), 26 deletions(-)
+
+diff --git a/lib/ivis_common/tex.h b/lib/ivis_common/tex.h
+index b9264bc..a7507e6 100644
+--- a/lib/ivis_common/tex.h
++++ b/lib/ivis_common/tex.h
+@@ -61,6 +61,9 @@ extern unsigned int iV_getPixelFormat(const iV_Image *image);
+ 
+ extern int pie_ReplaceTexPage(iV_Image *s, const char *texPage, int maxTextureSize);
+ extern int pie_AddTexPage(iV_Image *s, const char *filename, int slot, int maxTextureSize);
++/** Set the filtering of the bound mipmapped 3D texture (terrain, models).
++ *  On RISC OS, Warzone2100$Filter chooses it (software OpenGL). */
++extern void pie_Set3DTextureFilter(void);
+ extern void pie_TexInit(void);
+ 
+ extern void pie_InitSkybox(SDWORD pageNum);
+diff --git a/lib/ivis_opengl/screen.c b/lib/ivis_opengl/screen.c
+index a811046..5c7e2e4 100644
+--- a/lib/ivis_opengl/screen.c
++++ b/lib/ivis_opengl/screen.c
+@@ -94,14 +94,14 @@ bool screenInitialise(
+ 
+ #if defined(WZ_OS_RISCOS)
+ 	// No size in the config yet: a desktop-sized window is far too slow for
+-	// software OpenGL and hides the desktop. Start at 1024x768 (or 640x480
++	// software OpenGL and hides the desktop. Start at 800x600 (or 640x480
+ 	// on a small screen); full screen still uses the desktop size.
+ 	if ((width == 0 || height == 0) && !fullScreen)
+ 	{
+-		if (desktop.w > 1024 && desktop.h > 768)
++		if (desktop.w > 800 && desktop.h > 600)
+ 		{
+-			desktop.w = 1024;
+-			desktop.h = 768;
++			desktop.w = 800;
++			desktop.h = 600;
+ 		}
+ 		else
+ 		{
+diff --git a/lib/ivis_opengl/tex.c b/lib/ivis_opengl/tex.c
+index 0e0c926..4084425 100644
+--- a/lib/ivis_opengl/tex.c
++++ b/lib/ivis_opengl/tex.c
+@@ -36,6 +36,8 @@
+ #include "lib/ivis_common/png_util.h"
+ 
+ #include "screen.h"
++#include <stdlib.h>
++#include <strings.h>
+ 
+ //*************************************************************************
+ 
+@@ -137,17 +139,7 @@ int pie_AddTexPage(iV_Image *s, const char* filename, int slot, int maxTextureSi
+ 	s->bmp = NULL;
+ 
+ 	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+-
+-	// Use anisotropic filtering, if available, but only max 4.0 to reduce processor burden
+-	if (GLEE_EXT_texture_filter_anisotropic)
+-	{
+-		GLfloat max;
+-
+-		glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &max);
+-		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, MIN(4.0f, max));
+-	}
++	pie_Set3DTextureFilter();
+ 
+ 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+ 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+@@ -315,3 +307,57 @@ unsigned int iV_getPixelFormat(const iV_Image *image)
+ 			return GL_INVALID_ENUM;
+ 	}
+ }
++
++
++/*!
++ * Filtering for mipmapped 3D textures. Upstream uses trilinear filtering
++ * with 4x anisotropy; with software OpenGL (RISC OS) anisotropic sampling
++ * alone costs several trilinear lookups per pixel, so there the variable
++ * Warzone2100$Filter picks one of:
++ *   best    - upstream: trilinear + 4x anisotropic
++ *   smooth  - trilinear (GL_LINEAR_MIPMAP_LINEAR), no anisotropy
++ *   fast    - bilinear, nearest mipmap level (GL_LINEAR_MIPMAP_NEAREST): default
++ *   nearest - no filtering (GL_NEAREST_MIPMAP_NEAREST / GL_NEAREST): fastest
++ */
++void pie_Set3DTextureFilter(void)
++{
++	GLint minFilter = GL_LINEAR_MIPMAP_LINEAR, magFilter = GL_LINEAR;
++	bool anisotropic = true;
++
++#if defined(WZ_OS_RISCOS)
++	static int mode = -1;	// 0 best, 1 smooth, 2 fast, 3 nearest
++
++	if (mode < 0)
++	{
++		const char *v = getenv("Warzone2100$Filter");
++
++		mode = 2;
++		if (v && strcasecmp(v, "best") == 0)         mode = 0;
++		else if (v && strcasecmp(v, "smooth") == 0)  mode = 1;
++		else if (v && strcasecmp(v, "nearest") == 0) mode = 3;
++		debug(LOG_TEXTURE, "3D texture filter mode %d", mode);
++	}
++	anisotropic = (mode == 0);
++	if (mode == 2)
++	{
++		minFilter = GL_LINEAR_MIPMAP_NEAREST;
++	}
++	else if (mode == 3)
++	{
++		minFilter = GL_NEAREST_MIPMAP_NEAREST;
++		magFilter = GL_NEAREST;
++	}
++#endif
++
++	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, minFilter);
++	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, magFilter);
++
++	// Use anisotropic filtering, if available, but only max 4.0 to reduce processor burden
++	if (anisotropic && GLEE_EXT_texture_filter_anisotropic)
++	{
++		GLfloat max;
++
++		glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &max);
++		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, MIN(4.0f, max));
++	}
++}
+diff --git a/src/texture.c b/src/texture.c
+index 07eeb95..e844a10 100644
+--- a/src/texture.c
++++ b/src/texture.c
+@@ -110,20 +110,10 @@ static int newPage(const char *name, int level, int width, int height, int count
+ 	glTexImage2D(GL_TEXTURE_2D, level, wz_texture_compression, width, height, 0,
+ 	             GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+ 	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
++	pie_Set3DTextureFilter();
+ 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+ 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+ 
+-	// Use anisotropic filtering, if available, but only max 4.0 to reduce processor burden
+-	if (GLEE_EXT_texture_filter_anisotropic)
+-	{
+-		GLfloat maxAnisotropy;
+-
+-		glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &maxAnisotropy);
+-		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, MIN(4.0f, maxAnisotropy));
+-	}
+-
+ 	return texPage;
+ }
+ 
+-- 
+2.43.0
+

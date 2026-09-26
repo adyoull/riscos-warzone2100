@@ -20,7 +20,7 @@ Requirements
 
 Running
 -------
-Double-click !Warzone2100. The game opens a 1024x768 desktop window
+Double-click !Warzone2100. The game opens an 800x600 desktop window
 (640x480 on a small screen).
 - Options > Video changes the size and switches to full screen; the
   change takes effect the next time the game starts.
@@ -35,6 +35,10 @@ Things to know
 - Everything is drawn in software (riscos-mesa, a build of Mesa 3D for
   RISC OS). Keep the window small for a good frame rate; 640x480 is the
   game's smallest size and the quickest.
+- Texture filtering is cheaper than on other systems (bilinear, no
+  anisotropic filtering). For more speed use unfiltered textures, for
+  better quality the usual ones: see "Texture filtering" in !Run
+  (Warzone2100$Filter nearest / smooth / best).
 - There is no sound or music in this build yet.
 - The campaign videos (sequences.wz) and music are separate downloads and
   are not included. The game runs without them.
