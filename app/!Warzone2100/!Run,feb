@@ -31,14 +31,19 @@ CDir <Wimp$ScrapDir>.WZ2100fc
 WimpSlot -min 32768K -max 32768K
 
 | --- Display ---------------------------------------------------------
-| The game opens a 640x480 desktop window unless the Choices say otherwise
-| (Options > Video in the game). Everything is drawn by software OpenGL, so
+| The game opens a 1024x768 desktop window (640x480 on small screens)
+| unless the Choices say otherwise (Options > Video in the game). Everything is drawn by software OpenGL, so
 | bigger windows and full screen are slower.
 | Uncomment one of these to force a mode from here instead:
 | Set Warzone2100$Mode --window --resolution 800x600
 | Set Warzone2100$Mode --fullscreen --resolution 640x480
 If "<Warzone2100$Mode>"="" Then Set Warzone2100$Mode --window
 
+| --- Diagnostics ----------------------------------------------------
+| For a detailed log, set this before running the game, e.g.
+|   *Set Warzone2100$Debug --debug=all --flush-debug-stderr
+| (the log gets big quickly; *Unset Warzone2100$Debug afterwards).
+
 | --- Program -------------------------------------------------------
 | No sound yet: this build is made with --disable-sound.
-Do Run <Warzone2100$Dir>.warzone2100 --datadir=/|<Warzone2100$Dir>/data --configdir=/|<Choices$Write>/Warzone2100 <Warzone2100$Mode> %*0
+Do Run <Warzone2100$Dir>.warzone2100 --datadir=/|<Warzone2100$Dir>/data --configdir=/|<Choices$Write>/Warzone2100 <Warzone2100$Mode> <Warzone2100$Debug> %*0

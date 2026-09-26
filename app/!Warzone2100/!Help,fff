@@ -20,7 +20,8 @@ Requirements
 
 Running
 -------
-Double-click !Warzone2100. The game opens a 640x480 desktop window.
+Double-click !Warzone2100. The game opens a 1024x768 desktop window
+(640x480 on a small screen).
 - Options > Video changes the size and switches to full screen; the
   change takes effect the next time the game starts.
 - Settings, saved games and screenshots are kept in
