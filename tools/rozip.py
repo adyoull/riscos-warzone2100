@@ -50,7 +50,7 @@ def main():
                 zi = zipfile.ZipInfo(root.replace(os.sep, '/') + '/')
                 zi.external_attr = (0o40755 << 16) | 0x10
                 zf.writestr(zi, b'')
-                for f in sorted(files):
+                for f in sorted(x for x in files if not x.startswith(".")):
                     add(zf, os.path.join(root, f))
 
 if __name__ == '__main__':
