@@ -16,3 +16,23 @@ index 112193c..d3554e2 100644
  #else
  #  error Unknown platform.
  #endif
+diff --git a/platform/posix.c b/platform/posix.c
+index 652d9f7..c56de9e 100644
+--- a/platform/posix.c
++++ b/platform/posix.c
+@@ -390,7 +390,15 @@ int __PHYSFS_platformEOF(void *opaque)
+ int __PHYSFS_platformFlush(void *opaque)
+ {
+     int fd = *((int *) opaque);
++#ifdef __riscos__
++    /* UnixLib's fsync() fails with EBADF on a file opened for reading, and
++       DIR_fileClose() flushes before it closes, so every read-only file
++       stayed open ("This file is already open" when it was next written).
++       Nothing is lost by ignoring it: RISC OS writes are not cached here. */
++    (void) fsync(fd);
++#else
+     BAIL_IF_MACRO(fsync(fd) == -1, strerror(errno), 0);
++#endif
+     return(1);
+ } /* __PHYSFS_platformFlush */
+ 
