@@ -40,6 +40,9 @@ Things to know
   better quality the usual ones: see "Texture filtering" in !Run
   (Warzone2100$Filter nearest / smooth / best / fast). The game keeps the
   last choice in its Choices.
+- To save time, a new configuration starts with shadows off and fog set
+  to "Fog Of War" instead of "Mist". Alt+S turns shadows on; both are in
+  Options > Graphics. Each costs around 10% of the frame rate.
 - There is no sound or music in this build yet.
 - The campaign videos (sequences.wz) and music are separate downloads and
   are not included. The game runs without them.

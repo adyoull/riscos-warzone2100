@@ -1,8 +1,8 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Andrew Youll <adyoull@users.noreply.github.com>
 Date: Sat, 26 Sep 2026 22:47:54 +0100
-Subject: [PATCH 02/11] RISC OS: OS detection, GLee without GLX, OSMesa linking
- in configure
+Subject: [PATCH] RISC OS: OS detection, GLee without GLX, OSMesa linking in
+ configure
 
 - wzglobal.h: WZ_OS_RISCOS (and WZ_OS_UNIX) for __riscos__.
 - GLee: RISC OS takes the Mac path (no GLX) and loads extension functions

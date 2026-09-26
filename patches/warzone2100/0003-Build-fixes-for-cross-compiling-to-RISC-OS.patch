@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Andrew Youll <adyoull@users.noreply.github.com>
 Date: Sat, 26 Sep 2026 22:47:54 +0100
-Subject: [PATCH 03/11] Build fixes for cross-compiling to RISC OS
+Subject: [PATCH] Build fixes for cross-compiling to RISC OS
 
 - configure.ac: the GCCSDK triplet is arm-riscos-gnueabihf (OS field
   "gnueabihf"), so the OS check matches the whole $host; no -lintl/-liconv

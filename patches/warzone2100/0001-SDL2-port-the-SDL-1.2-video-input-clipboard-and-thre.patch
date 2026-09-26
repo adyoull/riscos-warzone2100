@@ -1,8 +1,8 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Andrew Youll <adyoull@users.noreply.github.com>
 Date: Sat, 26 Sep 2026 22:04:14 +0100
-Subject: [PATCH 01/11] SDL2: port the SDL 1.2 video, input, clipboard and
- thread calls
+Subject: [PATCH] SDL2: port the SDL 1.2 video, input, clipboard and thread
+ calls
 
 Warzone 2100 2.3.9 uses SDL 1.2; the RISC OS OpenGL stack (riscos-mesa)
 provides SDL 2.26. This is a plain SDL 1.2 -> SDL2 port with nothing

@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Andrew Youll <adyoull@users.noreply.github.com>
 Date: Sat, 26 Sep 2026 22:47:54 +0100
-Subject: [PATCH 05/11] RISC OS: don't run programs through popen()/system()
+Subject: [PATCH] RISC OS: don't run programs through popen()/system()
 
 UnixLib runs a child program as a *command inside our own memory, which
 isn't safe from a large Wimp program.

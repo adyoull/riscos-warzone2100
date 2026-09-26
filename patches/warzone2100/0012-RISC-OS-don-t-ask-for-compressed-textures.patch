@@ -1,0 +1,36 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Andrew Youll <adyoull@users.noreply.github.com>
+Date: Sat, 26 Sep 2026 23:50:32 +0100
+Subject: [PATCH] RISC OS: don't ask for compressed textures
+
+The game uploads its textures as GL_COMPRESSED_RGBA_ARB when the
+extension is there. OSMesa's software rasteriser then stores them as DXT3
+and decodes a 4x4 block for every texel it samples: a profile of CAM_1A at
+800x600 spent 44% of the time in fetch_rgba_dxt3/fetch_compressed.
+Uploading plain GL_RGBA doubles the frame rate (11 -> 21 fps on the
+profiling host) for about 10MB more memory, and looks better, since DXT is
+lossy.
+---
+ lib/ivis_opengl/piemode.c | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/lib/ivis_opengl/piemode.c b/lib/ivis_opengl/piemode.c
+index 6e89038..318e277 100644
+--- a/lib/ivis_opengl/piemode.c
++++ b/lib/ivis_opengl/piemode.c
+@@ -56,8 +56,14 @@ BOOL pie_Initialise(void)
+ 	rendSurface.buffer = NULL;
+ 	rendSurface.size = 0;
+ 
+-	/* Find texture compression extension */
++	/* Find texture compression extension. Not on RISC OS: software OpenGL
++	 * would store the textures compressed and decode a block for every
++	 * texel it samples, which halves the frame rate. */
++#if defined(WZ_OS_RISCOS)
++	if (false)
++#else
+ 	if (GLEE_ARB_texture_compression)
++#endif
+ 	{
+ 		debug(LOG_TEXTURE, "Texture compression: Yes");
+ 		wz_texture_compression = GL_COMPRESSED_RGBA_ARB;

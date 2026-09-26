@@ -132,6 +132,11 @@ PATH=$GCCSDK_ENV/bin:$PATH python3 tools/check-stack-probes.py src/warzone2100-2
 - **No thread joins from `atexit()`.** Older UnixLib can't switch threads
   during `exit()`.
 
+**Speed.** Before changing anything for speed, measure it on Linux with
+`tools/profile` (the Pi has no profiler). Software OpenGL makes some
+harmless-looking GL requests expensive: compressed textures, mipmaps,
+fog, stencil shadows.
+
 ## 6. Testing on a Pi
 
 Copy `dist/!Warzone2100` (or unzip the zip) to the Pi. First-run

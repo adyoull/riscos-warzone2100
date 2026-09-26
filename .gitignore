@@ -7,3 +7,4 @@ dist/
 dl/
 toolchain/
 work/
+tools/profile/shim.so

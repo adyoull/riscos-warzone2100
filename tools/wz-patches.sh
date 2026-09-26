@@ -47,7 +47,7 @@ export)
   git -C "$DIR" rev-parse -q --verify v2.3.9 >/dev/null || { echo "$DIR: no v2.3.9 tag" >&2; exit 1; }
   [ -z "$(git -C "$DIR" status --porcelain --untracked-files=no)" ] || { echo "$DIR has uncommitted changes" >&2; exit 1; }
   rm -f "$PATCHES"/*.patch
-  git -C "$DIR" format-patch -q --no-signature --zero-commit -o "$PATCHES" v2.3.9..HEAD
+  git -C "$DIR" format-patch -q --no-signature --zero-commit --no-numbered -o "$PATCHES" v2.3.9..HEAD
   ls "$PATCHES"
   ;;
 check)

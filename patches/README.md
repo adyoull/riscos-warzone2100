@@ -19,7 +19,9 @@ them in order with `patch -p1`. To edit them, use `tools/wz-patches.sh`
 | 0008 | `WZ_DECL_PACKED` (wzglobal.h); the map file structures use it (unaligned reads). |
 | 0009 | `wz_load_*`/`wz_store_*` in endian_hack.h; the network code uses them (unaligned). |
 | 0010 | Script state in save games uses `wz_load_*`/`wz_store_*` (unaligned). |
-| 0011 | Texture filtering setting: config `textureFilter`, `--texfilter=best\|smooth\|fast\|nearest`; RISC OS defaults to `fast`. |
+| 0011 | Texture filtering setting: config `textureFilter`, `--texfilter=best\|smooth\|fast\|nearest`; RISC OS defaults to `fast` (bilinear, no mipmaps). |
+| 0012 | No compressed textures on RISC OS: swrast decoded a DXT3 block per texel (half the frame time). |
+| 0013 | A new config on RISC OS has shadows off and "Fog Of War" instead of "Mist" (GL fog on every pixel). |
 
 ## physfs/ (PhysicsFS 2.0.3)
 

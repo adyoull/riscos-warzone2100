@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Andrew Youll <adyoull@users.noreply.github.com>
 Date: Sat, 26 Sep 2026 22:47:54 +0100
-Subject: [PATCH 08/11] RISC OS: pack the map file structures
+Subject: [PATCH] RISC OS: pack the map file structures
 
 Map tiles are 3 bytes, so MAP_SAVETILE (a UWORD at odd addresses) and the
 gateway header after the tiles were read with unaligned ldrh/ldr. RISC OS

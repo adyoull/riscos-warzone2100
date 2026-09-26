@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Andrew Youll <adyoull@users.noreply.github.com>
 Date: Sat, 26 Sep 2026 22:04:14 +0100
-Subject: [PATCH 04/11] RISC OS: put the C heap in a named dynamic area
+Subject: [PATCH] RISC OS: put the C heap in a named dynamic area
 
 UnixLib puts the heap in a dynamic area when __dynamic_da_name is defined
 (otherwise it has to fit in the WimpSlot, or needs a <prog>$Heap

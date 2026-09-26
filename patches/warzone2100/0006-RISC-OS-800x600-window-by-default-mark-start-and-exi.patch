@@ -1,8 +1,8 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Andrew Youll <adyoull@users.noreply.github.com>
 Date: Sat, 26 Sep 2026 22:47:54 +0100
-Subject: [PATCH 06/11] RISC OS: 800x600 window by default; mark start and exit
- in the log
+Subject: [PATCH] RISC OS: 800x600 window by default; mark start and exit in
+ the log
 
 With no size in the config the game opened a window the size of the
 desktop (upstream uses the desktop mode), far too slow for software

@@ -1,0 +1,53 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Andrew Youll <adyoull@users.noreply.github.com>
+Date: Sat, 26 Sep 2026 23:50:32 +0100
+Subject: [PATCH] RISC OS: first run defaults to Fog Of War and no shadows
+
+Two settings that cost software OpenGL a lot, now off in a new config
+(an existing config keeps its values; both are in Options > Graphics):
+
+- Fog "Mist" enables GL fog, which swrast applies to every pixel drawn
+  (_swrast_fog_rgba_span, 8-11% of the frame). "Fog Of War" doesn't:
+  25 -> 28 fps on the profiling host.
+- Shadows are stencil volumes drawn for every object: 28 -> 30 fps with
+  a handful of units, more in a big battle. Alt+S turns them on.
+---
+ src/configuration.c | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
+
+diff --git a/src/configuration.c b/src/configuration.c
+index ea25eb0..123b95c 100644
+--- a/src/configuration.c
++++ b/src/configuration.c
+@@ -208,8 +208,15 @@ BOOL loadConfig(void)
+ 	}
+ 	else
+ 	{
++		// shadows are an extra stencil pass per object: too much for
++		// software OpenGL (Alt+S or Options turn them on)
++#if defined(WZ_OS_RISCOS)
++		setDrawShadows(false);
++		setWarzoneKeyNumeric("shadows", false);
++#else
+ 		setDrawShadows(true);
+ 		setWarzoneKeyNumeric("shadows", true);
++#endif
+ 	}
+ 
+ 	// //////////////////////////
+@@ -420,8 +427,15 @@ BOOL loadConfig(void)
+ 	}
+ 	else
+ 	{
++		// "Mist" is OpenGL fog on every pixel drawn; software OpenGL does
++		// it per pixel, so RISC OS defaults to "Fog Of War"
++#if defined(WZ_OS_RISCOS)
++		war_SetFog(false);
++		setWarzoneKeyNumeric("visfog", 1);
++#else
+ 		war_SetFog(true);
+ 		setWarzoneKeyNumeric("visfog", 0);
++#endif
+ 	}
+ 
+ 	// //////////////////////////

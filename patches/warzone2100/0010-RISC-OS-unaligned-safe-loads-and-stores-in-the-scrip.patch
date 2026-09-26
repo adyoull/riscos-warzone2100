@@ -1,8 +1,8 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Andrew Youll <adyoull@users.noreply.github.com>
 Date: Sat, 26 Sep 2026 22:47:54 +0100
-Subject: [PATCH 10/11] RISC OS: unaligned-safe loads and stores in the script
- save code
+Subject: [PATCH] RISC OS: unaligned-safe loads and stores in the script save
+ code
 
 Script state in save games packs UDWORD/SWORD/... values of mixed sizes
 into a byte buffer (eventsave.c, scriptobj.c), so most of them are at
