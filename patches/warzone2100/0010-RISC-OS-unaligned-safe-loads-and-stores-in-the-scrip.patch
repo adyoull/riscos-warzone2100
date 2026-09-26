@@ -1,41 +1,23 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Andrew Youll <adyoull@users.noreply.github.com>
-Date: Sat, 26 Sep 2026 22:04:14 +0100
+Date: Sat, 26 Sep 2026 22:47:54 +0100
 Subject: [PATCH 10/11] RISC OS: unaligned-safe loads and stores in the script
  save code
 
 Script state in save games packs UDWORD/SWORD/... values of mixed sizes
 into a byte buffer (eventsave.c, scriptobj.c), so most of them are at
-unaligned addresses; RISC OS traps unaligned accesses. They now go through
-WZ_LOAD()/WZ_STORE() (memcpy) from endian_hack.h. Found with
--Wcast-align=strict; the save format doesn't change.
+unaligned addresses; RISC OS traps unaligned accesses. They now use
+endian_hack.h's wz_load_* / wz_store_* (the two function pointers are
+copied with memcpy). Found with -Wcast-align=strict
+(tools/check-unaligned.sh in riscos-warzone2100); the save format doesn't
+change.
 ---
- lib/framework/endian_hack.h |  8 ++++
- lib/script/eventsave.c      | 75 +++++++++++++++++++------------------
- src/scriptobj.c             | 52 ++++++++++++-------------
- 3 files changed, 73 insertions(+), 62 deletions(-)
+ lib/script/eventsave.c | 75 ++++++++++++++++++++++--------------------
+ src/scriptobj.c        | 52 ++++++++++++++---------------
+ 2 files changed, 65 insertions(+), 62 deletions(-)
 
-diff --git a/lib/framework/endian_hack.h b/lib/framework/endian_hack.h
-index 69ac88a..1bb0202 100644
---- a/lib/framework/endian_hack.h
-+++ b/lib/framework/endian_hack.h
-@@ -20,6 +20,14 @@
- #ifndef ENDIAN_HACK_H
- #define ENDIAN_HACK_H
- 
-+#include <string.h>
-+
-+/* Load/store a value of type T at a possibly unaligned address p (save game
-+ * buffers pack values of mixed sizes). ARM Linux and x86 tolerate unaligned
-+ * accesses; RISC OS traps them ("abort on data transfer"). */
-+#define WZ_LOAD(T, p)      ({ T wz_lv_; memcpy(&wz_lv_, (p), sizeof(wz_lv_)); wz_lv_; })
-+#define WZ_STORE(T, p, v)  do { T wz_sv_ = (v); memcpy((p), &wz_sv_, sizeof(wz_sv_)); } while (0)
-+
- /* Endianness hacks */
- // TODO Use SDL_SwapXXXX instead
- 
 diff --git a/lib/script/eventsave.c b/lib/script/eventsave.c
-index f28e804..0662d11 100644
+index f28e804..a1fc0e7 100644
 --- a/lib/script/eventsave.c
 +++ b/lib/script/eventsave.c
 @@ -54,7 +54,7 @@ static BOOL eventSaveContext(char *pBuffer, UDWORD *pSize)
@@ -52,12 +34,12 @@ index f28e804..0662d11 100644
  //not hashed			strcpy(pPos, pScriptID);
  //not hashed			pPos += strlen(pScriptID) + 1;
 -			*((UDWORD*)pPos) = (UDWORD)hashedName;
-+			WZ_STORE(UDWORD, pPos, (UDWORD)hashedName);
++			wz_store_u32(pPos, (UDWORD)hashedName);
  			endian_udword((UDWORD*)pPos);
  			pPos += sizeof(UDWORD);
  
 -			*((SWORD*)pPos) = (SWORD)numVars;
-+			WZ_STORE(SWORD, pPos, (SWORD)numVars);
++			wz_store_s16(pPos, (SWORD)numVars);
  			endian_sword((SWORD*)pPos);
  			pPos += sizeof(SWORD);
  
@@ -66,7 +48,7 @@ index f28e804..0662d11 100644
  						"eventSaveContext: variable type number too big" );
  
 -					*((SWORD*)pPos) = (SWORD)psVal->type;
-+					WZ_STORE(SWORD, pPos, (SWORD)psVal->type);
++					wz_store_s16(pPos, (SWORD)psVal->type);
  					endian_sword((SWORD*)pPos);
  
  					pPos += sizeof(SWORD);
@@ -75,7 +57,7 @@ index f28e804..0662d11 100644
  					if (pBuffer != NULL)
  					{
 -						*((UDWORD *)pPos) = stringLen;
-+						WZ_STORE(UDWORD, pPos, stringLen);
++						wz_store_u32(pPos, stringLen);
  						endian_udword((UDWORD *)pPos);
  						pPos += sizeof(UDWORD);
  
@@ -84,7 +66,7 @@ index f28e804..0662d11 100644
  					{
  /* FIXME: this does not work for VAL_OBJ_GETSET, VAL_FUNC_EXTERN */
 -						*((UDWORD *)pPos) = (UDWORD)psVal->v.ival;
-+						WZ_STORE(UDWORD, pPos, (UDWORD)psVal->v.ival);
++						wz_store_u32(pPos, (UDWORD)psVal->v.ival);
  						endian_udword((UDWORD*)pPos);
  						
  						pPos += sizeof(UDWORD);
@@ -106,7 +88,7 @@ index f28e804..0662d11 100644
 +						{
 +							UWORD wz_vs = (UWORD)valSize;
 +							endian_uword(&wz_vs);
-+							WZ_STORE(UWORD, pValSize, wz_vs);
++							wz_store_u16(pValSize, wz_vs);
 +						}
  
  						pPos += valSize;
@@ -116,7 +98,7 @@ index f28e804..0662d11 100644
  	if (pBuffer != NULL)
  	{
 -		*((SWORD *)pBuffer) = (SWORD)numContext;
-+		WZ_STORE(SWORD, pBuffer, (SWORD)numContext);
++		wz_store_s16(pBuffer, (SWORD)numContext);
  		endian_sword((SWORD*)pBuffer);
  	}
  	*pSize = size;
@@ -125,7 +107,7 @@ index f28e804..0662d11 100644
  	// get the number of contexts in the save file
  	endian_sword((SWORD*)pPos);
 -	numContext = *((SWORD *)pPos);
-+	numContext = WZ_LOAD(SWORD, pPos);
++	numContext = wz_load_s16(pPos);
  	pPos += sizeof(SWORD);
  	size += sizeof(SWORD);
  
@@ -134,7 +116,7 @@ index f28e804..0662d11 100644
  	    if(bHashed) {
      		endian_udword((UDWORD*)pPos);
 -    		hashedName = *((UDWORD*)pPos);
-+    		hashedName = WZ_LOAD(UDWORD, pPos);
++    		hashedName = wz_load_u32(pPos);
      		psCode = (SCRIPT_CODE*)resGetDataFromHash("SCRIPT", hashedName);
      		pPos += sizeof(UDWORD);
  	    } else {
@@ -143,11 +125,11 @@ index f28e804..0662d11 100644
     		numVars = psCode->numGlobals + psCode->arraySize;
          
 -		if (numVars != *((SWORD*)pPos))
-+		if (numVars != WZ_LOAD(SWORD, pPos))
++		if (numVars != wz_load_s16(pPos))
  		{
  			ASSERT(false, "Context %d of %d: Number of context variables (%d) does not match the script code (%d)", 
 -			       context, numContext, numVars, *((SWORD*)pPos));
-+			       context, numContext, numVars, WZ_LOAD(SWORD, pPos));
++			       context, numContext, numVars, wz_load_s16(pPos));
  			return false;
  		}
  		pPos += sizeof(SWORD);
@@ -156,7 +138,7 @@ index f28e804..0662d11 100644
  			// get the variable type
  			endian_sword((SWORD*)pPos);
 -			type = (INTERP_TYPE) *((SWORD*)pPos);
-+			type = (INTERP_TYPE) WZ_LOAD(SWORD, pPos);
++			type = (INTERP_TYPE) wz_load_s16(pPos);
  			pPos += sizeof(SWORD);
  			size += sizeof(SWORD);
  
@@ -165,13 +147,13 @@ index f28e804..0662d11 100644
  				switch (type) {
  				case VAL_BOOL:
 -					data.v.bval = *((BOOL*)pPos);
-+					data.v.bval = WZ_LOAD(BOOL, pPos);
++					data.v.bval = wz_load_s32(pPos);
  					pPos += sizeof(BOOL);
  					size += sizeof(BOOL);
  					break;
  				case VAL_FLOAT:
 -					data.v.fval = *((float*)pPos);
-+					data.v.fval = WZ_LOAD(float, pPos);
++					data.v.fval = wz_load_float(pPos);
  					pPos += sizeof(float);
  					size += sizeof(float);
  					break;
@@ -180,7 +162,7 @@ index f28e804..0662d11 100644
  				case VAL_OPCODE:
  				case VAL_PKOPCODE:
 -					data.v.ival = *((UDWORD *)pPos);
-+					data.v.ival = WZ_LOAD(UDWORD, pPos);
++					data.v.ival = wz_load_u32(pPos);
  					pPos += sizeof(UDWORD);
  					size += sizeof(UDWORD);
  					break;
@@ -189,7 +171,7 @@ index f28e804..0662d11 100644
  					strcpy(data.v.sval, "\0");
  
 -					stringLen = *((UDWORD *)pPos);	//read string length
-+					stringLen = WZ_LOAD(UDWORD, pPos);	//read string length
++					stringLen = wz_load_u32(pPos);	//read string length
  					
  					pPos += sizeof(UDWORD);
  					size += sizeof(UDWORD);
@@ -198,14 +180,14 @@ index f28e804..0662d11 100644
  				case VAL_OBJ_GETSET:
  /* FIXME: saving pointer on disk! */
 -					data.v.pObjGetSet = *((SCRIPT_VARFUNC*)pPos);
-+					data.v.pObjGetSet = WZ_LOAD(SCRIPT_VARFUNC, pPos);
++					memcpy(&data.v.pObjGetSet, pPos, sizeof(SCRIPT_VARFUNC));	// may be unaligned
  					pPos += sizeof(SCRIPT_VARFUNC);
  					size += sizeof(SCRIPT_VARFUNC);
  					break;
  				case VAL_FUNC_EXTERN:
  /* FIXME: saving pointer on disk! */
 -					data.v.pFuncExtern = *((SCRIPT_FUNC*)pPos);
-+					data.v.pFuncExtern = WZ_LOAD(SCRIPT_FUNC, pPos);
++					memcpy(&data.v.pFuncExtern, pPos, sizeof(SCRIPT_FUNC));	// may be unaligned
  					pPos += sizeof(SCRIPT_FUNC);
  					size += sizeof(SCRIPT_FUNC);
  					break;
@@ -214,7 +196,7 @@ index f28e804..0662d11 100644
  
  				endian_uword((UWORD*)pPos);
 -				valSize = *((UWORD *)pPos);
-+				valSize = WZ_LOAD(UWORD, pPos);
++				valSize = wz_load_u16(pPos);
  
  				pPos += sizeof(UWORD);
  				size += sizeof(UWORD);
@@ -223,7 +205,7 @@ index f28e804..0662d11 100644
  		if (pBuffer != NULL)
  		{
 -			*((UDWORD*)pPos) = psCurr->testTime;
-+			WZ_STORE(UDWORD, pPos, psCurr->testTime);
++			wz_store_u32(pPos, psCurr->testTime);
  			endian_udword((UDWORD*)pPos);
  
  			pPos += sizeof(UDWORD);
@@ -232,23 +214,23 @@ index f28e804..0662d11 100644
  				return false;
  			}
 -			*((SWORD*)pPos) = (SWORD)context;
-+			WZ_STORE(SWORD, pPos, (SWORD)context);
++			wz_store_s16(pPos, (SWORD)context);
  			endian_sword((SWORD*)pPos);
  			pPos += sizeof(SWORD);
 -			*((SWORD*)pPos) = psCurr->type;
-+			WZ_STORE(SWORD, pPos, psCurr->type);
++			wz_store_s16(pPos, psCurr->type);
  			endian_sword((SWORD*)pPos);
  			pPos += sizeof(SWORD);
 -			*((SWORD*)pPos) = psCurr->trigger;
-+			WZ_STORE(SWORD, pPos, psCurr->trigger);
++			wz_store_s16(pPos, psCurr->trigger);
  			endian_sword((SWORD*)pPos);
  			pPos += sizeof(SWORD);
 -			*((UWORD*)pPos) = psCurr->event;
-+			WZ_STORE(UWORD, pPos, psCurr->event);
++			wz_store_u16(pPos, psCurr->event);
  			endian_uword((UWORD*)pPos);
  			pPos += sizeof(UWORD);
 -			*((UWORD*)pPos) = psCurr->offset;
-+			WZ_STORE(UWORD, pPos, psCurr->offset);
++			wz_store_u16(pPos, psCurr->offset);
  			endian_uword((UWORD*)pPos);
  			pPos += sizeof(UWORD);
  		}
@@ -257,7 +239,7 @@ index f28e804..0662d11 100644
  	if (pBuffer != NULL)
  	{
 -		*((SDWORD*)pBuffer) = numTriggers;
-+		WZ_STORE(SDWORD, pBuffer, numTriggers);
++		wz_store_s32(pBuffer, numTriggers);
  		endian_sdword((SDWORD*)pBuffer);
  	}
  
@@ -266,7 +248,7 @@ index f28e804..0662d11 100644
  	// get the number of triggers
  	endian_sdword((SDWORD*)pPos);
 -	numTriggers = *((SDWORD*)pPos);
-+	numTriggers = WZ_LOAD(SDWORD, pPos);
++	numTriggers = wz_load_s32(pPos);
  	pPos += sizeof(SDWORD);
  	size += sizeof(SDWORD);
  
@@ -274,12 +256,12 @@ index f28e804..0662d11 100644
  	{
  		endian_udword((UDWORD*)pPos);
 -		time = *((UDWORD*)pPos);
-+		time = WZ_LOAD(UDWORD, pPos);
++		time = wz_load_u32(pPos);
  		pPos += sizeof(UDWORD);
  
  		endian_sword((SWORD*)pPos);
 -		context = *((SWORD*)pPos);
-+		context = WZ_LOAD(SWORD, pPos);
++		context = wz_load_s16(pPos);
  		pPos += sizeof(SWORD);
  		if (!eventFindContext(context, &psContext))
  		{
@@ -288,27 +270,27 @@ index f28e804..0662d11 100644
  
  		endian_sword((SWORD*)pPos);
 -		type = *((SWORD*)pPos);
-+		type = WZ_LOAD(SWORD, pPos);
++		type = wz_load_s16(pPos);
  		pPos += sizeof(SWORD);
  
  		endian_sword((SWORD*)pPos);
 -		trigger = *((SWORD*)pPos);
-+		trigger = WZ_LOAD(SWORD, pPos);
++		trigger = wz_load_s16(pPos);
  		pPos += sizeof(SWORD);
  
  		endian_uword((UWORD*)pPos);
 -		event = *((UWORD*)pPos);
-+		event = WZ_LOAD(UWORD, pPos);
++		event = wz_load_u16(pPos);
  		pPos += sizeof(UWORD);
  
  		endian_uword((UWORD*)pPos);
 -		offset = *((UWORD*)pPos);
-+		offset = WZ_LOAD(UWORD, pPos);
++		offset = wz_load_u16(pPos);
  		pPos += sizeof(UWORD);
  
  		size += sizeof(UDWORD) + sizeof(SWORD)*3 + sizeof(UWORD)*2;
 diff --git a/src/scriptobj.c b/src/scriptobj.c
-index 612c81c..7171705 100644
+index 612c81c..a914047 100644
 --- a/src/scriptobj.c
 +++ b/src/scriptobj.c
 @@ -772,11 +772,11 @@ BOOL scrValDefSave(INTERP_VAL *psVal, char *pBuffer, UDWORD *pSize)
@@ -316,12 +298,12 @@ index 612c81c..7171705 100644
  			if (psVal->v.oval == NULL || ((BASE_OBJECT *)psVal->v.oval)->died > 1 || !getBaseObjFromId(((BASE_OBJECT *)psVal->v.oval)->id))
  			{
 -				*((UDWORD*)pBuffer) = UDWORD_MAX;
-+				WZ_STORE(UDWORD, pBuffer, UDWORD_MAX);
++				wz_store_u32(pBuffer, UDWORD_MAX);
  			}
  			else
  			{
 -				*((UDWORD*)pBuffer) = ((BASE_OBJECT *)psVal->v.oval)->id;
-+				WZ_STORE(UDWORD, pBuffer, ((BASE_OBJECT *)psVal->v.oval)->id);
++				wz_store_u32(pBuffer, ((BASE_OBJECT *)psVal->v.oval)->id);
  			}
  			endian_udword((UDWORD*)pBuffer);
  		}
@@ -330,12 +312,12 @@ index 612c81c..7171705 100644
  			if (psVal->v.oval == NULL)
  			{
 -				*((UDWORD*)pBuffer) = UDWORD_MAX;
-+				WZ_STORE(UDWORD, pBuffer, UDWORD_MAX);
++				wz_store_u32(pBuffer, UDWORD_MAX);
  			}
  			else
  			{
 -				*((UDWORD*)pBuffer) = ((DROID_TEMPLATE *)psVal->v.oval)->multiPlayerID;
-+				WZ_STORE(UDWORD, pBuffer, ((DROID_TEMPLATE *)psVal->v.oval)->multiPlayerID);
++				wz_store_u32(pBuffer, ((DROID_TEMPLATE *)psVal->v.oval)->multiPlayerID);
  			}
  			endian_udword((UDWORD*)pBuffer);
  		}
@@ -344,7 +326,7 @@ index 612c81c..7171705 100644
  		if (pBuffer)
  		{
 -			*((uint16_t*)pBuffer) = len;
-+			WZ_STORE(uint16_t, pBuffer, len);
++			wz_store_u16(pBuffer, len);
  			endian_uword((uint16_t*)pBuffer);
  
  			memcpy(pBuffer + sizeof(len), idStr, len);
@@ -353,7 +335,7 @@ index 612c81c..7171705 100644
  			pPos = pBuffer;
  
 -			*((SDWORD *)pPos) = members;
-+			WZ_STORE(SDWORD, pPos, members);
++			wz_store_s32(pPos, members);
  			endian_sdword((SDWORD*)pPos);
  			pPos += sizeof(SDWORD);
  
@@ -361,23 +343,23 @@ index 612c81c..7171705 100644
  			{
  				// store the run data
 -				*((SDWORD *)pPos) = psGroup->sRunData.sPos.x;
-+				WZ_STORE(SDWORD, pPos, psGroup->sRunData.sPos.x);
++				wz_store_s32(pPos, psGroup->sRunData.sPos.x);
  				endian_sdword((SDWORD*)pPos);
  				pPos += sizeof(SDWORD);
 -				*((SDWORD *)pPos) = psGroup->sRunData.sPos.y;
-+				WZ_STORE(SDWORD, pPos, psGroup->sRunData.sPos.y);
++				wz_store_s32(pPos, psGroup->sRunData.sPos.y);
  				endian_sdword((SDWORD*)pPos);
  				pPos += sizeof(SDWORD);
 -				*((SDWORD *)pPos) = psGroup->sRunData.forceLevel;
-+				WZ_STORE(SDWORD, pPos, psGroup->sRunData.forceLevel);
++				wz_store_s32(pPos, psGroup->sRunData.forceLevel);
  				endian_sdword((SDWORD*)pPos);
  				pPos += sizeof(SDWORD);
 -				*((SDWORD *)pPos) = psGroup->sRunData.leadership;
-+				WZ_STORE(SDWORD, pPos, psGroup->sRunData.leadership);
++				wz_store_s32(pPos, psGroup->sRunData.leadership);
  				endian_sdword((SDWORD*)pPos);
  				pPos += sizeof(SDWORD);
 -				*((SDWORD *)pPos) = psGroup->sRunData.healthLevel;
-+				WZ_STORE(SDWORD, pPos, psGroup->sRunData.healthLevel);
++				wz_store_s32(pPos, psGroup->sRunData.healthLevel);
  				endian_sdword((SDWORD*)pPos);
  				pPos += sizeof(SDWORD);
  
@@ -386,7 +368,7 @@ index 612c81c..7171705 100644
  					checkValidId(psCDroid->id);
  
 -					*((UDWORD *)pPos) = psCDroid->id;
-+					WZ_STORE(UDWORD, pPos, psCDroid->id);
++					wz_store_u32(pPos, psCDroid->id);
  					endian_udword((UDWORD*)pPos);
  
  					pPos += sizeof(UDWORD);
@@ -395,7 +377,7 @@ index 612c81c..7171705 100644
  		if (pBuffer)
  		{
 -			*((UDWORD *)pBuffer) = psVal->v.ival;
-+			WZ_STORE(UDWORD, pBuffer, psVal->v.ival);
++			wz_store_u32(pBuffer, psVal->v.ival);
  			endian_udword((UDWORD*)pBuffer);
  		}
  		*pSize = sizeof(UDWORD);
@@ -404,7 +386,7 @@ index 612c81c..7171705 100644
  	case ST_STRUCTURE:
  	case ST_FEATURE:
 -		id = *((UDWORD *)pBuffer);
-+		id = WZ_LOAD(UDWORD, pBuffer);
++		id = wz_load_u32(pBuffer);
  		endian_udword(&id);
  
  		if (id == UDWORD_MAX)
@@ -413,7 +395,7 @@ index 612c81c..7171705 100644
  		break;
  	case ST_TEMPLATE:
 -		id = *((UDWORD *)pBuffer);
-+		id = WZ_LOAD(UDWORD, pBuffer);
++		id = wz_load_u32(pBuffer);
  		endian_udword(&id);
  
  		if (id == UDWORD_MAX)
@@ -422,7 +404,7 @@ index 612c81c..7171705 100644
  			}
  
 -			id = *((UDWORD*)pBuffer);
-+			id = WZ_LOAD(UDWORD, pBuffer);
++			id = wz_load_u32(pBuffer);
  			endian_udword(&id);
  
  			if (id == UDWORD_MAX)
@@ -431,7 +413,7 @@ index 612c81c..7171705 100644
  			}
  
 -			len = *((uint16_t*)pBuffer);
-+			len = WZ_LOAD(uint16_t, pBuffer);
++			len = wz_load_u16(pBuffer);
  			endian_uword(&len);
  
  			if (size < sizeof(len) + len)
@@ -440,12 +422,12 @@ index 612c81c..7171705 100644
  			// get saved group member count/nullpointer flag
  			endian_sdword((SDWORD*)pPos);
 -			bObjectDefined = ( *((SDWORD *)pPos) != UNALLOCATED_OBJECT );
-+			bObjectDefined = ( WZ_LOAD(SDWORD, pPos) != UNALLOCATED_OBJECT );
++			bObjectDefined = ( wz_load_s32(pPos) != UNALLOCATED_OBJECT );
  
  			if(bObjectDefined)
  			{
 -				savedMembers = *((SDWORD *)pPos);	// get number of saved group members
-+				savedMembers = WZ_LOAD(SDWORD, pPos);	// get number of saved group members
++				savedMembers = wz_load_s32(pPos);	// get number of saved group members
  
  				ASSERT(savedMembers == members, "scrValDefLoad: calculated and saved group member count did not match." );
  			}
@@ -454,26 +436,26 @@ index 612c81c..7171705 100644
  				psGroup = (DROID_GROUP*)(psVal->v.oval);
  				endian_sdword((SDWORD*)pPos);
 -				psGroup->sRunData.sPos.x = *((SDWORD *)pPos);
-+				psGroup->sRunData.sPos.x = WZ_LOAD(SDWORD, pPos);
++				psGroup->sRunData.sPos.x = wz_load_s32(pPos);
  				pPos += sizeof(SDWORD);
  				endian_sdword((SDWORD*)pPos);
 -				psGroup->sRunData.sPos.y = *((SDWORD *)pPos);
-+				psGroup->sRunData.sPos.y = WZ_LOAD(SDWORD, pPos);
++				psGroup->sRunData.sPos.y = wz_load_s32(pPos);
  				pPos += sizeof(SDWORD);
  				endian_sdword((SDWORD*)pPos);
 -				psGroup->sRunData.forceLevel = (UBYTE)(*((SDWORD *)pPos));
-+				psGroup->sRunData.forceLevel = (UBYTE)(WZ_LOAD(SDWORD, pPos));
++				psGroup->sRunData.forceLevel = (UBYTE)(wz_load_s32(pPos));
  				pPos += sizeof(SDWORD);
  				endian_sdword((SDWORD*)pPos);
 -				psGroup->sRunData.leadership = (UBYTE)(*((SDWORD *)pPos));
-+				psGroup->sRunData.leadership = (UBYTE)(WZ_LOAD(SDWORD, pPos));
++				psGroup->sRunData.leadership = (UBYTE)(wz_load_s32(pPos));
  				pPos += sizeof(SDWORD);
  			}
  			if (version >= 3)
  			{
  				endian_sdword((SDWORD*)pPos);
 -				psGroup->sRunData.healthLevel = (UBYTE)(*((SDWORD *)pPos));
-+				psGroup->sRunData.healthLevel = (UBYTE)(WZ_LOAD(SDWORD, pPos));
++				psGroup->sRunData.healthLevel = (UBYTE)(wz_load_s32(pPos));
  				pPos += sizeof(SDWORD);
  			}
  
@@ -482,7 +464,7 @@ index 612c81c..7171705 100644
  			{
  				endian_udword((UDWORD*)pPos);
 -				id = *((UDWORD *) pPos);
-+				id = WZ_LOAD(UDWORD, pPos);
++				id = wz_load_u32(pPos);
  				psCDroid = (DROID *)getBaseObjFromId(id);
  				if (!psCDroid)
  				{
@@ -491,7 +473,7 @@ index 612c81c..7171705 100644
  	default:
  		// just set the contents directly
 -		psVal->v.ival = *((SDWORD *)pBuffer);
-+		psVal->v.ival = WZ_LOAD(SDWORD, pBuffer);
++		psVal->v.ival = wz_load_s32(pBuffer);
  		endian_sdword(&psVal->v.ival);
  		break;
  	}

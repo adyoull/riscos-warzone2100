@@ -1,20 +1,49 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Andrew Youll <adyoull@users.noreply.github.com>
-Date: Sat, 26 Sep 2026 22:04:14 +0100
+Date: Sat, 26 Sep 2026 22:47:54 +0100
 Subject: [PATCH 08/11] RISC OS: pack the map file structures
 
 Map tiles are 3 bytes, so MAP_SAVETILE (a UWORD at odd addresses) and the
 gateway header after the tiles were read with unaligned ldrh/ldr. RISC OS
 traps unaligned accesses: loading any map (skirmish setup, the campaign)
 stopped with an "EMT trap" (abort on data transfer) in mapLoadV3. The
-three file structures are now packed, so they are read and written a byte
-at a time; the file format doesn't change.
+three file structures are now declared WZ_DECL_PACKED (new in wzglobal.h,
+alongside WZ_DECL_UNUSED), so GCC reads and writes their members a byte at
+a time. The file format doesn't change.
 ---
- src/map.c | 12 ++++++++----
- 1 file changed, 8 insertions(+), 4 deletions(-)
+ lib/framework/wzglobal.h | 16 ++++++++++++++++
+ src/map.c                | 12 ++++++++----
+ 2 files changed, 24 insertions(+), 4 deletions(-)
 
+diff --git a/lib/framework/wzglobal.h b/lib/framework/wzglobal.h
+index 6f4b5c4..40fd546 100644
+--- a/lib/framework/wzglobal.h
++++ b/lib/framework/wzglobal.h
+@@ -388,6 +388,22 @@
+ #endif
+ 
+ 
++/*!
++ * \def WZ_DECL_PACKED
++ * The structure has no padding and its members may be at any address, so
++ * the compiler reads and writes them without assuming alignment. Use it for
++ * structures laid over file or network data. Place it after the closing
++ * brace: typedef struct { ... } WZ_DECL_PACKED NAME;
++ * (Other compilers get nothing: the code using it doesn't depend on
++ * sizeof, and x86 tolerates the unaligned accesses.)
++ */
++#if defined(WZ_CC_GNU) || defined(WZ_CC_INTEL)
++#  define WZ_DECL_PACKED __attribute__((packed))
++#else
++#  define WZ_DECL_PACKED
++#endif
++
++
+ /*!
+  * \def WZ_DECL_WARN_UNUSED_RESULT
+  * Warn if return value is unused.
 diff --git a/src/map.c b/src/map.c
-index 23c5153..ff86dee 100644
+index 23c5153..cf3961e 100644
 --- a/src/map.c
 +++ b/src/map.c
 @@ -60,7 +60,11 @@ struct ffnode
@@ -35,14 +64,14 @@ index 23c5153..ff86dee 100644
  	UWORD		texture;
  	UBYTE		height;
 -} MAP_SAVETILE;
-+} __attribute__((packed)) MAP_SAVETILE;
++} WZ_DECL_PACKED MAP_SAVETILE;
  
  typedef struct _gateway_save_header
  {
  	UDWORD		version;
  	UDWORD		numGateways;
 -} GATEWAY_SAVEHEADER;
-+} __attribute__((packed)) GATEWAY_SAVEHEADER;
++} WZ_DECL_PACKED GATEWAY_SAVEHEADER;
  
  typedef struct _gateway_save
  {
@@ -51,7 +80,7 @@ index 23c5153..ff86dee 100644
  	UWORD numEquivZones;
  	UWORD pad;
 -} ZONEMAP_SAVEHEADER;
-+} __attribute__((packed)) ZONEMAP_SAVEHEADER;
++} WZ_DECL_PACKED ZONEMAP_SAVEHEADER;
  
  /* Sanity check definitions for the save struct file sizes */
  #define SAVE_HEADER_SIZE	16

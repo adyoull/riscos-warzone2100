@@ -38,7 +38,8 @@ Things to know
 - Texture filtering is cheaper than on other systems (bilinear, no
   anisotropic filtering). For more speed use unfiltered textures, for
   better quality the usual ones: see "Texture filtering" in !Run
-  (Warzone2100$Filter nearest / smooth / best).
+  (Warzone2100$Filter nearest / smooth / best / fast). The game keeps the
+  last choice in its Choices.
 - There is no sound or music in this build yet.
 - The campaign videos (sequences.wz) and music are separate downloads and
   are not included. The game runs without them.

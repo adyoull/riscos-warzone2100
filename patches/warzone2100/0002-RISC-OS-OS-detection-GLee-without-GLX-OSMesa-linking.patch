@@ -1,6 +1,6 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Andrew Youll <adyoull@users.noreply.github.com>
-Date: Sat, 26 Sep 2026 22:04:14 +0100
+Date: Sat, 26 Sep 2026 22:47:54 +0100
 Subject: [PATCH 02/11] RISC OS: OS detection, GLee without GLX, OSMesa linking
  in configure
 
@@ -255,14 +255,14 @@ index 6582159..45af031 100644
  GLEE_EXTERN const char * GLeeGetExtStrGLX( void );
  #endif
 diff --git a/lib/ivis_opengl/piestate.c b/lib/ivis_opengl/piestate.c
-index bb62d1c..d744601 100644
+index bb62d1c..6ca49ad 100644
 --- a/lib/ivis_opengl/piestate.c
 +++ b/lib/ivis_opengl/piestate.c
 @@ -26,7 +26,11 @@
  
  #include <SDL.h>
  #include <SDL_mouse.h>
-+#if defined(__riscos__)
++#if defined(WZ_OS_RISCOS)
 +#include <GLee.h>  // not SDL_opengl.h: its glext definitions clash with GLee
 +#else
  #include <SDL_opengl.h>

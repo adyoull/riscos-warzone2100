@@ -1,6 +1,6 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Andrew Youll <adyoull@users.noreply.github.com>
-Date: Sat, 26 Sep 2026 22:04:14 +0100
+Date: Sat, 26 Sep 2026 22:47:54 +0100
 Subject: [PATCH 03/11] Build fixes for cross-compiling to RISC OS
 
 - configure.ac: the GCCSDK triplet is arm-riscos-gnueabihf (OS field
@@ -231,12 +231,12 @@ index a23f94b..b9264bc 100644
  #include <GL/gl.h>
  #endif
 diff --git a/lib/ivis_opengl/piestate.c b/lib/ivis_opengl/piestate.c
-index d744601..2a0d3ce 100644
+index 6ca49ad..2db515a 100644
 --- a/lib/ivis_opengl/piestate.c
 +++ b/lib/ivis_opengl/piestate.c
 @@ -28,6 +28,7 @@
  #include <SDL_mouse.h>
- #if defined(__riscos__)
+ #if defined(WZ_OS_RISCOS)
  #include <GLee.h>  // not SDL_opengl.h: its glext definitions clash with GLee
 +#include <GL/glu.h> // gluErrorString (SDL_opengl.h brought this in)
  #else

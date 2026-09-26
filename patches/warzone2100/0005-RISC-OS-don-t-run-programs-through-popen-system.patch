@@ -1,6 +1,6 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Andrew Youll <adyoull@users.noreply.github.com>
-Date: Sat, 26 Sep 2026 22:04:14 +0100
+Date: Sat, 26 Sep 2026 22:47:54 +0100
 Subject: [PATCH 05/11] RISC OS: don't run programs through popen()/system()
 
 UnixLib runs a child program as a *command inside our own memory, which
@@ -39,7 +39,7 @@ index 73fbd9b..3cafd18 100644
  	{
  		FILE * whichProgramStream;
 diff --git a/src/frontend.c b/src/frontend.c
-index 91560a2..1474f7c 100644
+index 91560a2..074046f 100644
 --- a/src/frontend.c
 +++ b/src/frontend.c
 @@ -46,6 +46,10 @@
@@ -47,7 +47,7 @@ index 91560a2..1474f7c 100644
  #include "frend.h"
  #include "frontend.h"
 +
-+#if defined(__riscos__)
++#if defined(WZ_OS_RISCOS)
 +#include <swis.h>
 +#endif
  #include "hci.h"
@@ -57,7 +57,7 @@ index 91560a2..1474f7c 100644
  #elif defined (WZ_OS_MAC)
  	// For the macs
  	system("open http://wz2100.net");
-+#elif defined(__riscos__)
++#elif defined(WZ_OS_RISCOS)
 +	// RISC OS: hand the URL to whatever browser has claimed the URI
 +	// protocol. Start it as a Wimp task, not with system(): UnixLib's
 +	// system() runs the command as a child program inside our memory.

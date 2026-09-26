@@ -1,21 +1,25 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Andrew Youll <adyoull@users.noreply.github.com>
-Date: Sat, 26 Sep 2026 22:04:14 +0100
+Date: Sat, 26 Sep 2026 22:47:54 +0100
 Subject: [PATCH 06/11] RISC OS: 800x600 window by default; mark start and exit
  in the log
 
 With no size in the config the game opened a window the size of the
 desktop (upstream uses the desktop mode), far too slow for software
 OpenGL. On RISC OS a desktop window now starts at 800x600 (640x480 on
-small screens); full screen still uses the desktop size.
+small screens); full screen still uses the desktop size. This is decided
+in screenInitialise() because only there is the final window/full screen
+choice (config, then command line) known.
 
-The log is empty in a normal run, which made an empty log after a crash
-ambiguous: it now says when the game starts, when SDL_QUIT arrives and
-when exit() runs.
+A normal run logs nothing, which made an empty log after a crash
+ambiguous. The game now logs "started" and "quit requested (SDL_QUIT)"
+with debug(LOG_INFO), so they reach the WZlog file too, and an atexit()
+handler writes "exit() called" to stderr (the debug system is closed by
+then).
 ---
  lib/ivis_opengl/screen.c | 18 ++++++++++++++++++
- src/main.c               | 18 ++++++++++++++++++
- 2 files changed, 36 insertions(+)
+ src/main.c               | 21 +++++++++++++++++++++
+ 2 files changed, 39 insertions(+)
 
 diff --git a/lib/ivis_opengl/screen.c b/lib/ivis_opengl/screen.c
 index 8a602d3..5c7e2e4 100644
@@ -47,7 +51,7 @@ index 8a602d3..5c7e2e4 100644
  	{
  		pie_SetVideoBufferWidth(width = screenWidth = desktop.w);
 diff --git a/src/main.c b/src/main.c
-index 07fac08..9f79839 100644
+index 07fac08..8d01d05 100644
 --- a/src/main.c
 +++ b/src/main.c
 @@ -1019,6 +1019,9 @@ static void mainLoop(void)
@@ -55,20 +59,22 @@ index 07fac08..9f79839 100644
  					break;
  				case SDL_QUIT:
 +#if defined(WZ_OS_RISCOS)
-+					fprintf(stderr, "Warzone 2100: quit requested (SDL_QUIT)\n");
++					debug(LOG_INFO, "quit requested (SDL_QUIT)");
 +#endif
  					saveConfig();
  					return;
  				default:
-@@ -1057,12 +1060,27 @@ static void mainLoop(void)
+@@ -1057,6 +1060,19 @@ static void mainLoop(void)
  }
  
  
 +#if defined(WZ_OS_RISCOS)
-+/* The log (<Wimp$ScrapDir>.Warzone2100log) is empty when all is well, so
-+   mark start and exit: a log with the first line but not the second means
-+   the program was stopped from outside (an error box, or a crash UnixLib
-+   couldn't report). */
++/* A normal run logs nothing, so an empty log after a crash was ambiguous.
++   main() logs "started" (in the WZlog file and on stderr); this atexit
++   handler marks exit(). It writes to stderr directly: by the time it runs,
++   systemShutdown() has closed the debug system. A log with "started" but no
++   "exit() called" means the program was stopped from outside (an error
++   box, or a crash UnixLib couldn't report). */
 +static void riscos_log_exit(void)
 +{
 +	fprintf(stderr, "Warzone 2100: exit() called, shutting down\n");
@@ -78,13 +84,15 @@ index 07fac08..9f79839 100644
  int main(int argc, char *argv[])
  {
  	setupExceptionHandler(argc, argv);
- 
- 	debug_init();
- 	debug_register_callback( debug_callback_stderr, NULL, NULL, NULL );
+@@ -1086,6 +1102,11 @@ int main(int argc, char *argv[])
+ 	 * directory.
+ 	 */
+ 	initialize_ConfigDir();
 +#if defined(WZ_OS_RISCOS)
-+	fprintf(stderr, "Warzone 2100 %s (RISC OS) started\n", PACKAGE_VERSION);
++	// after initialize_ConfigDir(), so it also reaches the WZlog file
++	debug(LOG_INFO, "Warzone 2100 %s (RISC OS) started", PACKAGE_VERSION);
 +	atexit(riscos_log_exit);
 +#endif
- #if defined(WZ_OS_WIN) && defined(DEBUG_INSANE)
- 	debug_register_callback( debug_callback_win32debug, NULL, NULL, NULL );
- #endif // WZ_OS_WIN && DEBUG_INSANE
+ 
+ 	/*** Initialize directory structure ***/
+ 	make_dir(ScreenDumpPath, "screenshots", NULL);

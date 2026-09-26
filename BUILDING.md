@@ -83,9 +83,21 @@ tools/wz-patches.sh check               # the series reproduces src/warzone2100-
 ```
 
 Keep one change per patch, with a commit message that says what went wrong
-and why the change fixes it. Guard RISC OS-only code with
-`#if defined(WZ_OS_RISCOS)` (or `__riscos__` outside the game's own
-headers), so other platforms keep upstream's behaviour.
+and why the change fixes it. Follow Warzone's own conventions:
+
+- Guard RISC OS-only code with `#if defined(WZ_OS_RISCOS)` (from
+  `wzglobal.h`), so other platforms keep upstream's behaviour. Use
+  `__riscos__` only where `wzglobal.h` isn't included: GLee, and `tex.h`'s
+  include chain, which tests `__APPLE__` the same way.
+- Put compiler-specific syntax behind a `WZ_DECL_*` macro in `wzglobal.h`
+  (for example `WZ_DECL_PACKED`), not raw `__attribute__`.
+- New settings are config keys (`configuration.c`: load with a default,
+  save), with a command-line option if useful (`clparse.c`). The rest of
+  the game reads them through a setter and getter. RISC OS variables are
+  only used in `!Run`, to build the command line.
+- Log with `debug()`: `LOG_INFO`, `LOG_ERROR` and `LOG_WARNING` reach the
+  WZlog file and stderr. Use plain `fprintf(stderr)` only after the debug
+  system has shut down.
 
 Don't run `make -B` in `src/warzone2100-2.3.9`. It re-runs configure
 without `env.sh`'s settings and breaks the Makefile. If that happens, delete
@@ -108,8 +120,9 @@ PATH=$GCCSDK_ENV/bin:$PATH python3 tools/check-stack-probes.py src/warzone2100-2
   - network messages;
   - map files;
   - save games.
-  Use `memcpy`, `WZ_LOAD`/`WZ_STORE` (`lib/framework/endian_hack.h`) or a
-  packed struct. `check-unaligned.sh` finds the casts.
+  Use `wz_load_u16/s16/u32/s32/float` and `wz_store_*`
+  (`lib/framework/endian_hack.h`), or a `WZ_DECL_PACKED` struct.
+  `check-unaligned.sh` finds the casts.
 - **No `popen()`, `system()`, `fork()` or `exec()`.** UnixLib runs a child
   as a *command inside our own memory. To launch something, use
   `Wimp_StartTask`.

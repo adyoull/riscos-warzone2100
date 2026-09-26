@@ -2,7 +2,7 @@
 # List casts in Warzone 2100's own code that can produce unaligned 16/32-bit
 # loads or stores. RISC OS traps those ("abort on data transfer", reported
 # by UnixLib as "Fatal signal received: EMT trap"); Linux doesn't, so the
-# upstream code has them. Fix any it reports with memcpy, WZ_LOAD/WZ_STORE
+# upstream code has them. Fix any it reports with wz_load_*/wz_store_*
 # (lib/framework/endian_hack.h) or a packed struct.
 #
 #   tools/check-unaligned.sh [-a]     (after build/build-wz.sh has configured)

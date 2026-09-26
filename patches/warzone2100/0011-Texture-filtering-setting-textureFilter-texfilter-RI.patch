@@ -1,0 +1,243 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Andrew Youll <adyoull@users.noreply.github.com>
+Date: Sat, 26 Sep 2026 22:47:54 +0100
+Subject: [PATCH 11/11] Texture filtering setting (textureFilter, --texfilter);
+ RISC OS defaults to fast
+
+Terrain and model textures always used trilinear filtering with 4x
+anisotropy. Mesa's software rasteriser implements anisotropy with several
+trilinear lookups per pixel, the slowest texture path it has.
+
+The filtering of mipmapped 3D textures is now a setting: the config key
+"textureFilter" and the option --texfilter=best|smooth|fast|nearest
+(TEXFILTER in tex.h: trilinear + anisotropic, trilinear, bilinear from the
+nearest mipmap level, unfiltered). pie_AddTexPage and the terrain pages
+apply it through pie_Set3DTextureFilter(). The default stays "best"
+except on RISC OS, where it is "fast".
+---
+ lib/ivis_common/tex.h | 14 ++++++++++
+ lib/ivis_opengl/tex.c | 60 +++++++++++++++++++++++++++++++++++--------
+ src/clparse.c         | 19 ++++++++++++++
+ src/configuration.c   | 17 ++++++++++++
+ src/texture.c         | 12 +--------
+ 5 files changed, 100 insertions(+), 22 deletions(-)
+
+diff --git a/lib/ivis_common/tex.h b/lib/ivis_common/tex.h
+index b9264bc..e717d28 100644
+--- a/lib/ivis_common/tex.h
++++ b/lib/ivis_common/tex.h
+@@ -61,6 +61,20 @@ extern unsigned int iV_getPixelFormat(const iV_Image *image);
+ 
+ extern int pie_ReplaceTexPage(iV_Image *s, const char *texPage, int maxTextureSize);
+ extern int pie_AddTexPage(iV_Image *s, const char *filename, int slot, int maxTextureSize);
++/** Filtering of mipmapped 3D textures (terrain, models). */
++typedef enum
++{
++	TEXFILTER_BEST,		///< trilinear + 4x anisotropic (the default)
++	TEXFILTER_SMOOTH,	///< trilinear, no anisotropy
++	TEXFILTER_FAST,		///< bilinear from the nearest mipmap level
++	TEXFILTER_NEAREST,	///< no filtering
++	TEXFILTER_COUNT
++} TEXFILTER;
++/** Choose the filtering for 3D textures loaded from now on. */
++extern void pie_SetTextureFilter(TEXFILTER filter);
++extern TEXFILTER pie_GetTextureFilter(void);
++/** Apply the chosen filtering to the bound 3D texture. */
++extern void pie_Set3DTextureFilter(void);
+ extern void pie_TexInit(void);
+ 
+ extern void pie_InitSkybox(SDWORD pageNum);
+diff --git a/lib/ivis_opengl/tex.c b/lib/ivis_opengl/tex.c
+index 0e0c926..d9fb605 100644
+--- a/lib/ivis_opengl/tex.c
++++ b/lib/ivis_opengl/tex.c
+@@ -137,17 +137,7 @@ int pie_AddTexPage(iV_Image *s, const char* filename, int slot, int maxTextureSi
+ 	s->bmp = NULL;
+ 
+ 	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+-
+-	// Use anisotropic filtering, if available, but only max 4.0 to reduce processor burden
+-	if (GLEE_EXT_texture_filter_anisotropic)
+-	{
+-		GLfloat max;
+-
+-		glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &max);
+-		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, MIN(4.0f, max));
+-	}
++	pie_Set3DTextureFilter();
+ 
+ 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+ 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+@@ -315,3 +305,51 @@ unsigned int iV_getPixelFormat(const iV_Image *image)
+ 			return GL_INVALID_ENUM;
+ 	}
+ }
++
++
++static TEXFILTER textureFilter = TEXFILTER_BEST;
++
++void pie_SetTextureFilter(TEXFILTER filter)
++{
++	textureFilter = (filter < TEXFILTER_COUNT) ? filter : TEXFILTER_BEST;
++}
++
++TEXFILTER pie_GetTextureFilter(void)
++{
++	return textureFilter;
++}
++
++/*!
++ * Filtering for mipmapped 3D textures. Upstream always used trilinear
++ * filtering with 4x anisotropy (TEXFILTER_BEST). With software OpenGL
++ * anisotropic sampling alone costs several trilinear lookups per pixel, so
++ * the choice is a setting (config "textureFilter", --texfilter).
++ */
++void pie_Set3DTextureFilter(void)
++{
++	GLint minFilter = GL_LINEAR_MIPMAP_LINEAR, magFilter = GL_LINEAR;
++
++	switch (textureFilter)
++	{
++		case TEXFILTER_FAST:
++			minFilter = GL_LINEAR_MIPMAP_NEAREST;
++			break;
++		case TEXFILTER_NEAREST:
++			minFilter = GL_NEAREST_MIPMAP_NEAREST;
++			magFilter = GL_NEAREST;
++			break;
++		default:
++			break;
++	}
++	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, minFilter);
++	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, magFilter);
++
++	// Use anisotropic filtering, if available, but only max 4.0 to reduce processor burden
++	if (textureFilter == TEXFILTER_BEST && GLEE_EXT_texture_filter_anisotropic)
++	{
++		GLfloat max;
++
++		glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &max);
++		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, MIN(4.0f, max));
++	}
++}
+diff --git a/src/clparse.c b/src/clparse.c
+index ff2f625..7e4b412 100644
+--- a/src/clparse.c
++++ b/src/clparse.c
+@@ -28,6 +28,7 @@
+ 
+ #include "lib/framework/frame.h"
+ #include "lib/netplay/netplay.h"
++#include "lib/ivis_common/tex.h"
+ 
+ #include "clparse.h"
+ #include "display3d.h"
+@@ -65,6 +66,7 @@ typedef enum
+ 	CLI_RESOLUTION,
+ 	CLI_SHADOWS,
+ 	CLI_NOSHADOWS,
++	CLI_TEXFILTER,
+ 	CLI_SOUND,
+ 	CLI_NOSOUND,
+ 	CLI_SELFTEST,
+@@ -100,6 +102,7 @@ static const struct poptOption* getOptionsTable(void)
+ 		{ "resolution", '\0', POPT_ARG_STRING, NULL, CLI_RESOLUTION, N_("Set the resolution to use"),         N_("WIDTHxHEIGHT") },
+ 		{ "shadows",    '\0', POPT_ARG_NONE,   NULL, CLI_SHADOWS,    N_("Enable shadows"),                    NULL },
+ 		{ "noshadows",  '\0', POPT_ARG_NONE,   NULL, CLI_NOSHADOWS,  N_("Disable shadows"),                   NULL },
++		{ "texfilter",  '\0', POPT_ARG_STRING, NULL, CLI_TEXFILTER,  N_("Set 3D texture filtering"),          N_("best|smooth|fast|nearest") },
+ 		{ "sound",      '\0', POPT_ARG_NONE,   NULL, CLI_SOUND,      N_("Enable sound"),                      NULL },
+ 		{ "nosound",    '\0', POPT_ARG_NONE,   NULL, CLI_NOSOUND,    N_("Disable sound"),                     NULL },
+ 		{ "selftest",   '\0', POPT_ARG_NONE,   NULL, CLI_SELFTEST,   N_("Activate self-test"),                NULL },
+@@ -471,6 +474,22 @@ bool ParseCommandLine(int argc, const char** argv)
+ 				setDrawShadows(false);
+ 				break;
+ 
++			case CLI_TEXFILTER:
++			{
++				static const char * const names[TEXFILTER_COUNT] = { "best", "smooth", "fast", "nearest" };
++				int i;
++
++				token = poptGetOptArg(poptCon);
++				for (i = 0; i < TEXFILTER_COUNT && strcmp(token, names[i]) != 0; i++) {}
++				if (i == TEXFILTER_COUNT)
++				{
++					debug(LOG_FATAL, "Invalid texture filter \"%s\" (best, smooth, fast or nearest)", token);
++					return false;
++				}
++				pie_SetTextureFilter((TEXFILTER)i);
++				break;
++			}
++
+ 			case CLI_SOUND:
+ 				war_setSoundEnabled(true);
+ 				break;
+diff --git a/src/configuration.c b/src/configuration.c
+index e407e1a..ea25eb0 100644
+--- a/src/configuration.c
++++ b/src/configuration.c
+@@ -28,6 +28,7 @@
+ #include "lib/netplay/netplay.h"
+ #include "lib/sound/mixer.h"
+ #include "lib/ivis_opengl/screen.h"
++#include "lib/ivis_common/tex.h"
+ 
+ #include "advvis.h"
+ #include "ai.h"
+@@ -184,6 +185,21 @@ BOOL loadConfig(void)
+ 		setWarzoneKeyNumeric("shake", false);
+ 	}
+ 
++	// 3D texture filtering (TEXFILTER); software OpenGL on RISC OS can't
++	// afford upstream's trilinear + anisotropic default
++	if (getWarzoneKeyNumeric("textureFilter", &val) && val >= 0 && val < TEXFILTER_COUNT)
++	{
++		pie_SetTextureFilter((TEXFILTER)val);
++	}
++	else
++	{
++#if defined(WZ_OS_RISCOS)
++		pie_SetTextureFilter(TEXFILTER_FAST);
++#else
++		pie_SetTextureFilter(TEXFILTER_BEST);
++#endif
++	}
++
+ 	// //////////////////////////
+ 	// draw shadows
+ 	if(getWarzoneKeyNumeric("shadows", &val))
+@@ -731,6 +747,7 @@ BOOL saveConfig(void)
+ 	setWarzoneKeyNumeric("RightClickOrders",(SDWORD)(getRightClickOrders()));
+ 	setWarzoneKeyNumeric("MiddleClickRotate",(SDWORD)(getMiddleClickRotate()));
+ 	setWarzoneKeyNumeric("shadows",(SDWORD)(getDrawShadows()));	// shadows
++	setWarzoneKeyNumeric("textureFilter", (SDWORD)pie_GetTextureFilter());
+ 	setWarzoneKeyNumeric("sound", (SDWORD)war_getSoundEnabled());
+ 	setWarzoneKeyNumeric("FMVmode",(SDWORD)(war_GetFMVmode()));		// sequences
+ 	setWarzoneKeyNumeric("scanlines", (SDWORD)war_getScanlineMode());
+diff --git a/src/texture.c b/src/texture.c
+index 07eeb95..e844a10 100644
+--- a/src/texture.c
++++ b/src/texture.c
+@@ -110,20 +110,10 @@ static int newPage(const char *name, int level, int width, int height, int count
+ 	glTexImage2D(GL_TEXTURE_2D, level, wz_texture_compression, width, height, 0,
+ 	             GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+ 	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
++	pie_Set3DTextureFilter();
+ 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+ 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+ 
+-	// Use anisotropic filtering, if available, but only max 4.0 to reduce processor burden
+-	if (GLEE_EXT_texture_filter_anisotropic)
+-	{
+-		GLfloat maxAnisotropy;
+-
+-		glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &maxAnisotropy);
+-		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, MIN(4.0f, maxAnisotropy));
+-	}
+-
+ 	return texPage;
+ }
+ 

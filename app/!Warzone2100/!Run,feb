@@ -43,7 +43,11 @@ If "<Warzone2100$Mode>"="" Then Set Warzone2100$Mode --window
 | Software OpenGL: filtering is most of the cost of drawing the ground.
 | fast (the default): bilinear; nearest: fastest, blocky close up;
 | smooth: trilinear; best: trilinear + anisotropic (as on other systems).
+| Set Warzone2100$Filter to one of those before running the game (or
+| uncomment the line below); the game saves the choice in its Choices.
 | Set Warzone2100$Filter nearest
+Unset Warzone2100$FilterArg
+If "<Warzone2100$Filter>"<>"" Then Set Warzone2100$FilterArg --texfilter=<Warzone2100$Filter>
 
 | --- Diagnostics ----------------------------------------------------
 | For a detailed log, set this before running the game, e.g.
@@ -52,4 +56,4 @@ If "<Warzone2100$Mode>"="" Then Set Warzone2100$Mode --window
 
 | --- Program -------------------------------------------------------
 | No sound yet: this build is made with --disable-sound.
-Do Run <Warzone2100$Dir>.warzone2100 --datadir=/|<Warzone2100$Dir>/data --configdir=/|<Choices$Write>/Warzone2100 <Warzone2100$Mode> <Warzone2100$Debug> %*0
+Do Run <Warzone2100$Dir>.warzone2100 --datadir=/|<Warzone2100$Dir>/data --configdir=/|<Choices$Write>/Warzone2100 <Warzone2100$Mode> <Warzone2100$FilterArg> <Warzone2100$Debug> %*0

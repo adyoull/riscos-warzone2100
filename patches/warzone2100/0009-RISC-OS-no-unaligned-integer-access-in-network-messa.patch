@@ -1,34 +1,72 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Andrew Youll <adyoull@users.noreply.github.com>
-Date: Sat, 26 Sep 2026 22:04:14 +0100
+Date: Sat, 26 Sep 2026 22:47:54 +0100
 Subject: [PATCH 09/11] RISC OS: no unaligned integer access in network
  messages
 
 NETMSG.body starts at an odd offset (after a uint16_t and three bytes), so
 NETint16_t/NETuint16_t/NETint32_t/NETuint32_t stored and loaded unaligned
-integers, and NETsendGAMESTRUCT/NETrecvGAMESTRUCT did the same in their
-buffers. RISC OS traps unaligned accesses: starting a skirmish stopped
-with an "EMT trap" in setMultiStats. They now copy the bytes with memcpy;
-the wire format doesn't change.
----
- lib/netplay/netplay.c  | 68 ++++++++++++++++++++++--------------------
- lib/netplay/nettypes.c | 44 +++++++++++++++++++--------
- 2 files changed, 68 insertions(+), 44 deletions(-)
+integers, and NETsendGAMESTRUCT/NETrecvGAMESTRUCT and NET_recvMessage did
+the same in their buffers. RISC OS traps unaligned accesses: starting a
+skirmish stopped with an "EMT trap" in setMultiStats.
 
+endian_hack.h gets wz_load_u16/s16/u32/s32/float and wz_store_* (memcpy,
+so byte accesses), and the network code uses them. The wire format
+doesn't change.
+---
+ lib/framework/endian_hack.h | 18 ++++++++++
+ lib/netplay/netplay.c       | 68 ++++++++++++++++++++-----------------
+ lib/netplay/nettypes.c      | 33 +++++++++++-------
+ 3 files changed, 75 insertions(+), 44 deletions(-)
+
+diff --git a/lib/framework/endian_hack.h b/lib/framework/endian_hack.h
+index 69ac88a..81d3288 100644
+--- a/lib/framework/endian_hack.h
++++ b/lib/framework/endian_hack.h
+@@ -89,4 +89,22 @@ static inline void endian_sdword(SDWORD* sdword)
+ #endif
+ }
+ 
++/* Loads and stores at addresses that may not be aligned: values inside
++ * file, save-game and network buffers. ARM Linux and x86 tolerate unaligned
++ * 16/32-bit accesses; RISC OS traps them ("abort on data transfer"), so go
++ * through memcpy, which the compiler turns into byte accesses. The byte
++ * order is unchanged (use the endian_ and SDL_Swap functions for that). */
++#include <string.h>
++
++static inline uint16_t wz_load_u16(const void *p) { uint16_t v; memcpy(&v, p, sizeof(v)); return v; }
++static inline int16_t  wz_load_s16(const void *p) { int16_t  v; memcpy(&v, p, sizeof(v)); return v; }
++static inline uint32_t wz_load_u32(const void *p) { uint32_t v; memcpy(&v, p, sizeof(v)); return v; }
++static inline int32_t  wz_load_s32(const void *p) { int32_t  v; memcpy(&v, p, sizeof(v)); return v; }
++static inline float    wz_load_float(const void *p) { float v; memcpy(&v, p, sizeof(v)); return v; }
++
++static inline void wz_store_u16(void *p, uint16_t v) { memcpy(p, &v, sizeof(v)); }
++static inline void wz_store_s16(void *p, int16_t v)  { memcpy(p, &v, sizeof(v)); }
++static inline void wz_store_u32(void *p, uint32_t v) { memcpy(p, &v, sizeof(v)); }
++static inline void wz_store_s32(void *p, int32_t v)  { memcpy(p, &v, sizeof(v)); }
++
+ #endif // ENDIAN_HACK_H
 diff --git a/lib/netplay/netplay.c b/lib/netplay/netplay.c
-index 7178088..59b7944 100644
+index 7178088..3c6aad6 100644
 --- a/lib/netplay/netplay.c
 +++ b/lib/netplay/netplay.c
-@@ -1413,7 +1413,11 @@ static BOOL NET_recvMessage(NETBUFSOCKET* bs)
+@@ -25,6 +25,7 @@
+ 
+ #include "lib/framework/frame.h"
+ #include "lib/framework/string_ext.h"
++#include "lib/framework/endian_hack.h"
+ #include "lib/gamelib/gtime.h"
+ #include "src/component.h"		// FIXME: we need to handle this better
+ #include "src/modding.h"		// FIXME: we need to handle this better
+@@ -1413,7 +1414,10 @@ static BOOL NET_recvMessage(NETBUFSOCKET* bs)
  		goto error;
  	}
  
 -	size = ntohs(message->size) + headersize;
 +	// message may be at an odd address in the buffer (RISC OS traps
 +	// unaligned accesses): read its 16-bit size byte-wise.
-+	uint16_t wz_size;
-+	memcpy(&wz_size, &message->size, sizeof(wz_size));
-+	size = ntohs(wz_size) + headersize;
++	const uint16_t msgSize = ntohs(wz_load_u16(&message->size));
++	size = msgSize + headersize;
  
  	if (size > bs->bytes)
  	{
@@ -37,7 +75,7 @@ index 7178088..59b7944 100644
  
  	memcpy(pMsg, message, size);
 -	pMsg->size = ntohs(message->size);
-+	pMsg->size = ntohs(wz_size);
++	pMsg->size = msgSize;
  	bs->buffer_start += size;
  	bs->bytes -= size;
  
@@ -46,7 +84,7 @@ index 7178088..59b7944 100644
  	// Now dump the data into the buffer
  	// Copy 32bit large big endian numbers
 -	*(uint32_t*)buffer = htonl(ourgamestruct->GAMESTRUCT_VERSION);
-+	{ uint32_t wz_v = htonl(ourgamestruct->GAMESTRUCT_VERSION); memcpy(buffer, &wz_v, sizeof(wz_v)); }
++	wz_store_u32(buffer, htonl(ourgamestruct->GAMESTRUCT_VERSION));
  	buffer += sizeof(uint32_t);
  
  	// Copy a string
@@ -55,10 +93,10 @@ index 7178088..59b7944 100644
  
  	// Copy 32bit large big endian numbers
 -	*(int32_t*)buffer = htonl(ourgamestruct->desc.dwSize);
-+	{ int32_t wz_v = htonl(ourgamestruct->desc.dwSize); memcpy(buffer, &wz_v, sizeof(wz_v)); }
++	wz_store_u32(buffer, htonl(ourgamestruct->desc.dwSize));
  	buffer += sizeof(int32_t);
 -	*(int32_t*)buffer = htonl(ourgamestruct->desc.dwFlags);
-+	{ int32_t wz_v = htonl(ourgamestruct->desc.dwFlags); memcpy(buffer, &wz_v, sizeof(wz_v)); }
++	wz_store_u32(buffer, htonl(ourgamestruct->desc.dwFlags));
  	buffer += sizeof(int32_t);
  
  	// Copy yet another string
@@ -67,15 +105,15 @@ index 7178088..59b7944 100644
  
  	// Copy 32bit large big endian numbers
 -	*(int32_t*)buffer = htonl(ourgamestruct->desc.dwMaxPlayers);
-+	{ int32_t wz_v = htonl(ourgamestruct->desc.dwMaxPlayers); memcpy(buffer, &wz_v, sizeof(wz_v)); }
++	wz_store_u32(buffer, htonl(ourgamestruct->desc.dwMaxPlayers));
  	buffer += sizeof(int32_t);
 -	*(int32_t*)buffer = htonl(ourgamestruct->desc.dwCurrentPlayers);
-+	{ int32_t wz_v = htonl(ourgamestruct->desc.dwCurrentPlayers); memcpy(buffer, &wz_v, sizeof(wz_v)); }
++	wz_store_u32(buffer, htonl(ourgamestruct->desc.dwCurrentPlayers));
  	buffer += sizeof(int32_t);
  	for (i = 0; i < ARRAY_SIZE(ourgamestruct->desc.dwUserFlags); ++i)
  	{
 -		*(int32_t*)buffer = htonl(ourgamestruct->desc.dwUserFlags[i]);
-+		{ int32_t wz_v = htonl(ourgamestruct->desc.dwUserFlags[i]); memcpy(buffer, &wz_v, sizeof(wz_v)); }
++		wz_store_u32(buffer, htonl(ourgamestruct->desc.dwUserFlags[i]));
  		buffer += sizeof(int32_t);
  	}
  
@@ -84,47 +122,47 @@ index 7178088..59b7944 100644
  
  	// Copy 32bit large big endian numbers
 -	*(uint32_t*)buffer = htonl(ourgamestruct->game_version_major);
-+	{ uint32_t wz_v = htonl(ourgamestruct->game_version_major); memcpy(buffer, &wz_v, sizeof(wz_v)); }
++	wz_store_u32(buffer, htonl(ourgamestruct->game_version_major));
  	buffer += sizeof(uint32_t);
  
  	// Copy 32bit large big endian numbers
 -	*(uint32_t*)buffer = htonl(ourgamestruct->game_version_minor);
-+	{ uint32_t wz_v = htonl(ourgamestruct->game_version_minor); memcpy(buffer, &wz_v, sizeof(wz_v)); }
++	wz_store_u32(buffer, htonl(ourgamestruct->game_version_minor));
  	buffer += sizeof(uint32_t);
  
  	// Copy 32bit large big endian numbers
 -	*(uint32_t*)buffer = htonl(ourgamestruct->privateGame);
-+	{ uint32_t wz_v = htonl(ourgamestruct->privateGame); memcpy(buffer, &wz_v, sizeof(wz_v)); }
++	wz_store_u32(buffer, htonl(ourgamestruct->privateGame));
  	buffer += sizeof(uint32_t);
  
  	// Copy 32bit large big endian numbers
 -	*(uint32_t*)buffer = htonl(ourgamestruct->pureGame);
-+	{ uint32_t wz_v = htonl(ourgamestruct->pureGame); memcpy(buffer, &wz_v, sizeof(wz_v)); }
++	wz_store_u32(buffer, htonl(ourgamestruct->pureGame));
  	buffer += sizeof(uint32_t);
  
  	// Copy 32bit large big endian numbers
 -	*(uint32_t*)buffer = htonl(ourgamestruct->Mods);
-+	{ uint32_t wz_v = htonl(ourgamestruct->Mods); memcpy(buffer, &wz_v, sizeof(wz_v)); }
++	wz_store_u32(buffer, htonl(ourgamestruct->Mods));
  	buffer += sizeof(uint32_t);
  
  	// Copy 32bit large big endian numbers
 -	*(uint32_t*)buffer = htonl(ourgamestruct->gameId);
-+	{ uint32_t wz_v = htonl(ourgamestruct->gameId); memcpy(buffer, &wz_v, sizeof(wz_v)); }
++	wz_store_u32(buffer, htonl(ourgamestruct->gameId));
  	buffer += sizeof(uint32_t);
  
  	// Copy 32bit large big endian numbers
 -	*(uint32_t*)buffer = htonl(ourgamestruct->future2);
-+	{ uint32_t wz_v = htonl(ourgamestruct->future2); memcpy(buffer, &wz_v, sizeof(wz_v)); }
++	wz_store_u32(buffer, htonl(ourgamestruct->future2));
  	buffer += sizeof(uint32_t);
  
  	// Copy 32bit large big endian numbers
 -	*(uint32_t*)buffer = htonl(ourgamestruct->future3);
-+	{ uint32_t wz_v = htonl(ourgamestruct->future3); memcpy(buffer, &wz_v, sizeof(wz_v)); }
++	wz_store_u32(buffer, htonl(ourgamestruct->future3));
  	buffer += sizeof(uint32_t);
  
  	// Copy 32bit large big endian numbers
 -	*(uint32_t*)buffer = htonl(ourgamestruct->future4);
-+	{ uint32_t wz_v = htonl(ourgamestruct->future4); memcpy(buffer, &wz_v, sizeof(wz_v)); }
++	wz_store_u32(buffer, htonl(ourgamestruct->future4));
  	buffer += sizeof(uint32_t);
  
  
@@ -133,7 +171,7 @@ index 7178088..59b7944 100644
  	// Now dump the data into the game struct
  	// Copy 32bit large big endian numbers
 -	ourgamestruct->GAMESTRUCT_VERSION = ntohl(*(uint32_t*)buffer);
-+	{ uint32_t wz_v; memcpy(&wz_v, buffer, sizeof(wz_v)); ourgamestruct->GAMESTRUCT_VERSION = ntohl(wz_v); }
++	ourgamestruct->GAMESTRUCT_VERSION = ntohl(wz_load_u32(buffer));
  	buffer += sizeof(uint32_t);
  	// Copy a string
  	sstrcpy(ourgamestruct->name, buffer);
@@ -141,10 +179,10 @@ index 7178088..59b7944 100644
  
  	// Copy 32bit large big endian numbers
 -	ourgamestruct->desc.dwSize = ntohl(*(int32_t*)buffer);
-+	{ int32_t wz_v; memcpy(&wz_v, buffer, sizeof(wz_v)); ourgamestruct->desc.dwSize = ntohl(wz_v); }
++	ourgamestruct->desc.dwSize = ntohl(wz_load_u32(buffer));
  	buffer += sizeof(int32_t);
 -	ourgamestruct->desc.dwFlags = ntohl(*(int32_t*)buffer);
-+	{ int32_t wz_v; memcpy(&wz_v, buffer, sizeof(wz_v)); ourgamestruct->desc.dwFlags = ntohl(wz_v); }
++	ourgamestruct->desc.dwFlags = ntohl(wz_load_u32(buffer));
  	buffer += sizeof(int32_t);
  
  	// Copy yet another string
@@ -153,15 +191,15 @@ index 7178088..59b7944 100644
  
  	// Copy 32bit large big endian numbers
 -	ourgamestruct->desc.dwMaxPlayers = ntohl(*(int32_t*)buffer);
-+	{ int32_t wz_v; memcpy(&wz_v, buffer, sizeof(wz_v)); ourgamestruct->desc.dwMaxPlayers = ntohl(wz_v); }
++	ourgamestruct->desc.dwMaxPlayers = ntohl(wz_load_u32(buffer));
  	buffer += sizeof(int32_t);
 -	ourgamestruct->desc.dwCurrentPlayers = ntohl(*(int32_t*)buffer);
-+	{ int32_t wz_v; memcpy(&wz_v, buffer, sizeof(wz_v)); ourgamestruct->desc.dwCurrentPlayers = ntohl(wz_v); }
++	ourgamestruct->desc.dwCurrentPlayers = ntohl(wz_load_u32(buffer));
  	buffer += sizeof(int32_t);
  	for (i = 0; i < ARRAY_SIZE(ourgamestruct->desc.dwUserFlags); ++i)
  	{
 -		ourgamestruct->desc.dwUserFlags[i] = ntohl(*(int32_t*)buffer);
-+		{ int32_t wz_v; memcpy(&wz_v, buffer, sizeof(wz_v)); ourgamestruct->desc.dwUserFlags[i] = ntohl(wz_v); }
++		ourgamestruct->desc.dwUserFlags[i] = ntohl(wz_load_u32(buffer));
  		buffer += sizeof(int32_t);
  	}
  
@@ -170,147 +208,143 @@ index 7178088..59b7944 100644
  
  	// Copy 32bit large big endian numbers
 -	ourgamestruct->game_version_major = ntohl(*(uint32_t*)buffer);
-+	{ uint32_t wz_v; memcpy(&wz_v, buffer, sizeof(wz_v)); ourgamestruct->game_version_major = ntohl(wz_v); }
++	ourgamestruct->game_version_major = ntohl(wz_load_u32(buffer));
  	buffer += sizeof(uint32_t);
 -	ourgamestruct->game_version_minor = ntohl(*(uint32_t*)buffer);
-+	{ uint32_t wz_v; memcpy(&wz_v, buffer, sizeof(wz_v)); ourgamestruct->game_version_minor = ntohl(wz_v); }
++	ourgamestruct->game_version_minor = ntohl(wz_load_u32(buffer));
  	buffer += sizeof(uint32_t);
 -	ourgamestruct->privateGame = ntohl(*(uint32_t*)buffer);
-+	{ uint32_t wz_v; memcpy(&wz_v, buffer, sizeof(wz_v)); ourgamestruct->privateGame = ntohl(wz_v); }
++	ourgamestruct->privateGame = ntohl(wz_load_u32(buffer));
  	buffer += sizeof(uint32_t);
 -	ourgamestruct->pureGame = ntohl(*(uint32_t*)buffer);
-+	{ uint32_t wz_v; memcpy(&wz_v, buffer, sizeof(wz_v)); ourgamestruct->pureGame = ntohl(wz_v); }
++	ourgamestruct->pureGame = ntohl(wz_load_u32(buffer));
  	buffer += sizeof(uint32_t);
 -	ourgamestruct->Mods = ntohl(*(uint32_t*)buffer);
-+	{ uint32_t wz_v; memcpy(&wz_v, buffer, sizeof(wz_v)); ourgamestruct->Mods = ntohl(wz_v); }
++	ourgamestruct->Mods = ntohl(wz_load_u32(buffer));
  	buffer += sizeof(uint32_t);
 -	ourgamestruct->gameId = ntohl(*(uint32_t*)buffer);
-+	{ uint32_t wz_v; memcpy(&wz_v, buffer, sizeof(wz_v)); ourgamestruct->gameId = ntohl(wz_v); }
++	ourgamestruct->gameId = ntohl(wz_load_u32(buffer));
  	buffer += sizeof(uint32_t);	
 -	ourgamestruct->future2 = ntohl(*(uint32_t*)buffer);
-+	{ uint32_t wz_v; memcpy(&wz_v, buffer, sizeof(wz_v)); ourgamestruct->future2 = ntohl(wz_v); }
++	ourgamestruct->future2 = ntohl(wz_load_u32(buffer));
  	buffer += sizeof(uint32_t);	
 -	ourgamestruct->future3 = ntohl(*(uint32_t*)buffer);
-+	{ uint32_t wz_v; memcpy(&wz_v, buffer, sizeof(wz_v)); ourgamestruct->future3 = ntohl(wz_v); }
++	ourgamestruct->future3 = ntohl(wz_load_u32(buffer));
  	buffer += sizeof(uint32_t);	
 -	ourgamestruct->future4 = ntohl(*(uint32_t*)buffer);
-+	{ uint32_t wz_v; memcpy(&wz_v, buffer, sizeof(wz_v)); ourgamestruct->future4 = ntohl(wz_v); }
++	ourgamestruct->future4 = ntohl(wz_load_u32(buffer));
  	buffer += sizeof(uint32_t);	
  	
  	// cat the modstring (if there is one) to the version string to display it for the end-user
 diff --git a/lib/netplay/nettypes.c b/lib/netplay/nettypes.c
-index 58eba0a..4db625e 100644
+index 58eba0a..cc54f90 100644
 --- a/lib/netplay/nettypes.c
 +++ b/lib/netplay/nettypes.c
-@@ -156,7 +156,10 @@ BOOL NETuint8_t(uint8_t *ip)
+@@ -32,6 +32,7 @@
+ #include "../framework/frame.h"
+ #include "netplay.h"
+ #include "nettypes.h"
++#include "lib/framework/endian_hack.h"
+ 
+ static PACKETDIR NetDir;
+ 
+@@ -156,7 +157,9 @@ BOOL NETuint8_t(uint8_t *ip)
  
  BOOL NETint16_t(int16_t *ip)
  {
 -	int16_t *store = (int16_t *) &NetMsg.body[NetMsg.size];
 +	// NetMsg.body is at an odd offset, so the value may be unaligned
-+	// (RISC OS traps unaligned accesses): copy it byte-wise.
++	// (RISC OS traps unaligned accesses): wz_load/wz_store copy it byte-wise.
 +	char *store = &NetMsg.body[NetMsg.size];
-+	int16_t value;
  
  	// Make sure there is enough data/space left in the packet
  	if (sizeof(int16_t) + NetMsg.size > sizeof(NetMsg.body) || !NetMsg.status)
-@@ -167,11 +170,13 @@ BOOL NETint16_t(int16_t *ip)
+@@ -167,11 +170,11 @@ BOOL NETint16_t(int16_t *ip)
  	// Convert the integer into the network byte order (big endian)
  	if (NETgetPacketDir() == PACKET_ENCODE)
  	{
 -		*store = SDL_SwapBE16(*ip);
-+		value = SDL_SwapBE16(*ip);
-+		memcpy(store, &value, sizeof(value));
++		wz_store_s16(store, SDL_SwapBE16(*ip));
  	}
  	else if (NETgetPacketDir() == PACKET_DECODE)
  	{
 -		*ip = SDL_SwapBE16(*store);
-+		memcpy(&value, store, sizeof(value));
-+		*ip = SDL_SwapBE16(value);
++		*ip = SDL_SwapBE16(wz_load_s16(store));
  	}
  
  	// Increment the size of the message
-@@ -182,7 +187,10 @@ BOOL NETint16_t(int16_t *ip)
+@@ -182,7 +185,9 @@ BOOL NETint16_t(int16_t *ip)
  
  BOOL NETuint16_t(uint16_t *ip)
  {
 -	uint16_t *store = (uint16_t *) &NetMsg.body[NetMsg.size];
 +	// NetMsg.body is at an odd offset, so the value may be unaligned
-+	// (RISC OS traps unaligned accesses): copy it byte-wise.
++	// (RISC OS traps unaligned accesses): wz_load/wz_store copy it byte-wise.
 +	char *store = &NetMsg.body[NetMsg.size];
-+	uint16_t value;
  
  	// Make sure there is enough data/space left in the packet
  	if (sizeof(uint16_t) + NetMsg.size > sizeof(NetMsg.body) || !NetMsg.status)
-@@ -193,11 +201,13 @@ BOOL NETuint16_t(uint16_t *ip)
+@@ -193,11 +198,11 @@ BOOL NETuint16_t(uint16_t *ip)
  	// Convert the integer into the network byte order (big endian)
  	if (NETgetPacketDir() == PACKET_ENCODE)
  	{
 -		*store = SDL_SwapBE16(*ip);
-+		value = SDL_SwapBE16(*ip);
-+		memcpy(store, &value, sizeof(value));
++		wz_store_u16(store, SDL_SwapBE16(*ip));
  	}
  	else if (NETgetPacketDir() == PACKET_DECODE)
  	{
 -		*ip = SDL_SwapBE16(*store);
-+		memcpy(&value, store, sizeof(value));
-+		*ip = SDL_SwapBE16(value);
++		*ip = SDL_SwapBE16(wz_load_u16(store));
  	}
  
  	// Increment the size of the message
-@@ -208,7 +218,10 @@ BOOL NETuint16_t(uint16_t *ip)
+@@ -208,7 +213,9 @@ BOOL NETuint16_t(uint16_t *ip)
  
  BOOL NETint32_t(int32_t *ip)
  {
 -	int32_t *store = (int32_t *) &NetMsg.body[NetMsg.size];
 +	// NetMsg.body is at an odd offset, so the value may be unaligned
-+	// (RISC OS traps unaligned accesses): copy it byte-wise.
++	// (RISC OS traps unaligned accesses): wz_load/wz_store copy it byte-wise.
 +	char *store = &NetMsg.body[NetMsg.size];
-+	int32_t value;
  
  	// Make sure there is enough data/space left in the packet
  	if (sizeof(int32_t) + NetMsg.size > sizeof(NetMsg.body) || !NetMsg.status)
-@@ -219,11 +232,13 @@ BOOL NETint32_t(int32_t *ip)
+@@ -219,11 +226,11 @@ BOOL NETint32_t(int32_t *ip)
  	// Convert the integer into the network byte order (big endian)
  	if (NETgetPacketDir() == PACKET_ENCODE)
  	{
 -		*store = SDL_SwapBE32(*ip);
-+		value = SDL_SwapBE32(*ip);
-+		memcpy(store, &value, sizeof(value));
++		wz_store_s32(store, SDL_SwapBE32(*ip));
  	}
  	else if (NETgetPacketDir() == PACKET_DECODE)
  	{
 -		*ip = SDL_SwapBE32(*store);
-+		memcpy(&value, store, sizeof(value));
-+		*ip = SDL_SwapBE32(value);
++		*ip = SDL_SwapBE32(wz_load_s32(store));
  	}
  
  	// Increment the size of the message
-@@ -234,7 +249,10 @@ BOOL NETint32_t(int32_t *ip)
+@@ -234,7 +241,9 @@ BOOL NETint32_t(int32_t *ip)
  
  BOOL NETuint32_t(uint32_t *ip)
  {
 -	uint32_t *store = (uint32_t *) &NetMsg.body[NetMsg.size];
 +	// NetMsg.body is at an odd offset, so the value may be unaligned
-+	// (RISC OS traps unaligned accesses): copy it byte-wise.
++	// (RISC OS traps unaligned accesses): wz_load/wz_store copy it byte-wise.
 +	char *store = &NetMsg.body[NetMsg.size];
-+	uint32_t value;
  
  	// Make sure there is enough data/space left in the packet
  	if (sizeof(uint32_t) + NetMsg.size > sizeof(NetMsg.body) || !NetMsg.status)
-@@ -245,11 +263,13 @@ BOOL NETuint32_t(uint32_t *ip)
+@@ -245,11 +254,11 @@ BOOL NETuint32_t(uint32_t *ip)
  	// Convert the integer into the network byte order (big endian)
  	if (NETgetPacketDir() == PACKET_ENCODE)
  	{
 -		*store = SDL_SwapBE32(*ip);
-+		value = SDL_SwapBE32(*ip);
-+		memcpy(store, &value, sizeof(value));
++		wz_store_u32(store, SDL_SwapBE32(*ip));
  	}
  	else if (NETgetPacketDir() == PACKET_DECODE)
  	{
 -		*ip = SDL_SwapBE32(*store);
-+		memcpy(&value, store, sizeof(value));
-+		*ip = SDL_SwapBE32(value);
++		*ip = SDL_SwapBE32(wz_load_u32(store));
  	}
  
  	// Increment the size of the message

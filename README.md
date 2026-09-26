@@ -45,8 +45,10 @@ and ARMEABISupport, both from PackMan.
 See `app/!Warzone2100/!Help,fff`. In short:
 
 - It opens an 800x600 desktop window. Alt+Return switches to full screen.
-- Texture filtering is set with `Warzone2100$Filter` (`fast` by default;
-  also `nearest`, `smooth` and `best`). Alt+S turns shadows on and off.
+- Texture filtering: `Warzone2100$Filter` in `!Run` passes
+  `--texfilter=` (`fast` by default; also `nearest`, `smooth`, `best`); the
+  game saves it as `textureFilter` in its config. Alt+S turns shadows on
+  and off.
 - The game's log is `<Wimp$ScrapDir>.Warzone2100log`. Crash backtraces are
   in `<Choices$Write>.Warzone2100.logs.WZlog-*`.
 
