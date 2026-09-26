@@ -1,0 +1,29 @@
+From bd4c5e50f6578be5325185a0cd061e7b313804b7 Mon Sep 17 00:00:00 2001
+From: Andrew Youll <adyoull@users.noreply.github.com>
+Date: Sat, 26 Sep 2026 09:31:08 +0100
+Subject: [PATCH] autorevision: link the host tool without the cross LDFLAGS
+ and LIBS
+
+configure's LIBS (riscos_output.o, -lz) and LDFLAGS (-static, stage/lib)
+are for the RISC OS program; the host-built autorevision must not see them.
+---
+ build_tools/autorevision/Makefile.am | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/build_tools/autorevision/Makefile.am b/build_tools/autorevision/Makefile.am
+index e7edcef..375f5c5 100644
+--- a/build_tools/autorevision/Makefile.am
++++ b/build_tools/autorevision/Makefile.am
+@@ -3,6 +3,9 @@ CXX = @CXX_FOR_BUILD@
+ CFLAGS = @CFLAGS_FOR_BUILD@
+ CXXFLAGS = @CXXFLAGS_FOR_BUILD@
+ CPPFLAGS = @CPPFLAGS_FOR_BUILD@
++# The cross LDFLAGS/LIBS (-static, riscos_output.o) are not for the host tool.
++LDFLAGS =
++LIBS =
+ 
+ noinst_PROGRAMS = autorevision
+ autorevision_SOURCES = autorevision.cpp
+-- 
+2.43.0
+

@@ -1,6 +1,6 @@
 # Source this. Settings shared by the riscos-warzone2100 build scripts.
 # GCCSDK_ENV: the GCCSDK GCC 10 install (contains bin/arm-riscos-gnueabihf-gcc),
-#   e.g. built by riscos-mesa's build/TOOLCHAIN.md recipe or the OpenTTD buildkit.
+#   e.g. built by build/build-toolchain.sh (riscos-mesa build/TOOLCHAIN.md).
 # DEVKIT: the unpacked riscos-mesa devkit (lib/libOSMesa.a, lib/libSDL2.a, ...).
 REPO_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 : "${GCCSDK_ENV:=$HOME/gccsdk/env}"
@@ -9,6 +9,16 @@ REPO_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 : "${SRC:=$REPO_DIR/src}"         # downloaded, unpacked sources
 : "${JOBS:=$(nproc)}"
 export REPO_DIR GCCSDK_ENV DEVKIT STAGE SRC JOBS
+# autoconf/libtool can't cope with spaces in --prefix, -I/-L flags or LIBS, so
+# STAGE, SRC, DEVKIT and GCCSDK_ENV must be space-free even if the repo isn't
+# (e.g. under "Claude outputs"): point them elsewhere or at a symlink.
+case "$STAGE|$SRC|$DEVKIT|$GCCSDK_ENV" in *" "*)
+  echo "env.sh: STAGE, SRC, DEVKIT and GCCSDK_ENV must not contain spaces" >&2
+  echo "  (try: ln -s \"$REPO_DIR\" ~/wz && cd ~/wz)" >&2
+  return 1 2>/dev/null || exit 1;;
+esac
+# The build machine's triplet (was hard-coded x86_64; the Mac's VM is aarch64).
+export BUILD=$(gcc -dumpmachine)
 export PATH="$GCCSDK_ENV/bin:$PATH"
 export HOST=arm-riscos-gnueabihf
 export CC=$HOST-gcc CXX=$HOST-g++ AR=$HOST-ar RANLIB=$HOST-ranlib STRIP=$HOST-strip

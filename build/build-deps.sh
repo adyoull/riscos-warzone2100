@@ -1,6 +1,6 @@
 #!/bin/bash -e
 # Cross-build Warzone 2100 2.3.9's libraries for RISC OS into $STAGE (static).
-# Sources must already be unpacked in $SRC (build/fetch-sources.sh).
+# Sources must already be unpacked and patched in $SRC (build/fetch-sources.sh).
 # GL, GLU, SDL2 and zlib come from the riscos-mesa devkit.
 . "$(dirname "$0")/env.sh"
 cd "$SRC"
@@ -114,4 +114,4 @@ step "QuesoGLC 0.7.2 (hand-written makefile, see patches/quesoglc)"
 make -C quesoglc-0.7.2/riscos -j$JOBS CC=$CC AR=$AR STAGE="$STAGE" CFLAGS="$CFLAGS" > quesoglc.log
 make -C quesoglc-0.7.2/riscos install STAGE="$STAGE" >> quesoglc.log
 
-step "done: $(ls $STAGE/lib/*.a | wc -l) static libraries in $STAGE/lib"
+step "done: $(ls "$STAGE"/lib/*.a | wc -l) static libraries in $STAGE/lib"

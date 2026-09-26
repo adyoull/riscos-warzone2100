@@ -4,3 +4,5 @@ devkit
 *.log
 deps.status
 dist/
+dl/
+toolchain/
