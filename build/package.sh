@@ -7,7 +7,7 @@
 # (github.com/adyoull/riscos-openttd, tools/elf2aif). Build it first.
 : "${ELF2AIF:=$REPO_DIR/../riscos-openttd/tools/elf2aif/elf2aif}"
 : "${DEJAVU:=$SRC/dejavu-fonts-ttf-2.37}"
-VERSION=2.3.9-riscos3
+VERSION=2.3.9-riscos4
 OUT="$REPO_DIR/dist"; APP="$OUT/!Warzone2100"
 rm -rf "$OUT"; mkdir -p "$OUT"
 cp -a "$REPO_DIR/app/!Warzone2100" "$APP"
