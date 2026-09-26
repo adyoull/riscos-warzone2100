@@ -1,0 +1,346 @@
+From 5fc47ce9fbaa5033380d62cd8d03f604bc160d8f Mon Sep 17 00:00:00 2001
+From: Andrew Youll <andrew@youll.invalid>
+Date: Sat, 26 Sep 2026 06:52:10 +0000
+Subject: [PATCH 3/3] Build fixes: RISC OS triplet in configure, host-built
+ autorevision, modern flex/bison, no Unix crash handler on RISC OS, header
+ fixes
+
+---
+ build_tools/autorevision/autorevision.cpp | 4 ++--
+ configure.ac                              | 9 ++++++---
+ lib/exceptionhandler/exceptionhandler.c   | 6 +++---
+ lib/framework/resource_lexer.l            | 4 ++--
+ lib/framework/strres_lexer.l              | 4 ++--
+ lib/framework/strres_parser.y             | 6 +++++-
+ lib/gamelib/audp_lexer.l                  | 4 ++--
+ lib/ivis_common/tex.h                     | 2 +-
+ lib/ivis_opengl/piestate.c                | 1 +
+ lib/ivis_opengl/screen.h                  | 1 +
+ lib/script/chat_lexer.l                   | 2 +-
+ lib/script/script_lexer.l                 | 2 +-
+ src/level_lexer.l                         | 4 ++--
+ src/message_lexer.l                       | 4 ++--
+ src/message_parser.y                      | 6 +++++-
+ src/scriptvals_lexer.l                    | 4 ++--
+ 16 files changed, 38 insertions(+), 25 deletions(-)
+
+diff --git a/build_tools/autorevision/autorevision.cpp b/build_tools/autorevision/autorevision.cpp
+index 1445d58..5fc82c9 100644
+--- a/build_tools/autorevision/autorevision.cpp
++++ b/build_tools/autorevision/autorevision.cpp
+@@ -635,7 +635,7 @@ std::string RevGitQuery::runCommand(char const *cmd)
+ 
+     const string cwd(GetWorkingDir());
+     if (!ChangeDir(_workingDir))
+-        return false;
++        return std::string();
+ 
+     set_env("LANG", "C");
+     set_env("LC_ALL", "C");
+@@ -645,7 +645,7 @@ std::string RevGitQuery::runCommand(char const *cmd)
+     ChangeDir(cwd);
+ 
+     if (!process)
+-        return false;
++        return std::string();
+ 
+     char buf[1024];
+     if (fgets(buf, sizeof(buf), process))
+diff --git a/configure.ac b/configure.ac
+index 388cffb..40b1eaa 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -87,8 +87,8 @@ case ${CC} in
+ esac
+ 
+ 
+-# Check for operating system
+-case ${host_os} in
++# Check for operating system (the whole triplet: RISC OS is arm-riscos-gnueabihf)
++case ${host} in
+ 	*mingw32*)
+ 		host_os_mingw32=yes
+ 		AC_CHECK_TOOL([WINDRES], [windres], AC_MSG_ERROR([windres not found]))
+@@ -204,7 +204,10 @@ AC_ARG_ENABLE([static],
+ if test "x$enable_static" = "xyes" ; then
+ 	# Add libs where even pkg-config cannot help statically linking them,
+ 	# where one would otherwise have to provide them via commandline
+-	WIN32_LIBS="${WIN32_LIBS} -lz -lintl -liconv"
++	if test "x$host_os_riscos" != "xyes" ; then
++		WIN32_LIBS="${WIN32_LIBS} -lz -lintl -liconv"
++	fi
++	# (RISC OS: UnixLib has iconv built in, and NLS is off)
+ 	# Tell pkg-config to link against static libraries, incl. all dependencies
+ 	PKG_CONFIG="${PKG_CONFIG} --static"
+ fi
+diff --git a/lib/exceptionhandler/exceptionhandler.c b/lib/exceptionhandler/exceptionhandler.c
+index 126196e..f422cfb 100644
+--- a/lib/exceptionhandler/exceptionhandler.c
++++ b/lib/exceptionhandler/exceptionhandler.c
+@@ -107,7 +107,7 @@ static LONG WINAPI windowsExceptionHandler(PEXCEPTION_POINTERS pExceptionInfo)
+ }
+ #endif
+ 
+-#elif defined(WZ_OS_UNIX) && !defined(WZ_OS_MAC)
++#elif defined(WZ_OS_UNIX) && !defined(WZ_OS_MAC) && !defined(WZ_OS_RISCOS)
+ 
+ // C99 headers:
+ # include <stdint.h>
+@@ -694,7 +694,7 @@ static void posixExceptionHandler(int signum)
+ 
+ #endif // WZ_OS_*
+ 
+-#if defined(WZ_OS_UNIX) && !defined(WZ_OS_MAC)
++#if defined(WZ_OS_UNIX) && !defined(WZ_OS_MAC) && !defined(WZ_OS_RISCOS)
+ static bool fetchProgramPath(char * const programPath, size_t const bufSize, const char * const programCommand)
+ {
+ 	// Construct the "which $(programCommand)" string
+@@ -757,7 +757,7 @@ void setupExceptionHandler(int argc, char * argv[])
+ # else
+ 	prevExceptionHandler = SetUnhandledExceptionFilter(windowsExceptionHandler);
+ # endif // !defined(WZ_CC_MINGW)
+-#elif defined(WZ_OS_UNIX) && !defined(WZ_OS_MAC)
++#elif defined(WZ_OS_UNIX) && !defined(WZ_OS_MAC) && !defined(WZ_OS_RISCOS)
+ 	const char * const programCommand = argv[0];
+ 
+ 	// Get full path to this program. Needed for gdb to find the binary.
+diff --git a/lib/framework/resource_lexer.l b/lib/framework/resource_lexer.l
+index 3be6748..3fe8ffa 100644
+--- a/lib/framework/resource_lexer.l
++++ b/lib/framework/resource_lexer.l
+@@ -46,7 +46,7 @@ static inline bool no_warn_unused_result(int ignore) { if (ignore) {} return tru
+  * yyget_text() and yyget_lineno().
+  * (and neither define a subminor version)
+  */
+-#if !defined(YY_FLEX_SUBMINOR_VERSION) || (YY_FLEX_SUBMINOR_VERSION < 9)
++#if !defined(YY_FLEX_SUBMINOR_VERSION) || (YY_FLEX_MAJOR_VERSION == 2 && YY_FLEX_MINOR_VERSION == 5 && YY_FLEX_SUBMINOR_VERSION < 9)
+ # define yyget_extra  res_get_extra
+ # define yyset_extra  res_set_extra
+ # define yyget_lineno res_get_lineno
+@@ -146,7 +146,7 @@ YY_EXTRA_TYPE yyget_extra()
+ /* Older GNU Flex versions don't define yylex_destroy()
+  * (and neither define a subminor version)
+  */
+-#if !defined(YY_FLEX_SUBMINOR_VERSION) || (YY_FLEX_SUBMINOR_VERSION < 9)
++#if !defined(YY_FLEX_SUBMINOR_VERSION) || (YY_FLEX_MAJOR_VERSION == 2 && YY_FLEX_MINOR_VERSION == 5 && YY_FLEX_SUBMINOR_VERSION < 9)
+ int res_lex_destroy(void)
+ {
+ 	/* For non-reentrant C scanner only. */
+diff --git a/lib/framework/strres_lexer.l b/lib/framework/strres_lexer.l
+index a79eb9d..3d97a86 100644
+--- a/lib/framework/strres_lexer.l
++++ b/lib/framework/strres_lexer.l
+@@ -50,7 +50,7 @@ static inline bool no_warn_unused_result(int ignore) { if (ignore) {} return tru
+  * yyget_text() and yyget_lineno().
+  * (and neither define a subminor version)
+  */
+-#if !defined(YY_FLEX_SUBMINOR_VERSION) || (YY_FLEX_SUBMINOR_VERSION < 9)
++#if !defined(YY_FLEX_SUBMINOR_VERSION) || (YY_FLEX_MAJOR_VERSION == 2 && YY_FLEX_MINOR_VERSION == 5 && YY_FLEX_SUBMINOR_VERSION < 9)
+ # define yyget_extra  strres_get_extra
+ # define yyset_extra  strres_set_extra
+ # define yyget_lineno strres_get_lineno
+@@ -143,7 +143,7 @@ YY_EXTRA_TYPE yyget_extra()
+ /* Older GNU Flex versions don't define yylex_destroy()
+  * (and neither define a subminor version)
+  */
+-#if !defined(YY_FLEX_SUBMINOR_VERSION) || (YY_FLEX_SUBMINOR_VERSION < 9)
++#if !defined(YY_FLEX_SUBMINOR_VERSION) || (YY_FLEX_MAJOR_VERSION == 2 && YY_FLEX_MINOR_VERSION == 5 && YY_FLEX_SUBMINOR_VERSION < 9)
+ int strres_lex_destroy(void)
+ {
+ 	/* For non-reentrant C scanner only. */
+diff --git a/lib/framework/strres_parser.y b/lib/framework/strres_parser.y
+index 7650052..1c2f82a 100644
+--- a/lib/framework/strres_parser.y
++++ b/lib/framework/strres_parser.y
+@@ -39,11 +39,15 @@ void yyerror(const char* msg)
+ // Forward declaration to allow pointers to this type
+ struct STR_RES;
+ 
+-#define YYPARSE_PARAM psStrRes
++/* Bison 3 dropped YYPARSE_PARAM (see %parse-param below) and passes the
++ * parse parameter to yyerror too; keep the one-argument error function. */
++#undef yyerror
++#define yyerror(param, msg) strres_error(msg)
+ 
+ %}
+ 
+ %name-prefix="strres_"
++%parse-param {void *psStrRes}
+ 
+ %union {
+ 	char  *sval;
+diff --git a/lib/gamelib/audp_lexer.l b/lib/gamelib/audp_lexer.l
+index a81b207..198e745 100644
+--- a/lib/gamelib/audp_lexer.l
++++ b/lib/gamelib/audp_lexer.l
+@@ -48,7 +48,7 @@ void audp_error(const char* fmt);
+  * yyget_text() and yyget_lineno().
+  * (and neither define a subminor version)
+  */
+-#if !defined(YY_FLEX_SUBMINOR_VERSION) || (YY_FLEX_SUBMINOR_VERSION < 9)
++#if !defined(YY_FLEX_SUBMINOR_VERSION) || (YY_FLEX_MAJOR_VERSION == 2 && YY_FLEX_MINOR_VERSION == 5 && YY_FLEX_SUBMINOR_VERSION < 9)
+ # define yyget_extra  audp_get_extra
+ # define yyset_extra  audp_set_extra
+ # define yyget_lineno audp_get_lineno
+@@ -165,7 +165,7 @@ YY_EXTRA_TYPE yyget_extra()
+ /* Older GNU Flex versions don't define yylex_destroy()
+  * (and neither define a subminor version)
+  */
+-#if !defined(YY_FLEX_SUBMINOR_VERSION) || (YY_FLEX_SUBMINOR_VERSION < 9)
++#if !defined(YY_FLEX_SUBMINOR_VERSION) || (YY_FLEX_MAJOR_VERSION == 2 && YY_FLEX_MINOR_VERSION == 5 && YY_FLEX_SUBMINOR_VERSION < 9)
+ int audp_lex_destroy(void)
+ {
+ 	/* For non-reentrant C scanner only. */
+diff --git a/lib/ivis_common/tex.h b/lib/ivis_common/tex.h
+index a23f94b..b9264bc 100644
+--- a/lib/ivis_common/tex.h
++++ b/lib/ivis_common/tex.h
+@@ -24,7 +24,7 @@
+ #if defined __APPLE__ && defined __MACH__
+ #include <OpenGL/gl.h>
+ #elif defined(__riscos__)
+-#include <GLee.h>  // Mesa's gl.h pulls in glext.h, which clashes with GLee
++#include "lib/ivis_opengl/GLee.h"  // Mesa's gl.h pulls in glext.h, which clashes with GLee
+ #else
+ #include <GL/gl.h>
+ #endif
+diff --git a/lib/ivis_opengl/piestate.c b/lib/ivis_opengl/piestate.c
+index d744601..2a0d3ce 100644
+--- a/lib/ivis_opengl/piestate.c
++++ b/lib/ivis_opengl/piestate.c
+@@ -28,6 +28,7 @@
+ #include <SDL_mouse.h>
+ #if defined(__riscos__)
+ #include <GLee.h>  // not SDL_opengl.h: its glext definitions clash with GLee
++#include <GL/glu.h> // gluErrorString (SDL_opengl.h brought this in)
+ #else
+ #include <SDL_opengl.h>
+ #endif
+diff --git a/lib/ivis_opengl/screen.h b/lib/ivis_opengl/screen.h
+index 9d768d3..a04cf26 100644
+--- a/lib/ivis_opengl/screen.h
++++ b/lib/ivis_opengl/screen.h
+@@ -34,6 +34,7 @@
+ #endif
+ 
+ #include "lib/framework/types.h"
++#include "lib/framework/vector.h"
+ 
+ /* ------------------------------------------------------------------------------------------- */
+ 
+diff --git a/lib/script/chat_lexer.l b/lib/script/chat_lexer.l
+index 76ada8e..8054a26 100644
+--- a/lib/script/chat_lexer.l
++++ b/lib/script/chat_lexer.l
+@@ -222,7 +222,7 @@ int chat_wrap(void)
+ /* Older GNU Flex versions don't define yylex_destroy()
+  * (and neither define a subminor version)
+  */
+-#if !defined(YY_FLEX_SUBMINOR_VERSION) || (YY_FLEX_SUBMINOR_VERSION < 9)
++#if !defined(YY_FLEX_SUBMINOR_VERSION) || (YY_FLEX_MAJOR_VERSION == 2 && YY_FLEX_MINOR_VERSION == 5 && YY_FLEX_SUBMINOR_VERSION < 9)
+ int chat_lex_destroy(void)
+ {
+ 	/* For non-reentrant C scanner only. */
+diff --git a/lib/script/script_lexer.l b/lib/script/script_lexer.l
+index 9d8b04c..c2c5afe 100644
+--- a/lib/script/script_lexer.l
++++ b/lib/script/script_lexer.l
+@@ -853,7 +853,7 @@ int scr_wrap(void)
+ /* Older GNU Flex versions don't define yylex_destroy()
+  * (and neither define a subminor version)
+  */
+-#if !defined(YY_FLEX_SUBMINOR_VERSION) || (YY_FLEX_SUBMINOR_VERSION < 9)
++#if !defined(YY_FLEX_SUBMINOR_VERSION) || (YY_FLEX_MAJOR_VERSION == 2 && YY_FLEX_MINOR_VERSION == 5 && YY_FLEX_SUBMINOR_VERSION < 9)
+ int scr_lex_destroy(void)
+ {
+ 	/* For non-reentrant C scanner only. */
+diff --git a/src/level_lexer.l b/src/level_lexer.l
+index b6e77b7..2366e81 100644
+--- a/src/level_lexer.l
++++ b/src/level_lexer.l
+@@ -51,7 +51,7 @@ static char aText[YYLMAX];
+  * yyget_text() and yyget_lineno().
+  * (and neither define a subminor version)
+  */
+-#if !defined(YY_FLEX_SUBMINOR_VERSION) || (YY_FLEX_SUBMINOR_VERSION < 9)
++#if !defined(YY_FLEX_SUBMINOR_VERSION) || (YY_FLEX_MAJOR_VERSION == 2 && YY_FLEX_MINOR_VERSION == 5 && YY_FLEX_SUBMINOR_VERSION < 9)
+ # define yyget_extra  lev_get_extra
+ # define yyset_extra  lev_set_extra
+ # define yyget_lineno lev_get_lineno
+@@ -168,7 +168,7 @@ YY_EXTRA_TYPE yyget_extra()
+ /* Older GNU Flex versions don't define yylex_destroy()
+  * (and neither define a subminor version)
+  */
+-#if !defined(YY_FLEX_SUBMINOR_VERSION) || (YY_FLEX_SUBMINOR_VERSION < 9)
++#if !defined(YY_FLEX_SUBMINOR_VERSION) || (YY_FLEX_MAJOR_VERSION == 2 && YY_FLEX_MINOR_VERSION == 5 && YY_FLEX_SUBMINOR_VERSION < 9)
+ int lev_lex_destroy(void)
+ {
+ 	/* For non-reentrant C scanner only. */
+diff --git a/src/message_lexer.l b/src/message_lexer.l
+index 1afa081..c4e3667 100644
+--- a/src/message_lexer.l
++++ b/src/message_lexer.l
+@@ -45,7 +45,7 @@ static inline bool no_warn_unused_result(int ignore) { if (ignore) {} return tru
+  * yyget_text() and yyget_lineno().
+  * (and neither define a subminor version)
+  */
+-#if !defined(YY_FLEX_SUBMINOR_VERSION) || (YY_FLEX_SUBMINOR_VERSION < 9)
++#if !defined(YY_FLEX_SUBMINOR_VERSION) || (YY_FLEX_MAJOR_VERSION == 2 && YY_FLEX_MINOR_VERSION == 5 && YY_FLEX_SUBMINOR_VERSION < 9)
+ # define yyget_extra  message_get_extra
+ # define yyset_extra  message_set_extra
+ # define yyget_lineno message_get_lineno
+@@ -144,7 +144,7 @@ YY_EXTRA_TYPE yyget_extra()
+ /* Older GNU Flex versions don't define yylex_destroy()
+  * (and neither define a subminor version)
+  */
+-#if !defined(YY_FLEX_SUBMINOR_VERSION) || (YY_FLEX_SUBMINOR_VERSION < 9)
++#if !defined(YY_FLEX_SUBMINOR_VERSION) || (YY_FLEX_MAJOR_VERSION == 2 && YY_FLEX_MINOR_VERSION == 5 && YY_FLEX_SUBMINOR_VERSION < 9)
+ int message_lex_destroy(void)
+ {
+ 	/* For non-reentrant C scanner only. */
+diff --git a/src/message_parser.y b/src/message_parser.y
+index 25fa4b8..f953723 100644
+--- a/src/message_parser.y
++++ b/src/message_parser.y
+@@ -85,11 +85,15 @@ static void freeViewDataMessageList(VIEWDATAMESSAGE* list)
+ 	}
+ }
+ 
+-#define YYPARSE_PARAM ppsViewData
++/* Bison 3 dropped YYPARSE_PARAM (see %parse-param below) and passes the
++ * parse parameter to yyerror too; keep the one-argument error function. */
++#undef yyerror
++#define yyerror(param, msg) message_error(msg)
+ 
+ %}
+ 
+ %name-prefix="message_"
++%parse-param {void *ppsViewData}
+ 
+ %union {
+ 	char*                   sval;
+diff --git a/src/scriptvals_lexer.l b/src/scriptvals_lexer.l
+index 02a1343..46b04b8 100644
+--- a/src/scriptvals_lexer.l
++++ b/src/scriptvals_lexer.l
+@@ -56,7 +56,7 @@ static UDWORD currText=0;
+  * yyget_text() and yyget_lineno().
+  * (and neither define a subminor version)
+  */
+-#if !defined(YY_FLEX_SUBMINOR_VERSION) || (YY_FLEX_SUBMINOR_VERSION < 9)
++#if !defined(YY_FLEX_SUBMINOR_VERSION) || (YY_FLEX_MAJOR_VERSION == 2 && YY_FLEX_MINOR_VERSION == 5 && YY_FLEX_SUBMINOR_VERSION < 9)
+ # define yyget_extra  scrv_get_extra
+ # define yyset_extra  scrv_set_extra
+ # define yyget_lineno scrv_get_lineno
+@@ -195,7 +195,7 @@ YY_EXTRA_TYPE yyget_extra()
+ /* Older GNU Flex versions don't define yylex_destroy()
+  * (and neither define a subminor version)
+  */
+-#if !defined(YY_FLEX_SUBMINOR_VERSION) || (YY_FLEX_SUBMINOR_VERSION < 9)
++#if !defined(YY_FLEX_SUBMINOR_VERSION) || (YY_FLEX_MAJOR_VERSION == 2 && YY_FLEX_MINOR_VERSION == 5 && YY_FLEX_SUBMINOR_VERSION < 9)
+ int scrv_lex_destroy(void)
+ {
+ 	/* For non-reentrant C scanner only. */
+-- 
+2.43.0
+

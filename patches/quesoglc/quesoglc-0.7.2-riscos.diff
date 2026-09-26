@@ -1,0 +1,131 @@
+diff -ruN -x '*.o' -x '*.a' -x .git quesoglc-0.7.2/riscos/Makefile quesoglc-0.7.2.riscos/riscos/Makefile
+--- quesoglc-0.7.2/riscos/Makefile	1970-01-01 00:00:00.000000000 +0000
++++ quesoglc-0.7.2.riscos/riscos/Makefile	2026-09-25 22:28:26.727840469 +0000
+@@ -0,0 +1,29 @@
++# Static libGLC.a for RISC OS (riscos-warzone2100). Run from this directory:
++#   make CC=arm-riscos-gnueabihf-gcc AR=arm-riscos-gnueabihf-ar \
++#        STAGE=<prefix with freetype/fontconfig/GL headers> CFLAGS="..."
++SRC = ../src
++OBJS = context.o database.o except.o font.o global.o master.o measure.o misc.o \
++       oarray.o ocharmap.o ocontext.o ofacedesc.o ofont.o omaster.o render.o \
++       scalable.o transform.o oglyph.o texture.o unicode.o glew.o \
++       fribidi.o fribidi_char_type.o fribidi_mirroring.o fribidi_types.o
++CPPFLAGS += -DHAVE_CONFIG_H -D_REENTRANT -DGLEW_MX -I. -I../include -I$(SRC) \
++            -I$(SRC)/fribidi -I$(STAGE)/include -I$(STAGE)/include/freetype2
++
++all: libGLC.a
++
++%.o: $(SRC)/%.c
++	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
++%.o: $(SRC)/fribidi/%.c
++	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
++
++libGLC.a: $(OBJS)
++	rm -f $@
++	$(AR) rcs $@ $(OBJS)
++
++install: libGLC.a
++	mkdir -p $(STAGE)/lib $(STAGE)/include/GL
++	cp libGLC.a $(STAGE)/lib/
++	cp ../include/GL/glc.h $(STAGE)/include/GL/
++
++clean:
++	rm -f *.o libGLC.a
+diff -ruN -x '*.o' -x '*.a' -x .git quesoglc-0.7.2/riscos/qglc_config.h quesoglc-0.7.2.riscos/riscos/qglc_config.h
+--- quesoglc-0.7.2/riscos/qglc_config.h	1970-01-01 00:00:00.000000000 +0000
++++ quesoglc-0.7.2.riscos/riscos/qglc_config.h	2026-09-25 22:28:26.727227922 +0000
+@@ -0,0 +1,34 @@
++/* qglc_config.h for RISC OS (GCCSDK GCC 10, UnixLib), written by hand:
++ * QuesoGLC's configure can't be run for this target. */
++#define HAVE_ATEXIT 1
++#define HAVE_FT_CACHE 1
++#define HAVE_INTTYPES_H 1
++#define HAVE_LIBFREETYPE 1
++#define HAVE_LIBM 1
++#define HAVE_MALLOC 1
++#define HAVE_MEMMOVE 1
++#define HAVE_MEMORY_H 1
++#define HAVE_MEMSET 1
++#define HAVE_PTHREAD 1
++#define HAVE_REALLOC 1
++#define HAVE_STDINT_H 1
++#define HAVE_STDLIB_H 1
++#define HAVE_STRDUP 1
++#define HAVE_STRINGS_H 1
++#define HAVE_STRING_H 1
++#define HAVE_SYS_STAT_H 1
++#define HAVE_SYS_TYPES_H 1
++/* No HAVE_TLS: UnixLib has no __aeabi_read_tp, so no ELF TLS (as in Mesa);
++ * QuesoGLC uses pthread keys instead. */
++#define HAVE_UNISTD_H 1
++#define PACKAGE "quesoglc"
++#define PACKAGE_NAME "QuesoGLC"
++#define PACKAGE_STRING "QuesoGLC 0.7.2"
++#define PACKAGE_TARNAME "quesoglc"
++#define PACKAGE_VERSION "0.7.2"
++#define SIZEOF_INT 4
++#define SIZEOF_LONG 4
++#define SIZEOF_SHORT 2
++#define STDC_HEADERS 1
++#define VERSION "0.7.2"
++#define X_DISPLAY_MISSING 1
+diff -ruN -x '*.o' -x '*.a' -x .git quesoglc-0.7.2/src/glew.c quesoglc-0.7.2.riscos/src/glew.c
+--- quesoglc-0.7.2/src/glew.c	2008-06-04 21:23:53.000000000 +0000
++++ quesoglc-0.7.2.riscos/src/glew.c	2026-09-25 22:39:59.460536516 +0000
+@@ -32,7 +32,7 @@
+ #include <GL/glew.h>
+ #if defined(_WIN32)
+ #  include <GL/wglew.h>
+-#elif !defined(__APPLE__) || defined(GLEW_APPLE_GLX)
++#elif (!defined(__APPLE__) && !defined(__riscos__)) || defined(GLEW_APPLE_GLX)
+ #  include <GL/glxew.h>
+ #endif
+ 
+@@ -120,6 +120,11 @@
+  */
+ #if defined(_WIN32)
+ #  define glewGetProcAddress(name) wglGetProcAddress((LPCSTR)name)
++#elif defined(__riscos__)
++/* RISC OS: static software Mesa (riscos-mesa OSMesa); no GLX */
++/* declared here: osmesa.h needs Mesa's gl.h, which glew.h replaces */
++extern void *OSMesaGetProcAddress(const char *funcName);
++#  define glewGetProcAddress(name) OSMesaGetProcAddress((const char *)(name))
+ #else
+ #  if defined(__APPLE__)
+ #    define glewGetProcAddress(name) NSGLGetProcAddress(name)
+@@ -1023,7 +1028,7 @@
+   return GLEW_OK;
+ }
+ 
+-#elif !defined(__APPLE__) || defined(GLEW_APPLE_GLX)
++#elif (!defined(__APPLE__) && !defined(__riscos__)) || defined(GLEW_APPLE_GLX)
+ 
+ PFNGLXGETCURRENTDISPLAYPROC __glewXGetCurrentDisplay = NULL;
+ 
+@@ -1208,7 +1213,7 @@
+ 
+ #if defined(_WIN32)
+ extern GLenum wglewContextInit (void);
+-#elif !defined(__APPLE__) || defined(GLEW_APPLE_GLX) /* _UNIX */
++#elif (!defined(__APPLE__) && !defined(__riscos__)) || defined(GLEW_APPLE_GLX) /* _UNIX */
+ extern GLenum glxewContextInit (void);
+ #endif /* _WIN32 */
+ 
+@@ -1218,7 +1223,7 @@
+   if ( (r = glewContextInit()) ) return r;
+ #if defined(_WIN32)
+   return wglewContextInit();
+-#elif !defined(__APPLE__) || defined(GLEW_APPLE_GLX) /* _UNIX */
++#elif (!defined(__APPLE__) && !defined(__riscos__)) || defined(GLEW_APPLE_GLX) /* _UNIX */
+   return glxewContextInit();
+ #else
+   return r;
+@@ -1358,7 +1363,7 @@
+   return ret;
+ }
+ 
+-#elif !defined(__APPLE__) || defined(GLEW_APPLE_GLX)
++#elif (!defined(__APPLE__) && !defined(__riscos__)) || defined(GLEW_APPLE_GLX)
+ 
+ #if defined(GLEW_MX)
+ GLboolean glxewContextIsSupported (GLXEWContext* ctx, const char* name)

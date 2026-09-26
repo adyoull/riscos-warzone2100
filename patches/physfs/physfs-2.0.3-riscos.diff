@@ -1,0 +1,18 @@
+diff --git a/physfs_platforms.h b/physfs_platforms.h
+index 112193c..d3554e2 100644
+--- a/physfs_platforms.h
++++ b/physfs_platforms.h
+@@ -41,6 +41,13 @@
+ #elif defined(unix) || defined(__unix__)
+ #  define PHYSFS_PLATFORM_UNIX
+ #  define PHYSFS_PLATFORM_POSIX
++#elif defined(__riscos__)
++/* RISC OS with UnixLib: the Unix code works; no CD-ROM enumeration */
++#  define PHYSFS_PLATFORM_UNIX
++#  define PHYSFS_PLATFORM_POSIX
++#  ifndef PHYSFS_NO_CDROM_SUPPORT
++#    define PHYSFS_NO_CDROM_SUPPORT
++#  endif
+ #else
+ #  error Unknown platform.
+ #endif

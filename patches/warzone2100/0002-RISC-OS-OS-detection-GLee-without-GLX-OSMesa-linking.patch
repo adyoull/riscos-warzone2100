@@ -1,0 +1,276 @@
+From feca13183acaf3c2adceb3ab18df80f27b7dc109 Mon Sep 17 00:00:00 2001
+From: Andrew Youll <andrew@youll.invalid>
+Date: Sat, 26 Sep 2026 06:33:37 +0000
+Subject: [PATCH 2/3] RISC OS: OS detection, GLee without GLX, OSMesa linking
+ in configure
+
+---
+ configure.ac               | 17 +++++++++++++++--
+ lib/framework/wzglobal.h   |  6 ++++++
+ lib/ivis_common/tex.h      |  2 ++
+ lib/ivis_opengl/GLee.c     | 23 +++++++++++++++--------
+ lib/ivis_opengl/GLee.h     | 13 ++++++++++---
+ lib/ivis_opengl/piestate.c |  4 ++++
+ 6 files changed, 52 insertions(+), 13 deletions(-)
+
+diff --git a/configure.ac b/configure.ac
+index 7ed190a..388cffb 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -95,6 +95,11 @@ case ${host_os} in
+ 		WIN32_LIBS='-ldbghelp -lshfolder -lshlwapi -lpsapi -lshell32 -lwinmm -lws2_32'
+ 		AC_SUBST([WIN32_LIBS], [${WIN32_LIBS}])
+ 		;;
++	*riscos*)
++		# RISC OS (GCCSDK, UnixLib): static ELF, no X11, GL = software Mesa
++		host_os_riscos=yes
++		AC_DEFINE([_XOPEN_SOURCE], 600, [Enable POSIX extensions if present])
++		;;
+ 	*openbsd*)
+ 		AC_DEFINE([_XOPEN_SOURCE], 600, [Enable POSIX extensions if present])
+ 		# Make sure that backtrace_symbols_fd (GNU raw back trace extension) has some symbols to work with
+@@ -337,7 +342,7 @@ fi
+ 
+ # Checks for modules:
+ 
+-PKG_CHECK_MODULES([SDL], [sdl >= 1.2])
++PKG_CHECK_MODULES([SDL], [sdl2 >= 2.0.0])
+ PKG_CHECK_MODULES([PNG], [libpng >= 1.2])
+ PKG_CHECK_MODULES([THEORA], [theora >= 1.0])
+ 
+@@ -391,7 +396,8 @@ if test "x$host_os_mingw32" = "xyes" ; then
+     WIN32_LIBS="${WIN32_LIBS} ${IBERTY_LIBS}"
+ fi
+ 
+-# Look for X11 if required
++# Look for X11 if required (not on RISC OS)
++AS_IF([test "x$host_os_riscos" != "xyes"],[
+ AC_TRY_COMPILE(, [
+ #if   (defined(__OS2__) && !defined(__EMX__))
+ # error Running OS2, not a Unix system.
+@@ -402,6 +408,7 @@ AC_TRY_COMPILE(, [
+ 	AC_CHECK_LIB(X11, XSetSelectionOwner, AC_SUBST([X11_LIBS], [-lX11]),
+ 		AC_MSG_ERROR([X11 library not found]))
+ ])
++])
+ 
+ # Look for Motif
+ AS_IF([test "$enable_motif" != "no"],[
+@@ -431,6 +438,11 @@ AC_CHECK_HEADER([SDL_opengl.h], [],
+ 	AC_MSG_ERROR([SDL OpenGL header not found. Please install SDL with OpenGL support.]))
+ CPPFLAGS="$CPPFLAGS_SAVE"
+ 
++if test "x$host_os_riscos" = "xyes" ; then
++	# riscos-mesa devkit: static OSMesa is the GL library, GLU on top of it.
++	# (The GLSL compiler inside is C++, and Mesa uses zlib.)
++	OPENGL_LIBS="-lGLU -lOSMesa -lstdc++ -lz -lm"
++else
+ AC_CHECK_LIB(GL, main,
+ 	OPENGL_LIBS="-lGL",
+ 	AC_CHECK_LIB(opengl32, main,
+@@ -442,6 +454,7 @@ AC_CHECK_LIB(GLU, main,
+ 		OPENGL_LIBS="${OPENGL_LIBS} -lglu32",
+ 		AC_MSG_ERROR([GLU library not found.]),
+ 		[${OPENGL_LIBS} -lm]), [${OPENGL_LIBS} -lm])
++fi
+ AC_SUBST([OPENGL_LIBS], [${OPENGL_LIBS}])
+ 
+ # Look for OpenGLC
+diff --git a/lib/framework/wzglobal.h b/lib/framework/wzglobal.h
+index 46b1151..6f4b5c4 100644
+--- a/lib/framework/wzglobal.h
++++ b/lib/framework/wzglobal.h
+@@ -157,6 +157,9 @@
+ #  define WZ_OS_UNIXWARE
+ #elif defined(__INTEGRITY)
+ #  define WZ_OS_INTEGRITY
++#elif defined(__riscos__)
++/* RISC OS with GCCSDK's UnixLib: POSIX enough to be treated as a Unix */
++#  define WZ_OS_RISCOS
+ #elif defined(__MAKEDEPEND__)
+ #else
+ #  error "Warzone has not been tested on this OS. Please contact warzone-dev@gna.org"
+@@ -265,6 +268,9 @@
+ #elif defined(WZ_OS_QNX)
+ #  define WZ_WS_QNX
+ 
++#elif defined(WZ_OS_RISCOS)
++#  define WZ_WS_RISCOS    /* the Wimp, through SDL2 */
++
+ #elif defined(WZ_OS_UNIX)
+ #  define WZ_WS_X11
+ 
+diff --git a/lib/ivis_common/tex.h b/lib/ivis_common/tex.h
+index 99d7a47..a23f94b 100644
+--- a/lib/ivis_common/tex.h
++++ b/lib/ivis_common/tex.h
+@@ -23,6 +23,8 @@
+ //#include <GLee.h>
+ #if defined __APPLE__ && defined __MACH__
+ #include <OpenGL/gl.h>
++#elif defined(__riscos__)
++#include <GLee.h>  // Mesa's gl.h pulls in glext.h, which clashes with GLee
+ #else
+ #include <GL/gl.h>
+ #endif
+diff --git a/lib/ivis_opengl/GLee.c b/lib/ivis_opengl/GLee.c
+index 245b04d..29eec63 100644
+--- a/lib/ivis_opengl/GLee.c
++++ b/lib/ivis_opengl/GLee.c
+@@ -42,6 +42,10 @@
+ #include <string.h>
+ #include "GLee.h"
+ 
++#if defined(__riscos__)
++	#include <SDL.h>
++#endif
++
+ #if defined(__APPLE__) || defined(__APPLE_CC__)
+ 	#include <Carbon/Carbon.h>
+ #endif
+@@ -58,6 +62,9 @@ void * __GLeeGetProcAddress(const char *extname)
+ {
+ #ifdef WIN32
+ 	return (void*)wglGetProcAddress(extname);
++#elif defined(__riscos__)
++	/* Mesa's own lookup (via SDL2's OSMesa driver) */
++	return SDL_GL_GetProcAddress(extname);
+ #elif defined(__APPLE__) || defined(__APPLE_CC__)
+     CFBundleRef bundle;
+     CFURLRef bundleURL = CFURLCreateWithFileSystemPath(kCFAllocatorDefault, CFSTR("/System/Library/Frameworks/OpenGL.framework"), kCFURLPOSIXPathStyle, true);
+@@ -10673,7 +10680,7 @@ int __GLeeWGLNumExtensions=37;
+   GLEEPFNWGLGETVIDEOINFONVPROC GLeeFuncPtr_wglGetVideoInfoNV=GLee_Lazy_wglGetVideoInfoNV;
+ #endif
+ #endif 
+-#elif defined(__APPLE__) || defined(__APPLE_CC__)
++#elif defined(__APPLE__) || defined(__APPLE_CC__) || defined(__riscos__)
+ #else /* GLX */
+ 
+ /* Extension querying variables */
+@@ -15471,7 +15478,7 @@ void initWGLLoadFunctions(void)
+     __GLeeWGLLoadFunction[36]=__GLeeLink_WGL_NV_video_output;
+ }
+ 
+-#elif defined(__APPLE__) || defined(__APPLE_CC__)
++#elif defined(__APPLE__) || defined(__APPLE_CC__) || defined(__riscos__)
+ #else /* Linux */
+ GLuint __GLeeLink_GLX_VERSION_1_3(void)
+ {
+@@ -15933,7 +15940,7 @@ const char *__GLeeGetExtStrPlat( void )
+ 
+ 	if (wglGetExtensionsStringARB)
+ 		return (const char *)wglGetExtensionsStringARB(wglGetCurrentDC());
+-#elif defined(__APPLE__) || defined(__APPLE_CC__)
++#elif defined(__APPLE__) || defined(__APPLE_CC__) || defined(__riscos__)
+ #else
+ 	Display *dpy=glXGetCurrentDisplay();
+ 	if(dpy)
+@@ -16061,7 +16068,7 @@ GLEE_EXTERN GLint __GLeeGetExtensionNumber(const char *extensionName, int type)
+ 		for (a=0;a<__GLeeWGLNumExtensions;a++)
+ 			if (strcmp(extensionName,__GLeeWGLExtensionNames[a])==0) return a;
+ 		return -1;
+-#elif defined(__APPLE__) || defined(__APPLE_CC__)
++#elif defined(__APPLE__) || defined(__APPLE_CC__) || defined(__riscos__)
+ #else
+ 	case 2:
+ 		for (a=0;a<__GLeeGLXNumExtensions;a++)
+@@ -16081,7 +16088,7 @@ GLEE_EXTERN const char * GLeeGetExtStrWGL( void )
+ {
+ 	return __GLeeGetExtStrPlat();
+ }
+-#elif defined(__APPLE__) || defined(__APPLE_CC__)
++#elif defined(__APPLE__) || defined(__APPLE_CC__) || defined(__riscos__)
+ #else
+ GLEE_EXTERN const char * GLeeGetExtStrGLX( void )	
+ {
+@@ -16113,7 +16120,7 @@ GLEE_EXTERN GLint GLeeForceLink(const char * extensionName)
+ 		initGLLoadFunctions();
+ #ifdef WIN32
+ 		initWGLLoadFunctions();
+-#elif defined(__APPLE__) || defined(__APPLE_CC__)
++#elif defined(__APPLE__) || defined(__APPLE_CC__) || defined(__riscos__)
+ #else
+ 		initGLXLoadFunctions();
+ #endif
+@@ -16126,7 +16133,7 @@ GLEE_EXTERN GLint GLeeForceLink(const char * extensionName)
+ 	if (type==0) return __GLeeGLLoadFunction[extNum]();
+ #ifdef WIN32
+ 	if (type==1) return __GLeeWGLLoadFunction[extNum]();
+-#elif defined(__APPLE__) || defined(__APPLE_CC__)	
++#elif defined(__APPLE__) || defined(__APPLE_CC__) || defined(__riscos__)	
+ #else
+ 	if (type==2) return __GLeeGLXLoadFunction[extNum]();
+ #endif
+@@ -17961,7 +17968,7 @@ GLEE_EXTERN GLboolean GLeeInit( void )
+         _GLEE_WGL_NV_video_output = GL_TRUE;
+         __GLeeLink_WGL_NV_video_output();
+     }
+-#elif defined(__APPLE__) || defined(__APPLE_CC__)
++#elif defined(__APPLE__) || defined(__APPLE_CC__) || defined(__riscos__)
+ #else /* GLX */
+     if (__GLeeCheckExtension("GLX_VERSION_1_3", &extensionNames) )
+     {
+diff --git a/lib/ivis_opengl/GLee.h b/lib/ivis_opengl/GLee.h
+index 6582159..45af031 100644
+--- a/lib/ivis_opengl/GLee.h
++++ b/lib/ivis_opengl/GLee.h
+@@ -56,6 +56,13 @@
+ 	#define WIN32_LEAN_AND_MEAN
+ 	#include <windows.h>
+ 	#include <GL/gl.h>
++#elif defined(__riscos__)
++	/* RISC OS: software Mesa (OSMesa) behind SDL2; no window-system GL API.
++	 * GLee declares every extension itself, so keep Mesa's glext.h out. */
++	#define GL_GLEXT_LEGACY
++	#define __glext_h_
++	#define __gl_glext_h_
++	#include <GL/gl.h>
+ #elif defined(__APPLE__) || defined(__APPLE_CC__)
+     #define GL_GLEXT_LEGACY
+ 	#include <OpenGL/gl.h>
+@@ -806,7 +813,7 @@ GLEE_EXTERN GLboolean _GLEE_SGIX_texture_range;
+         } GPU_DEVICE, *PGPU_DEVICE;
+     #endif
+ 	
+-#elif defined(__APPLE__) || defined(__APPLE_CC__)
++#elif defined(__APPLE__) || defined(__APPLE_CC__) || defined(__riscos__)
+ 
+ 	/* Mac OS X */
+ 
+@@ -16543,7 +16550,7 @@ GLEE_EXTERN GLboolean _GLEE_WGL_NV_video_output;
+   #define wglGetVideoInfoNV GLeeFuncPtr_wglGetVideoInfoNV
+ #endif
+ #endif 
+-#elif defined(__APPLE__) || defined(__APPLE_CC__)
++#elif defined(__APPLE__) || defined(__APPLE_CC__) || defined(__riscos__)
+ #else /* GLX */
+ 
+ /* Extension querying variables */
+@@ -17635,7 +17642,7 @@ GLEE_EXTERN GLboolean GLeeEnabled(GLboolean * extensionQueryingVariable);
+ 
+ #ifdef WIN32
+ GLEE_EXTERN const char * GLeeGetExtStrWGL( void );
+-#elif defined(__APPLE__) || defined(__APPLE_CC__)
++#elif defined(__APPLE__) || defined(__APPLE_CC__) || defined(__riscos__)
+ #else 
+ GLEE_EXTERN const char * GLeeGetExtStrGLX( void );
+ #endif
+diff --git a/lib/ivis_opengl/piestate.c b/lib/ivis_opengl/piestate.c
+index bb62d1c..d744601 100644
+--- a/lib/ivis_opengl/piestate.c
++++ b/lib/ivis_opengl/piestate.c
+@@ -26,7 +26,11 @@
+ 
+ #include <SDL.h>
+ #include <SDL_mouse.h>
++#if defined(__riscos__)
++#include <GLee.h>  // not SDL_opengl.h: its glext definitions clash with GLee
++#else
+ #include <SDL_opengl.h>
++#endif
+ 
+ #include "lib/ivis_common/piestate.h"
+ #include "lib/ivis_common/piedef.h"
+-- 
+2.43.0
+
