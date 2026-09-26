@@ -5,7 +5,7 @@ don't probe the stack page by page (-fstack-clash-protection).
 import re,subprocess,sys
 b=sys.argv[1]
 out=subprocess.run([(sys.argv[2] if len(sys.argv)>2 else 'arm-riscos-gnueabihf-objdump'),'-d','--no-show-raw-insn',b],capture_output=True,text=True).stdout
-fn=None; res={}; regs={}; probed=set(); probe_regs=set()
+fn=None; res={}; regs={}; probed=set(); probe_regs=set(); last_sub4096=False
 for line in out.splitlines():
     m=re.match(r'^[0-9a-f]+ <(.+)>:$',line)
     if m: fn=m.group(1); regs={}; probe_regs={'ip'}; continue
@@ -15,6 +15,10 @@ for line in out.splitlines():
     if m: probe_regs.add(m.group(1))
     m=re.search(r'\tstr\s+r0, \[(r\d+|ip)(, #-\d+)?\]',line)
     if m and m.group(1) in probe_regs: probed.add(fn)
+    # Variable-sized allocations (VLAs, alloca) are probed by a loop:
+    # "sub sp, sp, #4096" then "str r0, [sp, #4092]"; the remainder is < 4 KB.
+    if re.search(r'\tstr\s+r0, \[sp, #40\d\d\]',line) and last_sub4096: probed.add(fn)
+    last_sub4096 = bool(re.search(r'\tsub\s+sp, sp, #4096',line)) or (last_sub4096 and not re.search(r'\t(str|b|bl|pop|ldr)',line))
     m=re.search(r'\t(movw|mov)\s+(r\d+|ip|lr|fp|sl), #(\d+)',line)
     if m: regs[m.group(2)]=int(m.group(3)); continue
     m=re.search(r'\tmovt\s+(r\d+|ip|lr|fp|sl), #(\d+)',line)

@@ -1,7 +1,7 @@
 From feca13183acaf3c2adceb3ab18df80f27b7dc109 Mon Sep 17 00:00:00 2001
 From: Andrew Youll <andrew@youll.invalid>
 Date: Sat, 26 Sep 2026 06:33:37 +0000
-Subject: [PATCH 2/3] RISC OS: OS detection, GLee without GLX, OSMesa linking
+Subject: [PATCH 2/4] RISC OS: OS detection, GLee without GLX, OSMesa linking
  in configure
 
 ---

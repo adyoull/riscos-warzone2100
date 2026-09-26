@@ -1,7 +1,7 @@
 From 5fc47ce9fbaa5033380d62cd8d03f604bc160d8f Mon Sep 17 00:00:00 2001
 From: Andrew Youll <andrew@youll.invalid>
 Date: Sat, 26 Sep 2026 06:52:10 +0000
-Subject: [PATCH 3/3] Build fixes: RISC OS triplet in configure, host-built
+Subject: [PATCH 3/4] Build fixes: RISC OS triplet in configure, host-built
  autorevision, modern flex/bison, no Unix crash handler on RISC OS, header
  fixes
 

@@ -1,0 +1,32 @@
+From cd64c520dcff8d1c5176a3b4545139872fc9934d Mon Sep 17 00:00:00 2001
+From: Andrew Youll <andrew@youll.invalid>
+Date: Sat, 26 Sep 2026 07:01:31 +0000
+Subject: [PATCH 4/4] RISC OS: put the C heap in a named dynamic area
+
+---
+ src/main.c | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/src/main.c b/src/main.c
+index 0c6e138..07fac08 100644
+--- a/src/main.c
++++ b/src/main.c
+@@ -513,6 +513,15 @@ static void initialize_ConfigDir(void)
+ }
+ 
+ 
++#if defined(WZ_OS_RISCOS)
++/* Put the C heap in a dynamic area with a fixed name (as the RISC OS port of
++ * OpenTTD does). UnixLib otherwise looks for a "<program>$Heap" variable
++ * named after the command line; without a dynamic area the heap has to fit
++ * in the WimpSlot. The area is removed when the game quits. */
++const char * const __dynamic_da_name = "Warzone2100 Heap";
++int __dynamic_da_max_size = 512 * 1024 * 1024;
++#endif
++
+ /*!
+  * Initialize the PhysicsFS library.
+  */
+-- 
+2.43.0
+

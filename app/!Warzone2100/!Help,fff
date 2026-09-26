@@ -1,0 +1,61 @@
+Warzone 2100 2.3.9 for RISC OS
+==============================
+
+Warzone 2100 is a real-time strategy game, originally released by Pumpkin
+Studios in 1999 and developed since 2004 as free software by the Warzone
+2100 Project. This is the 2.3.9 release (2012), the last one that draws
+everything with fixed-function OpenGL, ported to RISC OS.
+
+This is a test build: it has not yet been run on real hardware.
+
+
+Requirements
+------------
+- RISC OS 5 on an ARMv7 machine (Raspberry Pi 2 or later; a Pi 4 is
+  recommended). The program uses VFPv4 instructions.
+- SharedUnixLibrary 1.16 or later and ARMEABISupport (both from PackMan).
+- About 32MB of free memory for the program, plus the game's heap, which
+  goes in a dynamic area called "Warzone2100 Heap".
+
+
+Running
+-------
+Double-click !Warzone2100. The game opens a 640x480 desktop window.
+- Options > Video changes the size and switches to full screen; the
+  change takes effect the next time the game starts.
+- Settings, saved games and screenshots are kept in
+  <Choices$Write>.Warzone2100.
+- The game's log is written to <Wimp$ScrapDir>.Warzone2100log. Please
+  include it with any bug report.
+
+
+Things to know
+--------------
+- Everything is drawn in software (riscos-mesa, a build of Mesa 3D for
+  RISC OS). Keep the window small for a good frame rate; 640x480 is the
+  game's smallest size and the quickest.
+- There is no sound or music in this build yet.
+- The campaign videos (sequences.wz) and music are separate downloads and
+  are not included. The game runs without them.
+- Multiplayer over the internet used a lobby server that no longer exists.
+  Games on a local network, or joining a host by address, may work.
+
+
+Credits and licences
+--------------------
+Warzone 2100: the Warzone 2100 Project (wz2100.net). GPL version 2 or
+later; see docs.COPYING and docs.COPYING-README.
+
+This build contains, statically linked:
+- riscos-mesa: Mesa 3D 20.3.5 (MIT), GLU and SDL 2.26 (zlib licence) with
+  their RISC OS drivers; see docs.riscos-mesa-LICENCES.
+- QuesoGLC 0.7.2 (LGPL 2.1), FreeType 2.10.1 (FreeType licence),
+  fontconfig 2.12.6 and expat 2.2.9 (MIT), PhysicsFS 2.0.3 and zlib
+  (zlib licence), libpng 1.6.37 (libpng licence), popt 1.16 (MIT),
+  libogg 1.3.5, libvorbis 1.3.7 and libtheora 1.1.1 (BSD).
+- UnixLib and the GCC runtime from GCCSDK.
+
+Fonts: DejaVu Sans 2.37 (see docs.DejaVu-LICENSE).
+
+The RISC OS changes are in docs.patches: they apply to the upstream
+Warzone 2100 2.3.9, QuesoGLC 0.7.2 and PhysicsFS 2.0.3 sources.

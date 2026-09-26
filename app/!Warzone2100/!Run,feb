@@ -1,0 +1,44 @@
+| !Run for !Warzone2100 - RISC OS port of Warzone 2100 2.3.9
+| Built with GCCSDK GCC 10.2 (arm-riscos-gnueabihf), statically linked with
+| riscos-mesa (software OpenGL) and its SDL2, and converted to an Absolute
+| (AIF) file, so !SharedLibs isn't needed.
+
+Set Warzone2100$Dir <Obey$Dir>
+IconSprites <Warzone2100$Dir>.!Sprites
+
+| --- Runtime support -------------------------------------------------
+RMEnsure SharedUnixLibrary 1.16 IfThere System:Modules.SharedULib Then RMLoad System:Modules.SharedULib
+RMEnsure SharedUnixLibrary 1.16 Error Warzone 2100 needs SharedUnixLibrary 1.16 or later. Install it with PackMan.
+RMEnsure ARMEABISupport 0 IfThere System:Modules.ARMEABISupport Then RMLoad System:Modules.ARMEABISupport
+RMEnsure ARMEABISupport 0 Error Warzone 2100 needs the ARMEABISupport module. Install it with PackMan.
+
+| --- Files ------------------------------------------------------------
+| Paths handed to the program are UnixLib paths of the form /<Var$Dir>/...
+| Set and Do expand <variables>, so they are written /|<Var$Dir>/... here:
+| "|<" keeps the "<", and UnixLib expands the variable when it's used.
+| Settings, saved games and screenshots go in Choices.
+CDir <Choices$Write>.Warzone2100
+| The game's log (stdout and stderr) goes to this file.
+Set Warzone2100$Output /|<Wimp$ScrapDir>/Warzone2100log
+| Fonts: the bundled DejaVu fonts, found through fontconfig.
+Set FONTCONFIG_FILE /|<Warzone2100$Dir>/fonts/fonts.conf
+CDir <Wimp$ScrapDir>.WZ2100fc
+
+| --- Memory ---------------------------------------------------------
+| The C heap goes in a dynamic area, "Warzone2100 Heap" (up to 512MB,
+| removed when the game quits), so the WimpSlot only has to hold the
+| program itself (about 25MB).
+WimpSlot -min 32768K -max 32768K
+
+| --- Display ---------------------------------------------------------
+| The game opens a 640x480 desktop window unless the Choices say otherwise
+| (Options > Video in the game). Everything is drawn by software OpenGL, so
+| bigger windows and full screen are slower.
+| Uncomment one of these to force a mode from here instead:
+| Set Warzone2100$Mode --window --resolution 800x600
+| Set Warzone2100$Mode --fullscreen --resolution 640x480
+If "<Warzone2100$Mode>"="" Then Set Warzone2100$Mode --window
+
+| --- Program -------------------------------------------------------
+| No sound yet: this build is made with --disable-sound.
+Do Run <Warzone2100$Dir>.warzone2100 --datadir=/|<Warzone2100$Dir>/data --configdir=/|<Choices$Write>/Warzone2100 <Warzone2100$Mode> %*0

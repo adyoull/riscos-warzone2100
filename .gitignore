@@ -3,3 +3,4 @@ src
 devkit
 *.log
 deps.status
+dist/
