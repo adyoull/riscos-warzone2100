@@ -1,8 +1,11 @@
-From cd64c520dcff8d1c5176a3b4545139872fc9934d Mon Sep 17 00:00:00 2001
-From: Andrew Youll <andrew@youll.invalid>
-Date: Sat, 26 Sep 2026 07:01:31 +0000
-Subject: [PATCH 4/4] RISC OS: put the C heap in a named dynamic area
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Andrew Youll <adyoull@users.noreply.github.com>
+Date: Sat, 26 Sep 2026 22:04:14 +0100
+Subject: [PATCH 04/11] RISC OS: put the C heap in a named dynamic area
 
+UnixLib puts the heap in a dynamic area when __dynamic_da_name is defined
+(otherwise it has to fit in the WimpSlot, or needs a <prog>$Heap
+variable). "Warzone2100 Heap", up to 512MB, removed when the game quits.
 ---
  src/main.c | 9 +++++++++
  1 file changed, 9 insertions(+)
@@ -27,6 +30,3 @@ index 0c6e138..07fac08 100644
  /*!
   * Initialize the PhysicsFS library.
   */
--- 
-2.43.0
-

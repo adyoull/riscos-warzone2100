@@ -1,17 +1,19 @@
-From 0473d38cf878098ba361f0f685d26e2b9312447f Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Andrew Youll <adyoull@users.noreply.github.com>
-Date: Sat, 26 Sep 2026 10:09:22 +0100
-Subject: [PATCH] RISC OS: don't run programs through popen()/system()
+Date: Sat, 26 Sep 2026 22:04:14 +0100
+Subject: [PATCH 05/11] RISC OS: don't run programs through popen()/system()
 
-At start-up the crash-dump code ran "which <argv[0]>" with popen(). On
-RISC OS that becomes a *command ("File 'which' not found"), and the game
-then stopped with an abort on data transfer. argv[0] is already the full
-path, so use it. The wz2100.net link starts URIdispatch with
-Wimp_StartTask instead of system().
+UnixLib runs a child program as a *command inside our own memory, which
+isn't safe from a large Wimp program.
+- dumpinfo.cpp: at start-up the crash-dump code ran "which <argv[0]>" with
+  popen(). On RISC OS that printed "File 'which' not found" and the game
+  then stopped with an abort on data transfer. argv[0] is already the full
+  path, so use it.
+- frontend.c: the wz2100.net link starts URIdispatch with Wimp_StartTask.
 ---
- lib/exceptionhandler/dumpinfo.cpp |  5 +++++
- src/frontend.c                    | 10 ++++++++--
- 2 files changed, 13 insertions(+), 2 deletions(-)
+ lib/exceptionhandler/dumpinfo.cpp | 5 +++++
+ src/frontend.c                    | 9 +++++++++
+ 2 files changed, 14 insertions(+)
 
 diff --git a/lib/exceptionhandler/dumpinfo.cpp b/lib/exceptionhandler/dumpinfo.cpp
 index 73fbd9b..3cafd18 100644
@@ -37,7 +39,7 @@ index 73fbd9b..3cafd18 100644
  	{
  		FILE * whichProgramStream;
 diff --git a/src/frontend.c b/src/frontend.c
-index 1e51bc6..1474f7c 100644
+index 91560a2..1474f7c 100644
 --- a/src/frontend.c
 +++ b/src/frontend.c
 @@ -46,6 +46,10 @@
@@ -51,12 +53,11 @@ index 1e51bc6..1474f7c 100644
  #include "hci.h"
  #include "init.h"
  #include "intdisplay.h"
-@@ -126,8 +130,10 @@ static void runHyperlink(void)
+@@ -125,6 +129,11 @@ static void runHyperlink(void)
+ #elif defined (WZ_OS_MAC)
  	// For the macs
  	system("open http://wz2100.net");
- #elif defined(__riscos__)
--	// RISC OS: hand the URL to whatever browser has claimed the URI protocol
--	system("URIdispatch http://wz2100.net/");
++#elif defined(__riscos__)
 +	// RISC OS: hand the URL to whatever browser has claimed the URI
 +	// protocol. Start it as a Wimp task, not with system(): UnixLib's
 +	// system() runs the command as a child program inside our memory.
@@ -64,6 +65,3 @@ index 1e51bc6..1474f7c 100644
  #else
  	// for linux
  	system("xdg-open http://wz2100.net &");
--- 
-2.43.0
-

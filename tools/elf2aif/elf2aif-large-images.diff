@@ -1,0 +1,193 @@
+--- elf2aif.c.orig
++++ elf2aif.c
+@@ -78,6 +78,7 @@
+ static phdr_list_t *elf_phdrlistP;
+ static const char *elf_filename;
+ static uint32_t got_addr = 0;
++static uint32_t first_section_addr = 0;	/* lowest address of any allocated section */
+ 
+ static const uint32_t aifcode[] = {
+   0xE1A00000,			/* NOP (BL decompress)        */
+@@ -140,6 +141,20 @@
+   lg[3] = (val >> 24) & 0xFF;
+ }
+ 
++/* Encode an ARM B/BL instruction (opcode 0xEA000000 or 0xEB000000) at file
++   offset 'from' that branches to file offset 'to'.  A branch reaches
++   +/-32MB; returns false if the target is out of range.  */
++static bool
++e2a_branch (uint32_t opcode, uint32_t from, uint32_t to, uint32_t *instP)
++{
++  int64_t delta = (int64_t) to - ((int64_t) from + 8);
++
++  if ((delta & 3) != 0 || delta < -(1 << 25) || delta >= (1 << 25))
++    return false;
++  *instP = opcode | ((uint32_t) (delta >> 2) & 0x00FFFFFF);
++  return true;
++}
++
+ static void
+ e2a_givehelp (void)
+ {
+@@ -430,6 +445,15 @@
+           got_addr = RdLong (shentry.sh_addr);
+         }
+ 
++      /* Remember where the first real section starts: the AIF header (and
++         the EABI entry code) overwrite the ELF headers in front of it and
++         must not reach into it.  */
++      if ((RdLong (shentry.sh_flags) & SHF_ALLOC) != 0
++          && RdLong (shentry.sh_addr) != 0
++          && (first_section_addr == 0
++              || RdLong (shentry.sh_addr) < first_section_addr))
++        first_section_addr = RdLong (shentry.sh_addr);
++
+       shoffset += shentrysize;
+       --shentrycount;
+     }
+@@ -475,6 +499,20 @@
+ 		       "(not enough place before _start symbol for AIF header)\n");
+       return EXIT_FAILURE;
+     }
++  /* Everything we write in front of the image (AIF header, and for EABI the
++     entry code and the branch to the relocation code) replaces the ELF
++     headers, so it must end before the first section.  */
++  {
++    uint32_t needed = sizeof (aifcode) + (opt_eabi ? 6 * 4 + 3 * 4 : 0);
++    if (first_section_addr != 0 && first_section_addr - load_addr < needed)
++      {
++        fprintf (stderr, "Not enough space in front of the first section "
++                 "(0x%x bytes, need 0x%x) for the AIF header\n",
++                 first_section_addr - load_addr, needed);
++        return EXIT_FAILURE;
++      }
++  }
++
+   robase = prev_addr;
+   rwbase = zibase = zilimit = 0;
+   for (phdrP = elf_phdrlistP; phdrP != NULL; phdrP = phdrP->nextP)
+@@ -563,7 +601,7 @@
+       prev_addr = cur_addr + msize;
+     }
+ 
+-  rosize = rwbase ? rwbase - robase : robase + RdLong (elf_phdrlistP->phdr.p_memsz);
++  rosize = rwbase ? rwbase - robase : RdLong (elf_phdrlistP->phdr.p_memsz);
+   rwsize = zibase ? zibase - rwbase : 0;
+   zisize = zibase ? zilimit - zibase : 0;
+   if (opt_verbose)
+@@ -586,24 +624,42 @@
+   memcpy (&aifhdr, aifcode, sizeof (aifcode));
+   if (opt_eabi)
+     {
+-      /* BL to relocation code */
+-      WrLong (aifhdr.selfreloc,
+-	      /* Default is a NOP, so reading it is useless */
+-	      0xEB000000 +
+-	      ((aifend - (offsetof (aifheader_t, selfreloc) + 8)) >> 2));
++      uint32_t inst;
++
++      /* BL to relocation code.  The relocation code is appended at the end
++         of the image, which a BL can't reach once the image is over 32MB,
++         so branch to a small trampoline just after the EABI entry code and
++         jump on from there (see 'trampoline' below).  */
++      if (!e2a_branch (0xEB000000, offsetof (aifheader_t, selfreloc),
++                       sizeof (aifcode) + 6 * 4, &inst))
++        {
++          fprintf (stderr, "Internal error: relocation trampoline out of range\n");
++          return EXIT_FAILURE;
++        }
++      WrLong (aifhdr.selfreloc, inst);
+ 
+       /* BL to EABI startcode */
+-      WrLong (aifhdr.entrypoint,
+-	      RdLong (aifhdr.entrypoint) +
+-	      ((sizeof(aifcode) - (offsetof (aifheader_t, entrypoint) + 8)) >> 2));
++      if (!e2a_branch (0xEB000000, offsetof (aifheader_t, entrypoint),
++                       sizeof (aifcode), &inst))
++        {
++          fprintf (stderr, "Internal error: EABI entry code out of range\n");
++          return EXIT_FAILURE;
++        }
++      WrLong (aifhdr.entrypoint, inst);
+     }
+   else
+     {
++      uint32_t inst;
++
+       /* BL to program entrypoint */
+-      WrLong (aifhdr.entrypoint,
+-	      RdLong (aifhdr.entrypoint) +
+-	      ((exec_addr - load_addr -
+-		(offsetof (aifheader_t, entrypoint) + 8)) >> 2));
++      if (!e2a_branch (0xEB000000, offsetof (aifheader_t, entrypoint),
++                       exec_addr - load_addr, &inst))
++        {
++          fprintf (stderr, "Entry point is more than 32MB from the start of "
++                   "the image : not supported\n");
++          return EXIT_FAILURE;
++        }
++      WrLong (aifhdr.entrypoint, inst);
+     }
+   WrLong (aifhdr.rosize, rosize);
+   WrLong (aifhdr.rwsize, rwsize);
+@@ -693,7 +749,7 @@
+       };
+ 
+       /* Ensure there is sufficient space for the EABI entry code */
+-      if (opt_eabi && exec_addr - load_addr < sizeof (aifcode) + sizeof (entrycode))
++      if (opt_eabi && exec_addr - load_addr < sizeof (aifcode) + sizeof (entrycode) + 3 * 4)
+ 	{
+ 	  fprintf (stderr, "First program segment is not what we hoped to be "
+ 		   "(not enough place before _start symbol for EABI entrycode)\n");
+@@ -701,9 +757,31 @@
+ 	}
+ 
+       if (opt_verbose)
+-	printf ("Writing EABI entry code at offset 0x%x\n", sizeof (aifcode));
++	printf ("Writing EABI entry code at offset 0x%x\n", (unsigned) sizeof (aifcode));
+ 
+-      entrycode[4] |= (exec_addr - load_addr - (sizeof (aifcode) + 4*4 + 8)) >> 2;
++      /* Position independent jump from the header (which a BL can always
++         reach) to the relocation code at the end of the image, however
++         big the image is.  LR is left alone, so the relocation code still
++         returns to the AIF header.  */
++      const uint32_t tramp_off = sizeof (aifcode) + sizeof (entrycode);
++      uint32_t trampoline[] = {
++	0xE59F0000,			/* LDR   R0, [PC, #0]           */
++	0xE08FF000,			/* ADD   PC, PC, R0             */
++	0x00000000			/* DCD   RelocCode - (here + 12) (*) */
++      };
++      uint32_t inst;
++
++      assert (tramp_off == sizeof (aifcode) + 6 * 4);
++      trampoline[2] = (uint32_t) aifend - (tramp_off + 12);
++
++      if (!e2a_branch (0xEA000000, sizeof (aifcode) + 4*4,
++                       exec_addr - load_addr, &inst))
++	{
++	  fprintf (stderr, "Entry point is more than 32MB from the start of "
++		   "the image : not supported\n");
++	  return EXIT_FAILURE;
++	}
++      entrycode[4] = inst;
+       if (got_addr)
+         {
+           if (opt_verbose)
+@@ -711,14 +789,15 @@
+           entrycode[5] = (got_addr - load_addr);
+ 	}
+       if (fseek (aifhandle, sizeof (aifcode), SEEK_SET) != 0
+-	  || fwrite (&entrycode, sizeof (entrycode), 1, aifhandle) != 1)
++	  || fwrite (&entrycode, sizeof (entrycode), 1, aifhandle) != 1
++	  || fwrite (&trampoline, sizeof (trampoline), 1, aifhandle) != 1)
+ 	{
+ 	  fprintf (stderr, "Failed to write EABI entrycode\n");
+ 	  return EXIT_FAILURE;
+ 	}
+ 
+       if (opt_verbose)
+-	printf ("Writing relocation code at offset 0x%x\n", aifend);
++	printf ("Writing relocation code at offset 0x%lx\n", aifend);
+ 
+       if (fseek (aifhandle, aifend, SEEK_SET) != 0
+ 	  || fwrite (&reloccode, sizeof (reloccode), 1, aifhandle) != 1)

@@ -1,8 +1,8 @@
-From 59af2c667b2ac820baafc74b60e7f733334fe9b8 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Andrew Youll <adyoull@users.noreply.github.com>
-Date: Sat, 26 Sep 2026 20:26:52 +0100
-Subject: [PATCH] RISC OS: cheaper 3D texture filtering (Warzone2100$Filter);
- 800x600 window by default
+Date: Sat, 26 Sep 2026 22:04:14 +0100
+Subject: [PATCH 11/11] RISC OS: cheaper 3D texture filtering
+ (Warzone2100$Filter)
 
 Terrain and model textures used trilinear filtering with 4x anisotropy.
 Mesa's software rasteriser implements anisotropy with several trilinear
@@ -11,14 +11,11 @@ pie_Set3DTextureFilter() uses bilinear filtering from the nearest mipmap
 level and no anisotropy by default; Warzone2100$Filter = best | smooth |
 fast | nearest selects upstream's filtering, trilinear, the default, or
 unfiltered. Other platforms keep upstream's settings.
-
-A desktop window now defaults to 800x600 (was 1024x768 since 0007).
 ---
- lib/ivis_common/tex.h    |  3 ++
- lib/ivis_opengl/screen.c |  8 ++---
- lib/ivis_opengl/tex.c    | 68 +++++++++++++++++++++++++++++++++-------
- src/texture.c            | 12 +------
- 4 files changed, 65 insertions(+), 26 deletions(-)
+ lib/ivis_common/tex.h |  3 ++
+ lib/ivis_opengl/tex.c | 68 ++++++++++++++++++++++++++++++++++++-------
+ src/texture.c         | 12 +-------
+ 3 files changed, 61 insertions(+), 22 deletions(-)
 
 diff --git a/lib/ivis_common/tex.h b/lib/ivis_common/tex.h
 index b9264bc..a7507e6 100644
@@ -34,29 +31,6 @@ index b9264bc..a7507e6 100644
  extern void pie_TexInit(void);
  
  extern void pie_InitSkybox(SDWORD pageNum);
-diff --git a/lib/ivis_opengl/screen.c b/lib/ivis_opengl/screen.c
-index a811046..5c7e2e4 100644
---- a/lib/ivis_opengl/screen.c
-+++ b/lib/ivis_opengl/screen.c
-@@ -94,14 +94,14 @@ bool screenInitialise(
- 
- #if defined(WZ_OS_RISCOS)
- 	// No size in the config yet: a desktop-sized window is far too slow for
--	// software OpenGL and hides the desktop. Start at 1024x768 (or 640x480
-+	// software OpenGL and hides the desktop. Start at 800x600 (or 640x480
- 	// on a small screen); full screen still uses the desktop size.
- 	if ((width == 0 || height == 0) && !fullScreen)
- 	{
--		if (desktop.w > 1024 && desktop.h > 768)
-+		if (desktop.w > 800 && desktop.h > 600)
- 		{
--			desktop.w = 1024;
--			desktop.h = 768;
-+			desktop.w = 800;
-+			desktop.h = 600;
- 		}
- 		else
- 		{
 diff --git a/lib/ivis_opengl/tex.c b/lib/ivis_opengl/tex.c
 index 0e0c926..4084425 100644
 --- a/lib/ivis_opengl/tex.c
@@ -173,6 +147,3 @@ index 07eeb95..e844a10 100644
  	return texPage;
  }
  
--- 
-2.43.0
-

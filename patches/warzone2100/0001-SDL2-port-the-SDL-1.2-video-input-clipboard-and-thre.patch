@@ -1,10 +1,32 @@
-From 196391fdcb1d953697d1eb9d25fef7b5d1a6da03 Mon Sep 17 00:00:00 2001
-From: Andrew Youll <andrew@youll.invalid>
-Date: Fri, 25 Sep 2026 22:25:53 +0000
-Subject: [PATCH 1/4] SDL2: port the SDL 1.2 video, input, clipboard and thread
- calls to SDL2
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Andrew Youll <adyoull@users.noreply.github.com>
+Date: Sat, 26 Sep 2026 22:04:14 +0100
+Subject: [PATCH 01/11] SDL2: port the SDL 1.2 video, input, clipboard and
+ thread calls
 
+Warzone 2100 2.3.9 uses SDL 1.2; the RISC OS OpenGL stack (riscos-mesa)
+provides SDL 2.26. This is a plain SDL 1.2 -> SDL2 port with nothing
+RISC OS specific in it. It can't be split further: every intermediate
+state would mix the two APIs and not build.
+
+- configure.ac: pkg-config sdl2.
+- lib/ivis_opengl/screen.c/.h: SDL_CreateWindow + SDL_GL_CreateContext
+  (GL 2.1 compatibility, 8-bit stencil for shadows) instead of
+  SDL_SetVideoMode; SDL_WM_* replaced by wzGrabMouse, wzIconifyWindow,
+  wzSetWindowTitle, wzSetWindowIcon, wzSwapBuffers; screenToggleMode uses
+  SDL_SetWindowFullscreen.
+- lib/framework/input.c/.h + wzkeys12.h: the game keeps SDL 1.2's key
+  values internally (keymaps and saved key bindings use them), so SDL2
+  keycodes are mapped back to them; text comes from SDL_TEXTINPUT; the
+  wheel (SDL_MOUSEWHEEL) is fed in as SDL 1.2's buttons 4 and 5.
+- src/main.c: the event loop handles SDL_TEXTINPUT, SDL_MOUSEWHEEL and
+  SDL_WINDOWEVENT (focus, pointer enter/leave).
+- lib/widget/scrap.c: the X11/Win32/QNX clipboard code is replaced by
+  SDL_GetClipboardText/SDL_SetClipboardText.
+- frame.c, piemode.c, frontend.c, keybind.c, keyedit.c, editbox.c: the
+  calls above; netplay.c, fpath.c: SDL_CreateThread takes a name.
 ---
+ configure.ac              |   2 +-
  lib/framework/frame.c     |   8 +-
  lib/framework/input.c     | 248 +++++++++++----
  lib/framework/input.h     | 218 ++++++-------
@@ -16,13 +38,26 @@ Subject: [PATCH 1/4] SDL2: port the SDL 1.2 video, input, clipboard and thread
  lib/widget/editbox.c      |   2 +-
  lib/widget/scrap.c        | 629 +++-----------------------------------
  src/fpath.c               |   2 +-
- src/frontend.c            |  25 +-
+ src/frontend.c            |  22 +-
  src/keybind.c             |   8 +-
  src/keyedit.c             |   2 +-
  src/main.c                |  32 +-
- 15 files changed, 588 insertions(+), 876 deletions(-)
+ 16 files changed, 586 insertions(+), 877 deletions(-)
  create mode 100644 lib/framework/wzkeys12.h
 
+diff --git a/configure.ac b/configure.ac
+index 7ed190a..850662a 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -337,7 +337,7 @@ fi
+ 
+ # Checks for modules:
+ 
+-PKG_CHECK_MODULES([SDL], [sdl >= 1.2])
++PKG_CHECK_MODULES([SDL], [sdl2 >= 2.0.0])
+ PKG_CHECK_MODULES([PNG], [libpng >= 1.2])
+ PKG_CHECK_MODULES([THEORA], [theora >= 1.0])
+ 
 diff --git a/lib/framework/frame.c b/lib/framework/frame.c
 index dfd7eec..d5a8ac6 100644
 --- a/lib/framework/frame.c
@@ -1758,7 +1793,7 @@ index 7cad0a9..9f6faf1 100644
  
  	return true;
 diff --git a/src/frontend.c b/src/frontend.c
-index 130a5c1..1e51bc6 100644
+index 130a5c1..91560a2 100644
 --- a/src/frontend.c
 +++ b/src/frontend.c
 @@ -31,6 +31,7 @@
@@ -1769,7 +1804,7 @@ index 130a5c1..1e51bc6 100644
  #include "lib/ivis_common/rendmode.h"
  #include "lib/sound/mixer.h"
  #include "lib/widget/button.h"
-@@ -117,13 +118,16 @@ static void runHyperlink(void)
+@@ -117,7 +118,7 @@ static void runHyperlink(void)
  {
  	if (war_getFullscreen())
  	{
@@ -1778,16 +1813,7 @@ index 130a5c1..1e51bc6 100644
  	}
  #if defined(WZ_OS_WIN)
  	ShellExecuteW(NULL, L"open", L"http://wz2100.net/", NULL, NULL, SW_SHOWNORMAL);
- #elif defined (WZ_OS_MAC)
- 	// For the macs
- 	system("open http://wz2100.net");
-+#elif defined(__riscos__)
-+	// RISC OS: hand the URL to whatever browser has claimed the URI protocol
-+	system("URIdispatch http://wz2100.net/");
- #else
- 	// for linux
- 	system("xdg-open http://wz2100.net &");
-@@ -865,7 +869,8 @@ static BOOL startVideoOptionsMenu(void)
+@@ -865,7 +866,8 @@ static BOOL startVideoOptionsMenu(void)
  
  BOOL runVideoOptionsMenu(void)
  {
@@ -1797,7 +1823,7 @@ index 130a5c1..1e51bc6 100644
  	UDWORD id = widgRunScreen(psWScreen);
  
  	switch (id)
-@@ -890,10 +895,10 @@ BOOL runVideoOptionsMenu(void)
+@@ -890,10 +892,10 @@ BOOL runVideoOptionsMenu(void)
  			int current, count, oldcurrent;
  
  			// Get the current mode offset
@@ -1811,7 +1837,7 @@ index 130a5c1..1e51bc6 100644
  				{
  					current = count;
  				}
-@@ -914,16 +919,16 @@ BOOL runVideoOptionsMenu(void)
+@@ -914,16 +916,16 @@ BOOL runVideoOptionsMenu(void)
  					if (++current == count)
  						current = 0;
  				}	
@@ -1962,6 +1988,3 @@ index dc2a47f..0c6e138 100644
  					break;
  				case SDL_QUIT:
  					saveConfig();
--- 
-2.43.0
-

@@ -12,7 +12,9 @@
 #   gcc-10.2.0.tar.gz        github.com/gcc-mirror/gcc tag releases/gcc-10.2.0
 #   binutils_2.30.orig.tar.xz, gmp_6.2.1+dfsg.orig.tar.xz,
 #   mpfr4_4.1.0.orig.tar.xz, mpclib3_1.2.1.orig.tar.gz   (Ubuntu pool)
-# Usage: build-toolchain.sh [binutils|gcc|all]
+# Usage: build-toolchain.sh [binutils|gcc|elf2aif|all]
+#   elf2aif: only the host tool build/package.sh uses (tools/elf2aif ->
+#   toolchain/elf2aif); "all" builds it too.
 . "$(dirname "$0")/env.sh"
 # env.sh's cross settings must not leak into the host-side builds.
 unset CC CXX AR RANLIB STRIP CFLAGS CXXFLAGS CPPFLAGS LDFLAGS PKG_CONFIG_LIBDIR PKG_CONFIG_SYSROOT_DIR
@@ -40,6 +42,13 @@ export PATH="$TC/fakebin:$GCCSDK_ENV/bin:$PATH" MAKEINFO="$TC/fakebin/makeinfo"
 export GCCSDK_RISCOS_ABI_VERSION=armeabihf
 export ac_cv_func_shl_load=no ac_cv_lib_dld_shl_load=no ac_cv_func_dlopen=yes \
        glibcxx_cv_c99_math_tr1=yes
+
+if [ "$WHAT" = elf2aif ] || [ "$WHAT" = all ]; then
+  echo "=== elf2aif (host)"
+  make -s -C "$REPO_DIR/tools/elf2aif" CC=gcc GCCSDK_SRC="$TC/gccsdk" elf2aif
+  mv "$REPO_DIR/tools/elf2aif/elf2aif" "$TC/elf2aif"
+  [ "$WHAT" = elf2aif ] && exit 0
+fi
 
 if [ "$WHAT" != gcc ]; then
   echo "=== binutils 2.30"

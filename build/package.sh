@@ -3,9 +3,10 @@
 #   package.sh            (after build-deps.sh and build-wz.sh)
 . "$(dirname "$0")/env.sh"
 : "${WZ_SRC:=$SRC/warzone2100-2.3.9}"
-# elf2aif with the >32MB image fix, from the RISC OS OpenTTD port
-# (github.com/adyoull/riscos-openttd, tools/elf2aif). Build it first.
-: "${ELF2AIF:=$REPO_DIR/../riscos-openttd/tools/elf2aif/elf2aif}"
+# elf2aif (with the >32MB image fix; tools/elf2aif), built by
+# build/build-toolchain.sh (all, or just: build-toolchain.sh elf2aif).
+: "${ELF2AIF:=$REPO_DIR/toolchain/elf2aif}"
+[ -x "$ELF2AIF" ] || { echo "no $ELF2AIF: run build/build-toolchain.sh elf2aif" >&2; exit 1; }
 : "${DEJAVU:=$SRC/dejavu-fonts-ttf-2.37}"
 VERSION=2.3.9-riscos9
 OUT="$REPO_DIR/dist"; APP="$OUT/!Warzone2100"

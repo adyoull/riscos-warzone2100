@@ -1,0 +1,32 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Andrew Youll <adyoull@users.noreply.github.com>
+Date: Sat, 26 Sep 2026 22:04:14 +0100
+Subject: [PATCH 07/11] RISC OS: shut down before exit(), not from atexit()
+
+systemShutdown() ran from atexit() and joins the path-finding thread.
+UnixLib (before riscos-unixlib 7d875c1) can't switch threads while exit()
+runs, so quitting the game ended in "Aborted". It now runs just before
+main() returns, which works with any UnixLib.
+---
+ src/main.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/src/main.c b/src/main.c
+index 9f79839..986b89a 100644
+--- a/src/main.c
++++ b/src/main.c
+@@ -1311,7 +1311,14 @@ int main(int argc, char *argv[])
+ 	debug_MEMSTATS();
+ #endif
+ 
++#if defined(WZ_OS_RISCOS)
++	// Shut down now rather than from atexit(): UnixLib can't switch
++	// threads while exit() runs, so joining the path-finding thread there
++	// stopped the program with "Aborted".
++	systemShutdown();
++#else
+ 	atexit(systemShutdown);
++#endif
+ 	return EXIT_SUCCESS;
+ }
+ 

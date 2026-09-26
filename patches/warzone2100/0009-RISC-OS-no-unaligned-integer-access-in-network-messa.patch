@@ -1,7 +1,8 @@
-From a06bb6181e866efe3846175f3c4071a335f36f2b Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Andrew Youll <adyoull@users.noreply.github.com>
-Date: Sat, 26 Sep 2026 17:08:44 +0100
-Subject: [PATCH] RISC OS: no unaligned integer access in network messages
+Date: Sat, 26 Sep 2026 22:04:14 +0100
+Subject: [PATCH 09/11] RISC OS: no unaligned integer access in network
+ messages
 
 NETMSG.body starts at an odd offset (after a uint16_t and three bytes), so
 NETint16_t/NETuint16_t/NETint32_t/NETuint32_t stored and loaded unaligned
@@ -313,6 +314,3 @@ index 58eba0a..4db625e 100644
  	}
  
  	// Increment the size of the message
--- 
-2.43.0
-

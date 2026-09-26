@@ -1,11 +1,23 @@
-From 5fc47ce9fbaa5033380d62cd8d03f604bc160d8f Mon Sep 17 00:00:00 2001
-From: Andrew Youll <andrew@youll.invalid>
-Date: Sat, 26 Sep 2026 06:52:10 +0000
-Subject: [PATCH 3/4] Build fixes: RISC OS triplet in configure, host-built
- autorevision, modern flex/bison, no Unix crash handler on RISC OS, header
- fixes
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Andrew Youll <adyoull@users.noreply.github.com>
+Date: Sat, 26 Sep 2026 22:04:14 +0100
+Subject: [PATCH 03/11] Build fixes for cross-compiling to RISC OS
 
+- configure.ac: the GCCSDK triplet is arm-riscos-gnueabihf (OS field
+  "gnueabihf"), so the OS check matches the whole $host; no -lintl/-liconv
+  on RISC OS (UnixLib has iconv; NLS is off).
+- autorevision is a host tool: link it without configure's cross
+  LDFLAGS/LIBS (-static, riscos_output.o), and fix a return type that a
+  current host g++ rejects.
+- The .l/.y files: the flex version test treated flex 2.6 as older than
+  2.5.9; bison 3 dropped YYPARSE_PARAM (use %parse-param and a two-argument
+  yyerror).
+- exceptionhandler.c: the Unix crash handler (fork + gdb) is off on RISC
+  OS; UnixLib prints its own backtrace.
+- tex.h, piestate.c, screen.h: includes that SDL 1.2's headers used to
+  bring in.
 ---
+ build_tools/autorevision/Makefile.am      | 3 +++
  build_tools/autorevision/autorevision.cpp | 4 ++--
  configure.ac                              | 9 ++++++---
  lib/exceptionhandler/exceptionhandler.c   | 6 +++---
@@ -22,8 +34,22 @@ Subject: [PATCH 3/4] Build fixes: RISC OS triplet in configure, host-built
  src/message_lexer.l                       | 4 ++--
  src/message_parser.y                      | 6 +++++-
  src/scriptvals_lexer.l                    | 4 ++--
- 16 files changed, 38 insertions(+), 25 deletions(-)
+ 17 files changed, 41 insertions(+), 25 deletions(-)
 
+diff --git a/build_tools/autorevision/Makefile.am b/build_tools/autorevision/Makefile.am
+index e7edcef..375f5c5 100644
+--- a/build_tools/autorevision/Makefile.am
++++ b/build_tools/autorevision/Makefile.am
+@@ -3,6 +3,9 @@ CXX = @CXX_FOR_BUILD@
+ CFLAGS = @CFLAGS_FOR_BUILD@
+ CXXFLAGS = @CXXFLAGS_FOR_BUILD@
+ CPPFLAGS = @CPPFLAGS_FOR_BUILD@
++# The cross LDFLAGS/LIBS (-static, riscos_output.o) are not for the host tool.
++LDFLAGS =
++LIBS =
+ 
+ noinst_PROGRAMS = autorevision
+ autorevision_SOURCES = autorevision.cpp
 diff --git a/build_tools/autorevision/autorevision.cpp b/build_tools/autorevision/autorevision.cpp
 index 1445d58..5fc82c9 100644
 --- a/build_tools/autorevision/autorevision.cpp
@@ -341,6 +367,3 @@ index 02a1343..46b04b8 100644
  int scrv_lex_destroy(void)
  {
  	/* For non-reentrant C scanner only. */
--- 
-2.43.0
-

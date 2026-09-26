@@ -1,0 +1,57 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Andrew Youll <adyoull@users.noreply.github.com>
+Date: Sat, 26 Sep 2026 22:04:14 +0100
+Subject: [PATCH 08/11] RISC OS: pack the map file structures
+
+Map tiles are 3 bytes, so MAP_SAVETILE (a UWORD at odd addresses) and the
+gateway header after the tiles were read with unaligned ldrh/ldr. RISC OS
+traps unaligned accesses: loading any map (skirmish setup, the campaign)
+stopped with an "EMT trap" (abort on data transfer) in mapLoadV3. The
+three file structures are now packed, so they are read and written a byte
+at a time; the file format doesn't change.
+---
+ src/map.c | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/src/map.c b/src/map.c
+index 23c5153..ff86dee 100644
+--- a/src/map.c
++++ b/src/map.c
+@@ -60,7 +60,11 @@ struct ffnode
+ //scroll min and max values
+ SDWORD		scrollMinX, scrollMaxX, scrollMinY, scrollMaxY;
+ 
+-/* Structure definitions for loading and saving map data */
++/* Structure definitions for loading and saving map data.
++ * The tiles are 3 bytes each, so the tile and gateway header structures
++ * after them are usually at unaligned addresses: they are packed so the
++ * compiler reads them a byte at a time (RISC OS traps unaligned halfword
++ * and word accesses: "abort on data transfer"). */
+ typedef struct _map_save_header
+ {
+ 	char		aFileType[4];
+@@ -73,13 +77,13 @@ typedef struct _map_save_tilev2
+ {
+ 	UWORD		texture;
+ 	UBYTE		height;
+-} MAP_SAVETILE;
++} __attribute__((packed)) MAP_SAVETILE;
+ 
+ typedef struct _gateway_save_header
+ {
+ 	UDWORD		version;
+ 	UDWORD		numGateways;
+-} GATEWAY_SAVEHEADER;
++} __attribute__((packed)) GATEWAY_SAVEHEADER;
+ 
+ typedef struct _gateway_save
+ {
+@@ -91,7 +95,7 @@ typedef struct _zonemap_save_header {
+ 	UWORD numZones;
+ 	UWORD numEquivZones;
+ 	UWORD pad;
+-} ZONEMAP_SAVEHEADER;
++} __attribute__((packed)) ZONEMAP_SAVEHEADER;
+ 
+ /* Sanity check definitions for the save struct file sizes */
+ #define SAVE_HEADER_SIZE	16

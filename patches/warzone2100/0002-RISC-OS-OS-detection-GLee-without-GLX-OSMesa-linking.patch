@@ -1,20 +1,28 @@
-From feca13183acaf3c2adceb3ab18df80f27b7dc109 Mon Sep 17 00:00:00 2001
-From: Andrew Youll <andrew@youll.invalid>
-Date: Sat, 26 Sep 2026 06:33:37 +0000
-Subject: [PATCH 2/4] RISC OS: OS detection, GLee without GLX, OSMesa linking
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Andrew Youll <adyoull@users.noreply.github.com>
+Date: Sat, 26 Sep 2026 22:04:14 +0100
+Subject: [PATCH 02/11] RISC OS: OS detection, GLee without GLX, OSMesa linking
  in configure
 
+- wzglobal.h: WZ_OS_RISCOS (and WZ_OS_UNIX) for __riscos__.
+- GLee: RISC OS takes the Mac path (no GLX) and loads extension functions
+  with SDL_GL_GetProcAddress, which riscos-mesa answers from OSMesa; Mesa's
+  glext.h is kept out because GLee declares everything itself.
+- configure.ac: on *riscos* hosts link OSMesa/GLU from the riscos-mesa
+  devkit instead of looking for libGL and X11.
+- tex.h, piestate.c: on RISC OS include GLee.h rather than Mesa's gl.h or
+  SDL_opengl.h, whose glext definitions clash with GLee's.
 ---
- configure.ac               | 17 +++++++++++++++--
+ configure.ac               | 15 ++++++++++++++-
  lib/framework/wzglobal.h   |  6 ++++++
  lib/ivis_common/tex.h      |  2 ++
  lib/ivis_opengl/GLee.c     | 23 +++++++++++++++--------
  lib/ivis_opengl/GLee.h     | 13 ++++++++++---
  lib/ivis_opengl/piestate.c |  4 ++++
- 6 files changed, 52 insertions(+), 13 deletions(-)
+ 6 files changed, 51 insertions(+), 12 deletions(-)
 
 diff --git a/configure.ac b/configure.ac
-index 7ed190a..388cffb 100644
+index 850662a..388cffb 100644
 --- a/configure.ac
 +++ b/configure.ac
 @@ -95,6 +95,11 @@ case ${host_os} in
@@ -29,15 +37,6 @@ index 7ed190a..388cffb 100644
  	*openbsd*)
  		AC_DEFINE([_XOPEN_SOURCE], 600, [Enable POSIX extensions if present])
  		# Make sure that backtrace_symbols_fd (GNU raw back trace extension) has some symbols to work with
-@@ -337,7 +342,7 @@ fi
- 
- # Checks for modules:
- 
--PKG_CHECK_MODULES([SDL], [sdl >= 1.2])
-+PKG_CHECK_MODULES([SDL], [sdl2 >= 2.0.0])
- PKG_CHECK_MODULES([PNG], [libpng >= 1.2])
- PKG_CHECK_MODULES([THEORA], [theora >= 1.0])
- 
 @@ -391,7 +396,8 @@ if test "x$host_os_mingw32" = "xyes" ; then
      WIN32_LIBS="${WIN32_LIBS} ${IBERTY_LIBS}"
  fi
@@ -271,6 +270,3 @@ index bb62d1c..d744601 100644
  
  #include "lib/ivis_common/piestate.h"
  #include "lib/ivis_common/piedef.h"
--- 
-2.43.0
-
