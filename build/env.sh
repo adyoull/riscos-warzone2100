@@ -4,7 +4,7 @@
 # DEVKIT: the unpacked riscos-mesa devkit (lib/libOSMesa.a, lib/libSDL2.a, ...).
 REPO_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 : "${GCCSDK_ENV:=$HOME/gccsdk/env}"
-: "${DEVKIT:=$REPO_DIR/devkit/riscos-mesa-devkit-20.3.5-7pre9}"
+: "${DEVKIT:=$REPO_DIR/devkit/riscos-mesa-devkit-20.3.5-7pre11}"
 : "${STAGE:=$REPO_DIR/stage}"     # install prefix for the libraries built here
 : "${SRC:=$REPO_DIR/src}"         # downloaded, unpacked sources
 : "${JOBS:=$(nproc)}"

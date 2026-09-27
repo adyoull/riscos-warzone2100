@@ -8,7 +8,7 @@
 : "${ELF2AIF:=$REPO_DIR/toolchain/elf2aif}"
 [ -x "$ELF2AIF" ] || { echo "no $ELF2AIF: run build/build-toolchain.sh elf2aif" >&2; exit 1; }
 : "${DEJAVU:=$SRC/dejavu-fonts-ttf-2.37}"
-VERSION=2.3.9-riscos20
+VERSION=2.3.9-riscos21
 OUT="$REPO_DIR/dist"; APP="$OUT/!Warzone2100"
 rm -rf "$OUT"; mkdir -p "$OUT"
 cp -a "$REPO_DIR/app/!Warzone2100" "$APP"
@@ -47,7 +47,6 @@ lic QuesoGLC     quesoglc-0.7.2/COPYING
 lic libogg       libogg-1.3.5/COPYING
 lic libvorbis    libvorbis-1.3.7/COPYING
 lic libtheora    libtheora-1.1.1/COPYING
-lic OpenAL-Soft  openal-soft-openal-soft-1.19.1/COPYING
 mkdir -p "$APP/docs/patches"
 for p in "$REPO_DIR"/patches/*/*; do cp "$p" "$APP/docs/patches/$(basename "$p"),fff"; done
 

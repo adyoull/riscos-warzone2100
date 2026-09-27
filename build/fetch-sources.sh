@@ -23,7 +23,6 @@ get expat_2.2.9.orig.tar.gz             $U/main/e/expat/expat_2.2.9.orig.tar.gz
 get fontconfig_2.12.6.orig.tar.bz2      $U/main/f/fontconfig/fontconfig_2.12.6.orig.tar.bz2
 get popt_1.16.orig.tar.gz               $U/main/p/popt/popt_1.16.orig.tar.gz
 get quesoglc_0.7.2.orig.tar.gz          $U/universe/q/quesoglc/quesoglc_0.7.2.orig.tar.gz
-get openal-soft_1.19.1.orig.tar.gz      $U/universe/o/openal-soft/openal-soft_1.19.1.orig.tar.gz
 # Toolchain sources (build/build-toolchain.sh)
 get binutils_2.30.orig.tar.xz           $U/main/b/binutils/binutils_2.30.orig.tar.xz
 get gmp_6.2.1+dfsg.orig.tar.xz          $U/main/g/gmp/gmp_6.2.1+dfsg.orig.tar.xz
@@ -54,5 +53,4 @@ pat() {  # dir -pN patch...
 }
 pat physfs-release-2.0.3 -p1 "$REPO_DIR"/patches/physfs/*.diff
 pat quesoglc-0.7.2       -p1 "$REPO_DIR"/patches/quesoglc/*.diff
-pat openal-soft-openal-soft-1.19.1 -p1 "$REPO_DIR"/patches/openal/*.diff
 pat warzone2100-2.3.9    -p1 "$REPO_DIR"/patches/warzone2100/*.patch

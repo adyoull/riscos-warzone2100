@@ -19,12 +19,13 @@ them in order with `patch -p1`. To edit them, use `tools/wz-patches.sh`
 | 0008 | `WZ_DECL_PACKED` (wzglobal.h); the map file structures use it (unaligned reads). |
 | 0009 | `wz_load_*`/`wz_store_*` in endian_hack.h; the network code uses them (unaligned). |
 | 0010 | Script state in save games uses `wz_load_*`/`wz_store_*` (unaligned). |
-| 0011 | Texture filtering setting: config `textureFilter`, `--texfilter=best\|smooth\|fast\|nearest`; RISC OS defaults to `fast` (bilinear, no mipmaps). |
+| 0011 | Texture filtering setting: config `textureFilter`, `--texfilter=best\|smooth\|fast\|nearest`; RISC OS defaults to `fast` (bilinear from the nearest mipmap level). |
 | 0012 | No compressed textures on RISC OS: swrast decoded a DXT3 block per texel (half the frame time). |
 | 0013 | A new config on RISC OS has shadows off, vsync off and "Fog Of War" instead of "Mist" (GL fog on every pixel). |
 | 0014 | Terrain textures use `GL_REPEAT` on RISC OS: swrast's fast textured-triangle path needs it (30 -> 51 fps). |
 | 0015 | Pump events (Wimp_Poll) from the loading screen callback, so the desktop keeps running while a level loads. |
 | 0016 | glFlush() before the text code pushes the texture matrix: Mesa's classic swrast doesn't flush before glPushMatrix (skirmish buttons and map preview went missing). |
+| 0017 | `GL_FASTEST` perspective hint and `GL_CLAMP_TO_EDGE` texture pages on RISC OS: riscos-mesa 7pre10's fast path covers them (52 -> 59 fps with mipmapped "fast"). |
 
 ## physfs/ (PhysicsFS 2.0.3)
 
@@ -43,16 +44,6 @@ them in order with `patch -p1`. To edit them, use `tools/wz-patches.sh`
 - A hand-written makefile and `qglc_config.h` for RISC OS (in `riscos/`).
 - `glew.c` loads GL functions with `OSMesaGetProcAddress`, and uses no
   thread-local storage.
-
-## openal/ (OpenAL Soft 1.19.1)
-
-Built by `build/build-deps.sh` with only the SDL2 output backend, which
-the riscos-mesa devkit's SDL sends to SharedSoundBuffer.
-
-- `bformatdec.h` declares three tables `extern` (GCC 10's -fno-common
-  made the tentative definitions collide; fixed upstream after 1.19.1).
-- No real-time thread priority on RISC OS: UnixLib has no
-  `sched_get_priority_min()`.
 
 ## unixlib/
 

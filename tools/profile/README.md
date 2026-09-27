@@ -54,6 +54,11 @@ It prints the frame rate every 5 seconds and leaves a screenshot in
 | "Fog Of War" instead of "Mist" (0013) | 28 | bilinear sampling |
 | shadows off (0013) | 30 | bilinear sampling of RGBA8 (Mesa) |
 | terrain `GL_REPEAT` (0014) | 51 | `persp_textured_triangle` 58% (swrast's fast path) |
+| riscos-mesa 7pre11 Mesa (7pre10 fast paths), riscos19 settings | 52 | |
+| + texture pages GL_CLAMP_TO_EDGE (0017) | 53.5 | |
+| + GL_FASTEST hint (0017) | 56 | `fast_persp_span` |
+| + "fast" filter mipmapped again (0011), = riscos21 | 58.7 | one mip level per triangle |
+| (terrain GL_CLAMP_TO_EDGE instead of GL_REPEAT) | 53 | 0014 stays |
 | (riscos-mesa 20.3.5-7pre6 instead of 7pre4, riscos11 settings) | 30.5 | +1-2%: its new fast paths need GL_REPEAT or constant q |
 | (all texture pages `GL_REPEAT`, not done: UI images could bleed at page edges) | 55 | |
 | (`nearest`, for comparison, with mipmaps) | 29 | |

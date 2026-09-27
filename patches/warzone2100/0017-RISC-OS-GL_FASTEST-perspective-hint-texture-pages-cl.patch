@@ -1,0 +1,65 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Andrew Youll <adyoull@users.noreply.github.com>
+Date: Sun, 27 Sep 2026 12:04:04 +0100
+Subject: [PATCH] RISC OS: GL_FASTEST perspective hint; texture pages clamp to
+ edge
+
+riscos-mesa 20.3.5-7pre10 extends its software renderer's fast
+textured-triangle path (the handoff "swrast fast path done"):
+- GL_CLAMP_TO_EDGE textures now take it; GL_CLAMP with linear filtering
+  can't (the border colour blends in at the edges). The model and
+  interface pages switch to GL_CLAMP_TO_EDGE: no border is meant to
+  show, and the picture only differs at page edges.
+- With GL_PERSPECTIVE_CORRECTION_HINT GL_FASTEST, perspective is exact
+  every 16 pixels instead of each one, and mipmapped textures take the
+  fast path with one level per triangle.
+
+CAM_1A at 800x600 on the profiling host (7pre11's Mesa, xlib): 52 fps
+before, 58.7 with both and the "fast" filter mipmapped again (patch
+0011). Without mipmaps the hint changes the picture by 0.04/255 on
+average. The terrain keeps GL_REPEAT (0014): clamping it to the edge
+instead measured 53 fps.
+---
+ lib/ivis_opengl/screen.c | 7 +++++++
+ lib/ivis_opengl/tex.c    | 8 ++++++++
+ 2 files changed, 15 insertions(+)
+
+diff --git a/lib/ivis_opengl/screen.c b/lib/ivis_opengl/screen.c
+index b3f873f..242c289 100644
+--- a/lib/ivis_opengl/screen.c
++++ b/lib/ivis_opengl/screen.c
+@@ -176,6 +176,13 @@ bool screenInitialise(
+ 	// Enable vsync if requested by the user
+ 	SDL_GL_SetSwapInterval(vsync ? 1 : 0);
+ 
++#if defined(WZ_OS_RISCOS)
++	// riscos-mesa's software renderer then corrects perspective every 16
++	// pixels instead of every pixel, and picks one mipmap level per
++	// triangle: its fast textured-triangle path, with mipmaps.
++	glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_FASTEST);
++#endif
++
+ 	if (SDL_GL_GetAttribute(SDL_GL_DOUBLEBUFFER, &value) == -1)
+ 	{
+ 		debug(LOG_FATAL, "OpenGL initialization did not give double buffering!");
+diff --git a/lib/ivis_opengl/tex.c b/lib/ivis_opengl/tex.c
+index d9fb605..1703d9f 100644
+--- a/lib/ivis_opengl/tex.c
++++ b/lib/ivis_opengl/tex.c
+@@ -139,8 +139,16 @@ int pie_AddTexPage(iV_Image *s, const char* filename, int slot, int maxTextureSi
+ 	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+ 	pie_Set3DTextureFilter();
+ 
++#if defined(WZ_OS_RISCOS)
++	// GL_CLAMP with linear filtering blends in the border colour, which
++	// keeps software OpenGL on its slow general path; GL_CLAMP_TO_EDGE
++	// looks the same here (no border is meant to show) and is fast.
++	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
++	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
++#else
+ 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+ 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
++#endif
+ 
+ 	/* Send back the texpage number so we can store it in the IMD */
+ 

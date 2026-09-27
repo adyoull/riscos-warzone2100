@@ -13,7 +13,18 @@ have() { [ -f "$STAGE/lib/$1" ] && echo "    (already built)"; }
 step "riscos-mesa devkit -> stage"
 cp -r "$DEVKIT"/include/* "$STAGE/include/"
 cp "$DEVKIT"/lib/libOSMesa.a "$DEVKIT"/lib/libGLU.a "$DEVKIT"/lib/libSDL2.a \
-   "$DEVKIT"/lib/libSDL2main.a "$DEVKIT"/lib/libz.a "$STAGE/lib/"
+   "$DEVKIT"/lib/libSDL2main.a "$DEVKIT"/lib/libz.a "$DEVKIT"/lib/libopenal.a "$STAGE/lib/"
+# OpenAL Soft (sound: plays through the devkit SDL2's audio, which goes to
+# SharedSoundBuffer). The devkit has no .pc for it; Warzone's configure
+# looks for one.
+cat > "$STAGE/lib/pkgconfig/openal.pc" <<EOT
+prefix=$STAGE
+Name: OpenAL
+Description: OpenAL Soft 1.19.1, SDL2 output (riscos-mesa devkit)
+Version: 1.19.1
+Libs: -L\${prefix}/lib -lopenal
+Cflags: -I\${prefix}/include -I\${prefix}/include/AL
+EOT
 cat > "$STAGE/lib/pkgconfig/sdl2.pc" <<EOT
 prefix=$STAGE
 libdir=\${prefix}/lib
@@ -101,30 +112,6 @@ cmake ../physfs-release-2.0.3 -DCMAKE_TOOLCHAIN_FILE="$REPO_DIR/build/riscos.cma
   -DCMAKE_INSTALL_PREFIX="$STAGE" -DPHYSFS_BUILD_SHARED=OFF -DPHYSFS_BUILD_STATIC=ON \
   -DPHYSFS_BUILD_TEST=OFF -DPHYSFS_BUILD_WX_TEST=OFF -DCMAKE_BUILD_TYPE=Release > ../physfs.log
 make -j$JOBS >> ../physfs.log && make install >> ../physfs.log; cd ..
-}
-
-step "OpenAL Soft 1.19.1 (CMake; SDL2 output backend; patches/openal)"
-# Sound: OpenAL mixes in software and plays through SDL2's audio, which the
-# riscos-mesa devkit's SDL sends to SharedSoundBuffer. Two tools OpenAL
-# generates its tables with run on the build machine, so their sub-build
-# must not see the cross compiler in CC/CFLAGS (the library's compiler
-# comes from riscos.cmake). -D_POSIX_C_SOURCE: UnixLib only declares
-# nanosleep() with it, and OpenAL builds with -std=c11.
-have libopenal.a || {
-mkdir -p openal-build; cd openal-build
-cmake ../openal-soft-openal-soft-1.19.1 -DCMAKE_TOOLCHAIN_FILE="$REPO_DIR/build/riscos.cmake" \
-  -DCMAKE_INSTALL_PREFIX="$STAGE" -DCMAKE_BUILD_TYPE=Release \
-  -DCMAKE_C_FLAGS="$CFLAGS -D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE=700" \
-  -DLIBTYPE=STATIC -DALSOFT_UTILS=OFF -DALSOFT_NO_CONFIG_UTIL=ON -DALSOFT_EXAMPLES=OFF \
-  -DALSOFT_TESTS=OFF -DALSOFT_DLOPEN=OFF -DALSOFT_EMBED_HRTF_DATA=OFF -DALSOFT_CPUEXT_NEON=OFF \
-  -DALSOFT_BACKEND_SDL2=ON -DALSOFT_REQUIRE_SDL2=ON -DALSOFT_BACKEND_WAVE=OFF \
-  -DALSOFT_BACKEND_ALSA=OFF -DALSOFT_BACKEND_OSS=OFF -DALSOFT_BACKEND_SNDIO=OFF \
-  -DALSOFT_BACKEND_PORTAUDIO=OFF -DALSOFT_BACKEND_PULSEAUDIO=OFF -DALSOFT_BACKEND_JACK=OFF \
-  -DALSOFT_BACKEND_SOLARIS=OFF -DALSOFT_BACKEND_QSA=OFF \
-  -DSDL2_INCLUDE_DIR="$STAGE/include" -DSDL2_LIBRARY="$STAGE/lib/libSDL2.a" > ../openal.log
-mkdir -p native-tools
-env -u CC -u CXX -u CFLAGS -u CXXFLAGS -u LDFLAGS -u CPPFLAGS -u AR -u RANLIB \
-  sh -c "make -j$JOBS && make install" >> ../openal.log; cd ..
 }
 
 step "popt 1.16"

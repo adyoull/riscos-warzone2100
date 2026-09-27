@@ -16,14 +16,14 @@ apply it through pie_Set3DTextureFilter(). The default stays "best"
 except on RISC OS, where it is "fast".
 ---
  lib/ivis_common/tex.h | 14 ++++++++++
- lib/ivis_opengl/tex.c | 63 +++++++++++++++++++++++++++++++++++--------
- src/clparse.c         | 19 +++++++++++++
+ lib/ivis_opengl/tex.c | 60 +++++++++++++++++++++++++++++++++++--------
+ src/clparse.c         | 19 ++++++++++++++
  src/configuration.c   | 17 ++++++++++++
  src/texture.c         | 12 +--------
- 5 files changed, 103 insertions(+), 22 deletions(-)
+ 5 files changed, 100 insertions(+), 22 deletions(-)
 
 diff --git a/lib/ivis_common/tex.h b/lib/ivis_common/tex.h
-index b9264bc..95118aa 100644
+index b9264bc..e717d28 100644
 --- a/lib/ivis_common/tex.h
 +++ b/lib/ivis_common/tex.h
 @@ -61,6 +61,20 @@ extern unsigned int iV_getPixelFormat(const iV_Image *image);
@@ -35,8 +35,8 @@ index b9264bc..95118aa 100644
 +{
 +	TEXFILTER_BEST,		///< trilinear + 4x anisotropic (the default)
 +	TEXFILTER_SMOOTH,	///< trilinear, no anisotropy
-+	TEXFILTER_FAST,		///< bilinear, no mipmaps
-+	TEXFILTER_NEAREST,	///< no filtering, no mipmaps
++	TEXFILTER_FAST,		///< bilinear from the nearest mipmap level
++	TEXFILTER_NEAREST,	///< no filtering
 +	TEXFILTER_COUNT
 +} TEXFILTER;
 +/** Choose the filtering for 3D textures loaded from now on. */
@@ -48,7 +48,7 @@ index b9264bc..95118aa 100644
  
  extern void pie_InitSkybox(SDWORD pageNum);
 diff --git a/lib/ivis_opengl/tex.c b/lib/ivis_opengl/tex.c
-index 0e0c926..14ee7a5 100644
+index 0e0c926..d9fb605 100644
 --- a/lib/ivis_opengl/tex.c
 +++ b/lib/ivis_opengl/tex.c
 @@ -137,17 +137,7 @@ int pie_AddTexPage(iV_Image *s, const char* filename, int slot, int maxTextureSi
@@ -70,7 +70,7 @@ index 0e0c926..14ee7a5 100644
  
  	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
  	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-@@ -315,3 +305,54 @@ unsigned int iV_getPixelFormat(const iV_Image *image)
+@@ -315,3 +305,51 @@ unsigned int iV_getPixelFormat(const iV_Image *image)
  			return GL_INVALID_ENUM;
  	}
  }
@@ -100,14 +100,11 @@ index 0e0c926..14ee7a5 100644
 +
 +	switch (textureFilter)
 +	{
-+		// No mipmaps: software OpenGL then skips the per-pixel mipmap level
-+		// (lambda) calculation, and the game's close-up view barely
-+		// minifies its textures anyway
 +		case TEXFILTER_FAST:
-+			minFilter = GL_LINEAR;
++			minFilter = GL_LINEAR_MIPMAP_NEAREST;
 +			break;
 +		case TEXFILTER_NEAREST:
-+			minFilter = GL_NEAREST;
++			minFilter = GL_NEAREST_MIPMAP_NEAREST;
 +			magFilter = GL_NEAREST;
 +			break;
 +		default:

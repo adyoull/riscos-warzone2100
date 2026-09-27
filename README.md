@@ -64,7 +64,7 @@ See `app/!Warzone2100/!Help,fff`. In short:
 - **Playable on a Pi 4 (riscos16):** 1024x768 in a window, vsync off.
   The menus, the campaign, saving settings and quitting work. Pi reports
   on the skirmish and on saving and loading games are outstanding.
-- **Sound:** OpenAL Soft 1.19.1 (built here, `patches/openal`) plays
+- **Sound:** OpenAL Soft 1.19.1 (from the riscos-mesa devkit) plays
   through the devkit SDL2's audio, which goes to SharedSoundBuffer.
   Music is included; `WZ_SOUND=0 build/build-wz.sh` builds without sound.
 - **Missing:**

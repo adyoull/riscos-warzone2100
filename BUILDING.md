@@ -15,10 +15,10 @@ apt-get install build-essential autogen autoconf2.69 autoconf2.64 automake1.11 \
 
 Unpack a riscos-mesa devkit (github.com/adyoull/riscos-mesa releases) into
 `devkit/`. `build/env.sh` names the one this version is built with
-(`DEVKIT`, currently `riscos-mesa-devkit-20.3.5-7pre9`):
+(`DEVKIT`, currently `riscos-mesa-devkit-20.3.5-7pre11`):
 
 ```sh
-mkdir -p devkit && tar xzf riscos-mesa-devkit-20.3.5-7pre9.tgz -C devkit
+mkdir -p devkit && tar xzf riscos-mesa-devkit-20.3.5-7pre11.tgz -C devkit
 ```
 
 ## 3. Build
