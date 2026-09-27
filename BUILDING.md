@@ -108,6 +108,7 @@ without `env.sh`'s settings and breaks the Makefile. If that happens, delete
 ```sh
 tools/wz-patches.sh check
 tools/check-unaligned.sh                                   # must report 0 left to review
+tools/check-unixlib.sh                                     # must say OK (UnixLib built consistently)
 PATH=$GCCSDK_ENV/bin:$PATH python3 tools/check-stack-probes.py src/warzone2100-2.3.9/src/warzone2100
                                                            # must report 0 without stack probes
 ```
@@ -138,6 +139,14 @@ PATH=$GCCSDK_ENV/bin:$PATH python3 tools/check-stack-probes.py src/warzone2100-2
   `patches/unixlib/unixlib-pthread-ticker-rma.diff` runs it from the RMA.
   A toolchain built before that patch must be rebuilt
   (`build/build-toolchain.sh`, or reapply the diff and rebuild UnixLib).
+- **After changing a UnixLib header, rebuild all of UnixLib** (`make
+  clean`, then `make` and `make install` in
+  `toolchain/gcc-10.2.0/cross-build/arm-riscos-gnueabihf/libunixlib`).
+  Its makefile doesn't rebuild assembler files when an included file such
+  as `asm_dec.s` changes. riscos14/15 shipped a stale `_syslib.o` that
+  claimed the old, smaller ticker block; copying the handler into it
+  overwrote the RMA and hung the whole machine. `tools/check-unixlib.sh`
+  catches that.
 
 **Speed.** Before changing anything for speed, measure it on Linux with
 `tools/profile` (the Pi has no profiler). Software OpenGL makes some
