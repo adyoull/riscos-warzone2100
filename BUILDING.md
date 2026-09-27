@@ -143,7 +143,7 @@ PATH=$GCCSDK_ENV/bin:$PATH python3 tools/check-stack-probes.py src/warzone2100-2
   clean`, then `make` and `make install` in
   `toolchain/gcc-10.2.0/cross-build/arm-riscos-gnueabihf/libunixlib`).
   Its makefile doesn't rebuild assembler files when an included file such
-  as `asm_dec.s` changes. riscos14/15 shipped a stale `_syslib.o` that
+  as `asm_dec.s` changes. Two test builds shipped a stale `_syslib.o` that
   claimed the old, smaller ticker block; copying the handler into it
   overwrote the RMA and hung the whole machine. `tools/check-unixlib.sh`
   catches that.

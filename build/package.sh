@@ -8,7 +8,7 @@
 : "${ELF2AIF:=$REPO_DIR/toolchain/elf2aif}"
 [ -x "$ELF2AIF" ] || { echo "no $ELF2AIF: run build/build-toolchain.sh elf2aif" >&2; exit 1; }
 : "${DEJAVU:=$SRC/dejavu-fonts-ttf-2.37}"
-VERSION=2.3.9-riscos21
+VERSION=2.3.9-1
 OUT="$REPO_DIR/dist"; APP="$OUT/!Warzone2100"
 rm -rf "$OUT"; mkdir -p "$OUT"
 cp -a "$REPO_DIR/app/!Warzone2100" "$APP"
@@ -30,6 +30,7 @@ cp "$DEJAVU/LICENSE" "$APP/docs/DejaVu-LICENSE,fff"
 
 # Licences and the source changes (GPL: the patches, with the upstream
 # version they apply to, are the corresponding source for this build).
+cp "$REPO_DIR/CHANGELOG.md" "$APP/docs/Changes,fff"
 cp "$WZ_SRC/COPYING" "$APP/docs/COPYING,fff"
 cp "$WZ_SRC/COPYING.NONGPL" "$APP/docs/COPYING-NONGPL,fff"
 cp "$WZ_SRC/COPYING.README" "$APP/docs/COPYING-README,fff"

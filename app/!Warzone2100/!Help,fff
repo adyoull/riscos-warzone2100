@@ -1,12 +1,13 @@
-Warzone 2100 2.3.9 for RISC OS
-==============================
+Warzone 2100 2.3.9 for RISC OS (release 2.3.9-1)
+=================================================
 
 Warzone 2100 is a real-time strategy game, originally released by Pumpkin
 Studios in 1999 and developed since 2004 as free software by the Warzone
 2100 Project. This is the 2.3.9 release (2012), the last one that draws
 everything with fixed-function OpenGL, ported to RISC OS.
 
-This is a test build: it has not yet been run on real hardware.
+Tested on a Raspberry Pi 4: playable in a 1024x768 desktop window, with
+sound and music.
 
 
 Requirements
@@ -16,6 +17,8 @@ Requirements
 - SharedUnixLibrary 1.16 or later and ARMEABISupport (both from PackMan).
 - About 32MB of free memory for the program, plus the game's heap, which
   goes in a dynamic area called "Warzone2100 Heap".
+- For sound: SharedSoundBuffer, StreamManager and SharedSound (in !System
+  on most machines). Without them the game runs silently.
 
 
 Running
