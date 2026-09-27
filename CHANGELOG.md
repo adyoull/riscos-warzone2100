@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased (test build 2.3.9-2test1)
+
+- UnixLib is riscos-unixlib v0.1.1-rc1 (`patches/unixlib/unixlib-riscos.diff`),
+  replacing the OpenTTD UnixLib diff and our RMA ticker diff. The thread
+  switcher and its Wimp filters now run from the **PThreadTicker** module,
+  which is included in the app and loaded by `!Run` (or from a copy in the
+  RMA without it). The filters follow the task handle, so threads started
+  before `Wimp_Initialise` are covered.
+- With logging on, `!Run` sets `UnixLib$TickerStats`: a line of thread
+  switcher counters goes to `<Wimp$ScrapDir>.WZTickerStats` at exit.
+- `build/build-toolchain.sh unixlib` rebuilds only UnixLib, from clean.
+
 ## 2.3.9-1 (2026-09-27)
 
 First release of Warzone 2100 2.3.9 for RISC OS. Tested on a Raspberry

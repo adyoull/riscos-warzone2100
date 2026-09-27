@@ -132,21 +132,21 @@ PATH=$GCCSDK_ENV/bin:$PATH python3 tools/check-stack-probes.py src/warzone2100-2
   time, so a frame over 4KB must probe it page by page.
 - **No thread joins from `atexit()`.** Older UnixLib can't switch threads
   during `exit()`.
-- **Threads need the patched UnixLib.** While a program has a second
+- **Threads need riscos-unixlib's UnixLib.** While a program has a second
   thread, UnixLib's thread-switching ticker runs every 2cs, whichever task
-  is paged in. Unpatched, its handler was in our application space and
-  crashed other tasks ("abort on instruction fetch" in Organizer);
-  `patches/unixlib/unixlib-pthread-ticker-rma.diff` runs it from the RMA.
-  A toolchain built before that patch must be rebuilt
-  (`build/build-toolchain.sh`, or reapply the diff and rebuild UnixLib).
-- **After changing a UnixLib header, rebuild all of UnixLib** (`make
-  clean`, then `make` and `make install` in
-  `toolchain/gcc-10.2.0/cross-build/arm-riscos-gnueabihf/libunixlib`).
-  Its makefile doesn't rebuild assembler files when an included file such
-  as `asm_dec.s` changes. Two test builds shipped a stale `_syslib.o` that
-  claimed the old, smaller ticker block; copying the handler into it
-  overwrote the RMA and hung the whole machine. `tools/check-unixlib.sh`
-  catches that.
+  is paged in. In GCCSDK's UnixLib its handler (and the Wimp filters that
+  should stop it while the program is paged out) are in our application
+  space, and crashed other tasks ("abort on instruction fetch" in
+  Organizer). `patches/unixlib/unixlib-riscos.diff` (riscos-unixlib
+  v0.1.1-rc1) runs them from the PThreadTicker module when it's loaded
+  (`!Run` loads the copy in the app), otherwise from a copy in the RMA.
+- **After changing `patches/unixlib`, rebuild UnixLib from clean:**
+  `build/build-toolchain.sh unixlib` (a few minutes; it re-patches GCCSDK
+  and rebuilds only UnixLib and the module), then relink (delete
+  `src/warzone2100-2.3.9/src/warzone2100` and run `build/build-wz.sh`).
+  Two test builds shipped a stale `_syslib.o` that claimed a smaller
+  ticker block than the C code used, which overwrote the RMA and hung the
+  whole machine. `tools/check-unixlib.sh` catches that.
 
 **Speed.** Before changing anything for speed, measure it on Linux with
 `tools/profile` (the Pi has no profiler). Software OpenGL makes some

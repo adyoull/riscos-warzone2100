@@ -8,7 +8,7 @@
 : "${ELF2AIF:=$REPO_DIR/toolchain/elf2aif}"
 [ -x "$ELF2AIF" ] || { echo "no $ELF2AIF: run build/build-toolchain.sh elf2aif" >&2; exit 1; }
 : "${DEJAVU:=$SRC/dejavu-fonts-ttf-2.37}"
-VERSION=2.3.9-1
+VERSION=${VERSION:-2.3.9-1}
 OUT="$REPO_DIR/dist"; APP="$OUT/!Warzone2100"
 rm -rf "$OUT"; mkdir -p "$OUT"
 cp -a "$REPO_DIR/app/!Warzone2100" "$APP"
@@ -17,6 +17,10 @@ cp -a "$REPO_DIR/app/!Warzone2100" "$APP"
 $STRIP -o "$OUT/warzone2100.elf" "$WZ_SRC/src/warzone2100"
 "$ELF2AIF" -e "$OUT/warzone2100.elf" "$APP/warzone2100,ff8"
 rm "$OUT/warzone2100.elf"
+
+# PThreadTicker module (riscos-unixlib, built with UnixLib by
+# build-toolchain.sh; BSD licence), loaded by !Run.
+cp "$REPO_DIR/toolchain/gcc-10.2.0/cross-build/arm-riscos-gnueabihf/libunixlib/pthticker" "$APP/PThrTicker,ffa"
 
 # Game data (zip archives, typed Data so SparkFS leaves them alone).
 mkdir -p "$APP/data/music"
@@ -48,6 +52,7 @@ lic QuesoGLC     quesoglc-0.7.2/COPYING
 lic libogg       libogg-1.3.5/COPYING
 lic libvorbis    libvorbis-1.3.7/COPYING
 lic libtheora    libtheora-1.1.1/COPYING
+cp "$REPO_DIR/riscos/PThreadTicker-Licence" "$APP/docs/licences/PThreadTicker,fff"
 mkdir -p "$APP/docs/patches"
 for p in "$REPO_DIR"/patches/*/*; do cp "$p" "$APP/docs/patches/$(basename "$p"),fff"; done
 

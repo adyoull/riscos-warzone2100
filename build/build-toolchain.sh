@@ -12,7 +12,9 @@
 #   gcc-10.2.0.tar.gz        github.com/gcc-mirror/gcc tag releases/gcc-10.2.0
 #   binutils_2.30.orig.tar.xz, gmp_6.2.1+dfsg.orig.tar.xz,
 #   mpfr4_4.1.0.orig.tar.xz, mpclib3_1.2.1.orig.tar.gz   (Ubuntu pool)
-# Usage: build-toolchain.sh [binutils|gcc|elf2aif|all]
+# Usage: build-toolchain.sh [binutils|gcc|unixlib|elf2aif|all]
+#   unixlib: only re-patch GCCSDK and rebuild UnixLib from clean in an
+#   existing GCC build (after changing patches/unixlib).
 #   elf2aif: only the host tool build/package.sh uses (tools/elf2aif ->
 #   toolchain/elf2aif); "all" builds it too.
 . "$(dirname "$0")/env.sh"
@@ -24,12 +26,13 @@ WHAT=${1:-all}
 T=arm-riscos-gnueabihf
 mkdir -p "$TC" "$GCCSDK_ENV"; cd "$TC"
 [ -d gccsdk ] || { tar xf "$DL"/gccsdk-64c6f81.tar.gz; mv riscos-gccsdk-64c6f81* gccsdk
-  # UnixLib changes from the RISC OS OpenTTD port (riscos-openttd
-  # patches/unixlib): real wide-character functions (the stubs printed
-  # "Not implemented" and aborted: libstdc++'s locale setup calls wctype()),
-  # a high resolution monotonic clock, nanosleep accuracy, no mmap for
-  # large blocks. Ours: the pthread ticker's handler runs from the RMA
-  # (it used to crash other tasks when it fired while they were paged in).
+  # riscos-unixlib's whole change set (patches/unixlib/unixlib-riscos.diff,
+  # v0.1.1-rc1): real wide-character functions (the stubs aborted when
+  # libstdc++'s locale setup called wctype()), a high resolution monotonic
+  # clock, nanosleep accuracy, no mmap for large blocks, sched priorities,
+  # and the pthread ticker fix: its handler and Wimp filters run from the
+  # PThreadTicker module or an RMA copy, never from the program (they used
+  # to crash other tasks when the ticker fired while those were paged in).
   for p in "$REPO_DIR"/patches/unixlib/*.diff; do patch -d gccsdk -p1 -s < "$p"; done; }
 H=$TC/gccsdk/autobuilder/develop/gcc
 UL=$TC/gccsdk/gcc4/recipe/files/gcc/libunixlib
@@ -66,6 +69,20 @@ if [ "$WHAT" != gcc ]; then
   make -j$JOBS > ../../binutils-make.log 2>&1
   make install >> ../../binutils-make.log 2>&1
   cd "$TC"
+fi
+
+if [ "$WHAT" = unixlib ]; then
+  echo "=== UnixLib only (from clean)"
+  S=$TC/gcc-10.2.0
+  [ -d "$S"/cross-build ] || { echo "no GCC build in $S: run build-toolchain.sh gcc" >&2; exit 1; }
+  rm -rf gccsdk; tar xf "$DL"/gccsdk-64c6f81.tar.gz; mv riscos-gccsdk-64c6f81* gccsdk
+  for p in "$REPO_DIR"/patches/unixlib/*.diff; do patch -d gccsdk -p1 -s < "$p"; done
+  rm -rf "$S"/libunixlib; cp -a "$UL" "$S"/libunixlib
+  ( cd "$S" && AUTOCONF=autoconf2.69 "$H"/reconf-libunixlib ) > unixlib-autogen.log 2>&1
+  cd "$S"/cross-build; rm -rf $T/libunixlib
+  make configure-target-libunixlib all-target-libunixlib > "$TC"/unixlib-make.log 2>&1
+  make install-target-libunixlib > "$TC"/unixlib-install.log 2>&1
+  exit 0
 fi
 
 if [ "$WHAT" != binutils ]; then

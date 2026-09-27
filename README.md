@@ -36,7 +36,7 @@ and ARMEABISupport, both from PackMan.
 | `riscos/riscos_output.c` | Sends stdout/stderr to the file named by `Warzone2100$Output` (from riscos-mesa, MIT). |
 | `tools/wz-patches.sh` | Edit the patch series with git (see BUILDING.md). |
 | `tools/check-unaligned.sh` | Finds code that can do unaligned loads and stores, which RISC OS traps. |
-| `tools/check-unixlib.sh` | Checks the program's UnixLib claims the full pthread ticker block (a stale build hung the machine). |
+| `tools/check-unixlib.sh` | Checks the program's UnixLib claims the full 472-byte pthread ticker block and agrees with the C side (a stale build hung the machine). |
 | `tools/check-stack-probes.py` | Finds big stack frames that don't probe the stack. |
 | `tools/profile/` | Profile the renderer on Linux with the same Mesa (see its README): where the frame time goes. |
 | `tools/elf2aif/` | ELF to Absolute converter with the >32MB fix (copy from riscos-openttd). |

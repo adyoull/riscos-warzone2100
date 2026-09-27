@@ -1,0 +1,3175 @@
+diff --git a/gcc4/recipe/files/gcc/libunixlib/Makefile.am b/gcc4/recipe/files/gcc/libunixlib/Makefile.am
+index e887b17..742b85e 100644
+--- a/gcc4/recipe/files/gcc/libunixlib/Makefile.am
++++ b/gcc4/recipe/files/gcc/libunixlib/Makefile.am
+@@ -676,6 +676,7 @@ pthread_src = \
+ 	pthread/self.c \
+ 	pthread/sem.c \
+ 	pthread/testcancel.c \
++	pthread/ticker.c \
+ 	pthread/_context.s \
+ 	pthread/_exit.s \
+ 	pthread/_ints.s \
+@@ -771,6 +772,7 @@ if UNIXLIB_BUILDING_SCL
+ sched_src =
+ else
+ sched_src = \
++	sched/sched_prio.c \
+ 	sched/syield.c
+ endif
+ 
+@@ -863,6 +865,7 @@ sound_src =
+ else
+ sound_src = \
+ 	sound/dsp.c \
++	sound/midi.c \
+ 	sound/DRender.s
+ endif
+ 
+@@ -1469,6 +1472,7 @@ nobase_noinst_HEADERS = \
+ 	incl-local/internal/sigstate.h \
+ 	incl-local/internal/swiparams.h \
+ 	incl-local/internal/symlinks.h \
++	incl-local/internal/ticker.s \
+ 	incl-local/internal/tty.h \
+ 	incl-local/internal/unix.h \
+ 	incl-local/locale.h \
+@@ -1499,6 +1503,19 @@ libunixlib_la_SOURCES = $(assert_src) $(common_src) $(crypt_src) $(ctype_src) \
+ 	$(stdio_src) $(stdlib_src) $(string_src) $(sys_src) \
+ 	$(termios_src) $(time_src) $(unistd_src) $(unix_src) $(wchar_src)
+ 
++# 2026: the assembler sources are .s, and automake doesn't track what they
++# include.  Rebuild them all when the shared assembler definitions change:
++# a stale _syslib.lo once kept an old PTHREAD_CALLEVERY_STRUCT_SIZE and the
++# pthread RMA block was overrun.
++unixlib_asm_deps = $(top_srcdir)/incl-local/internal/asm_dec.s \
++	$(top_srcdir)/incl-local/internal/elf-macros.s \
++	$(top_srcdir)/incl-local/internal/scl-macros.s \
++	$(top_srcdir)/incl-local/internal/ticker.s \
++	$(top_srcdir)/incl-local/internal/defines.h \
++	$(top_srcdir)/include/unixlib/buildoptions.h
++unixlib_asm_objs = $(patsubst %.s,%.lo,$(notdir $(filter %.s,$(libunixlib_la_SOURCES))))
++$(unixlib_asm_objs) crt0.o gcrt0.o sul.o pthticker.o: $(unixlib_asm_deps)
++
+ libunixlib_la_LDFLAGS = -Wc,-lgcc_s -Wc,-nostdlib -version-info 5:0:0 -Wl,--version-script -Wl,$(top_srcdir)/vscript
+ 
+ libm_la_SOURCES = libm-support/libm.c
+@@ -1553,7 +1570,7 @@ gcrt0.o: crt/gcrt0.s
+ # SUL module ----------------
+ 
+ # Build the SharedUnixLibrary module
+-bin_PROGRAMS = sul
++bin_PROGRAMS = sul pthticker
+ 
+ sul.o: module/sul.s
+ 	$(CCASCOMPILE) -o sul.o -c `test -f 'module/sul.s' || echo '$(srcdir)/'`module/sul.s
+@@ -1564,6 +1581,14 @@ sul.o: module/sul.s
+ sul$(EXEEXT): sul.o
+ 	$(STRIP) -O binary -o sul$(EXEEXT) sul.o
+ 
++# 2026: the PThreadTicker module (runs the thread ticker; see
++# docs/THREAD-TICKER.md).  Not part of SharedUnixLibrary.
++pthticker.o: module/pthticker.s
++	$(CCASCOMPILE) -o pthticker.o -c `test -f 'module/pthticker.s' || echo '$(srcdir)/'`module/pthticker.s
++
++pthticker$(EXEEXT): pthticker.o
++	$(STRIP) -O binary -o pthticker$(EXEEXT) pthticker.o
++
+ install-data-local: install-headers
+ 
+ install-headers:
+diff --git a/gcc4/recipe/files/gcc/libunixlib/common/__stat.c b/gcc4/recipe/files/gcc/libunixlib/common/__stat.c
+index d7a6a30..da15f81 100644
+--- a/gcc4/recipe/files/gcc/libunixlib/common/__stat.c
++++ b/gcc4/recipe/files/gcc/libunixlib/common/__stat.c
+@@ -91,6 +91,7 @@ __stat (unsigned objtype, unsigned loadaddr, unsigned execaddr,
+       case DEV_ZERO:
+       case DEV_RANDOM:
+       case DEV_DSP:
++      case DEV_MIDI:
+ 	/* Terminal type device file.  */
+ 	mode |= S_IFCHR;
+ 	break;
+diff --git a/gcc4/recipe/files/gcc/libunixlib/incl-local/internal/asm_dec.s b/gcc4/recipe/files/gcc/libunixlib/incl-local/internal/asm_dec.s
+index 7f01c57..4aff7fc 100644
+--- a/gcc4/recipe/files/gcc/libunixlib/incl-local/internal/asm_dec.s
++++ b/gcc4/recipe/files/gcc/libunixlib/incl-local/internal/asm_dec.s
+@@ -389,6 +389,22 @@ PTHREAD_CALLEVERY_RMA_TICKER_STARTED:		.skip 4
+ PTHREAD_CALLEVERY_RMA_WORKSEMAPHORE:		.skip 4
+ PTHREAD_CALLEVERY_RMA_CALLBACK_SEMAPHORE:	.skip 4
+ PTHREAD_CALLEVERY_RMA_FILTER_NAME:		.skip 20
++	@ 2026: counters for UnixLib$TickerStats (see docs/THREAD-TICKER.md)
++	@ Ticker calls, and those that found another task paged in
++PTHREAD_CALLEVERY_RMA_TICKS:			.skip 4
++PTHREAD_CALLEVERY_RMA_FOREIGN_TICKS:		.skip 4
++	@ The upcall handler and its R12 seen at the last foreign tick
++PTHREAD_CALLEVERY_RMA_FOREIGN_HANDLER:		.skip 4
++PTHREAD_CALLEVERY_RMA_FOREIGN_R12:		.skip 4
++	@ Wimp pre-filter and post-filter calls
++PTHREAD_CALLEVERY_RMA_PRE_CALLS:		.skip 4
++PTHREAD_CALLEVERY_RMA_POST_CALLS:		.skip 4
++	@ Task handle the filters are registered for, 0 if none
++PTHREAD_CALLEVERY_RMA_FILTER_HANDLE:		.skip 4
++	@ Bit 0 set: the PThreadTicker module's routines (else the copy below)
++PTHREAD_CALLEVERY_RMA_FLAGS:			.skip 4
++	@ A copy of the ticker routines (see _context.s)
++PTHREAD_CALLEVERY_RMA_TICKER_CODE:		.skip 320
+ PTHREAD_CALLEVERY_STRUCT_SIZE:
+ 
+ 	.text
+diff --git a/gcc4/recipe/files/gcc/libunixlib/incl-local/internal/dev.h b/gcc4/recipe/files/gcc/libunixlib/incl-local/internal/dev.h
+index e45417e..86e7c5a 100644
+--- a/gcc4/recipe/files/gcc/libunixlib/incl-local/internal/dev.h
++++ b/gcc4/recipe/files/gcc/libunixlib/incl-local/internal/dev.h
+@@ -38,8 +38,9 @@ __BEGIN_DECLS
+ #define DEV_DSP		7	/* /dev/dsp            */
+ #define DEV_CUSTOM	8	/* Custom FD behaviour */
+ #define DEV_EVENTFD	9	/* EventFD             */
++#define DEV_MIDI	10	/* /dev/midi           */
+ 
+-#define NDEV		10
++#define NDEV		11
+ 
+ /* Call a device function, ensuring we don't refer to an invalid device */
+ #define dev_funcall(type, func, args) __funcall ((*(__dev[(type) < NDEV ? (type) : DEV_NULL].func)), args)
+@@ -126,6 +127,12 @@ extern int __dspwrite (struct __unixlib_fd *__fd, const void *__data, int __nbyt
+ extern __off_t __dsplseek (struct __unixlib_fd *__fd, __off_t __lpos, int __whence);
+ extern int __dspioctl (struct __unixlib_fd *__fd, unsigned long __request, void *__arg);
+ 
++/* /dev/midi support */
++extern void *__midiopen (struct __unixlib_fd *__file_desc, const char *__file, int __mode);
++extern int __midiclose (struct __unixlib_fd *__fd);
++extern int __midiwrite (struct __unixlib_fd *__fd, const void *__data, int __nbyte);
++extern int __midiioctl (struct __unixlib_fd *__fd, unsigned long __request, void *__arg);
++
+ /* /dev/custom support */
+ extern void *__customopen (struct __unixlib_fd *__fd, const char *file, int __mode);
+ extern int __customclose (struct __unixlib_fd *__fd);
+diff --git a/gcc4/recipe/files/gcc/libunixlib/incl-local/internal/ticker.s b/gcc4/recipe/files/gcc/libunixlib/incl-local/internal/ticker.s
+new file mode 100644
+index 0000000..af20ac3
+--- /dev/null
++++ b/gcc4/recipe/files/gcc/libunixlib/incl-local/internal/ticker.s
+@@ -0,0 +1,126 @@
++@ Thread ticker routines, shared by the PThreadTicker module and UnixLib
++@ Copyright (c) 2026 UnixLib Developers
++@
++@ TICKER_ROUTINES p assembles five routines, all called with ip (r12) =
++@ the program's pthread RMA block (struct __pthread_callevery_block,
++@ PTHREAD_CALLEVERY_RMA_* in asm_dec.s):
++@
++@   p_handler    the OS_CallEvery handler
++@   p_start      start the ticker if it isn't running
++@   p_stop       stop it if it is
++@   p_prefilter  Wimp pre-filter: count, then p_stop
++@   p_postfilter Wimp post-filter: count, then p_start
++@
++@ The PThreadTicker module (module/pthticker.s) assembles them, so they
++@ are always paged in. Without that module, UnixLib copies them into the
++@ RMA block at start-up and runs the copy (pthread/_context.s).
++@ Either way they must not depend on where they are: only ip-relative
++@ data, ADR within this block, SWIs; no literal pools, no branches out.
++@ The block offsets they use (76, 80, 88, 92, 96 and 120-143) are an
++@ interface between UnixLib and the module, which are released
++@ separately: don't move them.
++@
++@ Only the handler may run while another task is paged in. It checks that
++@ the upcall handler and its R12 are the program's (from SUL) before it
++@ touches anything but the RMA block, so a tick that finds another task
++@ paged in does nothing but count.
++@
++@ Syntax: keep it valid in both divided and unified syntax (no
++@ conditional LDM/STM), so any module source can use it.
++
++.macro	TICKER_ROUTINES p
++
++	@ OS_CallEvery handler: every 2 cs, SVC or IRQ mode, IRQs disabled.
++	@ Preserves all registers.
++\p\()_handler:
++	STMFD	sp!, {a1-a4, lr}
++	LDR	a1, [ip, #PTHREAD_CALLEVERY_RMA_TICKS]
++	ADD	a1, a1, #1
++	STR	a1, [ip, #PTHREAD_CALLEVERY_RMA_TICKS]
++
++	@ Read the current upcall handler: SUL's, with the program's key as
++	@ its R12, when this program is paged in.
++	MOV	a1, #16
++	MOV	a2, #0
++	MOV	a3, #0
++	MOV	a4, #0
++	SWI	XOS_ChangeEnvironment
++	BVS	\p\()_handler_out
++	LDR	a1, [ip, #PTHREAD_CALLEVERY_RMA_UPCALL_ADDR]
++	TEQ	a1, a2
++	LDREQ	a1, [ip, #PTHREAD_CALLEVERY_RMA_UPCALL_R12]
++	TEQEQ	a1, a3
++	BNE	\p\()_handler_foreign
++
++	@ Ours. Set the callback unless in a context switch or a critical
++	@ section.
++	LDR	a1, [ip, #PTHREAD_CALLEVERY_RMA_CALLBACK_SEMAPHORE]
++	TEQ	a1, #0
++	LDREQ	a1, [ip, #PTHREAD_CALLEVERY_RMA_WORKSEMAPHORE]
++	TEQEQ	a1, #0
++	SWIEQ	XOS_SetCallBack
++\p\()_handler_out:
++	LDMFD	sp!, {a1-a4, pc}
++
++	@ Another task is paged in: count it, note whose upcall handler.
++\p\()_handler_foreign:
++	LDR	a1, [ip, #PTHREAD_CALLEVERY_RMA_FOREIGN_TICKS]
++	ADD	a1, a1, #1
++	STR	a1, [ip, #PTHREAD_CALLEVERY_RMA_FOREIGN_TICKS]
++	STR	a2, [ip, #PTHREAD_CALLEVERY_RMA_FOREIGN_HANDLER]
++	STR	a3, [ip, #PTHREAD_CALLEVERY_RMA_FOREIGN_R12]
++	LDMFD	sp!, {a1-a4, pc}
++
++	@ Start the ticker. Any mode; preserves all registers and flags,
++	@ returns no errors (it may be a Wimp post-filter).
++\p\()_start:
++	STMFD	sp!, {a1-a4, lr}
++	MRS	a4, CPSR
++	LDR	a1, [ip, #PTHREAD_CALLEVERY_RMA_TICKER_STARTED]
++	TEQ	a1, #0
++	BNE	\p\()_start_out
++	MOV	a1, #1			@ Every 2 cs
++	ADR	a2, \p\()_handler
++	MOV	a3, ip
++	SWI	XOS_CallEvery
++	MOVVC	a1, #1
++	STRVC	a1, [ip, #PTHREAD_CALLEVERY_RMA_TICKER_STARTED]
++\p\()_start_out:
++	MSR	CPSR_f, a4
++	LDMFD	sp!, {a1-a4, pc}
++
++	@ Stop the ticker. As \p\()_start (it may be a Wimp pre-filter).
++\p\()_stop:
++	STMFD	sp!, {a1-a4, lr}
++	MRS	a4, CPSR
++	LDR	a1, [ip, #PTHREAD_CALLEVERY_RMA_TICKER_STARTED]
++	TEQ	a1, #0
++	BEQ	\p\()_stop_out
++	ADR	a1, \p\()_handler
++	MOV	a2, ip
++	SWI	XOS_RemoveTickerEvent
++	MOV	a1, #0
++	STR	a1, [ip, #PTHREAD_CALLEVERY_RMA_TICKER_STARTED]
++\p\()_stop_out:
++	MSR	CPSR_f, a4
++	LDMFD	sp!, {a1-a4, pc}
++
++	@ Wimp filters (Filter_RegisterPreFilter/PostFilter with R2 = the
++	@ block): count the call, then stop or start the ticker.
++\p\()_prefilter:
++	STMFD	sp!, {a1}
++	LDR	a1, [ip, #PTHREAD_CALLEVERY_RMA_PRE_CALLS]
++	ADD	a1, a1, #1
++	STR	a1, [ip, #PTHREAD_CALLEVERY_RMA_PRE_CALLS]
++	LDMFD	sp!, {a1}
++	B	\p\()_stop
++
++\p\()_postfilter:
++	STMFD	sp!, {a1}
++	LDR	a1, [ip, #PTHREAD_CALLEVERY_RMA_POST_CALLS]
++	ADD	a1, a1, #1
++	STR	a1, [ip, #PTHREAD_CALLEVERY_RMA_POST_CALLS]
++	LDMFD	sp!, {a1}
++	B	\p\()_start
++\p\()_end:
++.endm
+diff --git a/gcc4/recipe/files/gcc/libunixlib/incl-local/pthread.h b/gcc4/recipe/files/gcc/libunixlib/incl-local/pthread.h
+index eed3e61..827a1d8 100644
+--- a/gcc4/recipe/files/gcc/libunixlib/incl-local/pthread.h
++++ b/gcc4/recipe/files/gcc/libunixlib/incl-local/pthread.h
+@@ -180,8 +180,34 @@ struct __pthread_callevery_block
+   volatile int pthread_callback_semaphore; /* Prevent a callback being set
+     whilst servicing another callback.  */
+   char filter_name[20];
++  /* 2026: counters, written by the ticker routines, reported at exit when
++     UnixLib$TickerStats is set (docs/THREAD-TICKER.md).  */
++  unsigned ticks;		/* Ticker calls.  */
++  unsigned foreign_ticks;	/* ... that found another task paged in.  */
++  void *foreign_handler;	/* Upcall handler and R12 seen at the last  */
++  void *foreign_r12;		/* foreign tick.  */
++  unsigned pre_calls;		/* Wimp pre-filter calls.  */
++  unsigned post_calls;		/* Wimp post-filter calls.  */
++  int filter_handle;		/* Task the filters are registered for.  */
++  unsigned flags;		/* Bit 0: the PThreadTicker module's routines.  */
++  /* A copy of the ticker routines, used when the PThreadTicker module
++     isn't loaded.  OS_CallEvery runs the handler from
++     here: the ticker can fire while another task is paged in, when the
++     application's own copy isn't there.  */
++  unsigned ticker_code[80];
+ };
+ 
++/* pthread/ticker.c (2026).  */
++extern void __pthread_ticker_read_task (int *__handle, int *__version);
++extern void __pthread_ticker_init (void);
++extern void __pthread_ticker_recheck (void);
++extern void __pthread_ticker_fini (void);
++extern void __pthread_ticker_write_stats (void);
++
++/* The ticker routines in _context.s (internal/ticker.s), copied into
++   ticker_code at start-up when SharedUnixLibrary can't run them.  */
++extern const char __pthread_call_every_code[], __pthread_call_every_code_end[];
++
+ extern pthread_t __pthread_thread_list; /* Linked list of all threads */
+ 
+ /* Called once early in program initialisation */
+diff --git a/gcc4/recipe/files/gcc/libunixlib/include/sched.h b/gcc4/recipe/files/gcc/libunixlib/include/sched.h
+index 2e424fb..869176c 100644
+--- a/gcc4/recipe/files/gcc/libunixlib/include/sched.h
++++ b/gcc4/recipe/files/gcc/libunixlib/include/sched.h
+@@ -16,6 +16,11 @@ __BEGIN_DECLS
+ 
+ extern int sched_yield (void);
+ 
++/* The range of priorities for POLICY.  UnixLib's scheduler ignores
++   priorities, so both are 0 for every policy.  */
++extern int sched_get_priority_min (int __policy) __THROW;
++extern int sched_get_priority_max (int __policy) __THROW;
++
+ __END_DECLS
+ 
+ #endif /* __SCHED_H */
+diff --git a/gcc4/recipe/files/gcc/libunixlib/include/unistd.h b/gcc4/recipe/files/gcc/libunixlib/include/unistd.h
+index be382ba..e7893a6 100644
+--- a/gcc4/recipe/files/gcc/libunixlib/include/unistd.h
++++ b/gcc4/recipe/files/gcc/libunixlib/include/unistd.h
+@@ -608,6 +608,10 @@ extern void sync (void) __THROW;
+    This function is a cancellation point.  */
+ extern int fsync (int __fd);
+ 
++/* Synchronize at least the data part of a file with the underlying
++   media (the same as fsync on RISC OS).  */
++extern int fdatasync (int __fildes);
++
+ /* Truncate FILE to LENGTH bytes.  */
+ extern int truncate (const char *__file, __off_t __length) __THROW;
+ 
+diff --git a/gcc4/recipe/files/gcc/libunixlib/module/pthticker.s b/gcc4/recipe/files/gcc/libunixlib/module/pthticker.s
+new file mode 100644
+index 0000000..0b7caf3
+--- /dev/null
++++ b/gcc4/recipe/files/gcc/libunixlib/module/pthticker.s
+@@ -0,0 +1,146 @@
++@ PThreadTicker: runs UnixLib's thread ticker routines from a module
++@ Copyright (c) 2026 UnixLib Developers
++@
++@ 2026 (riscos-unixlib): UnixLib switches threads with an OS_CallEvery
++@ ticker, and a Wimp task stops it with Wimp filters while it is paged out.
++@ The ticker can still fire while another task is paged in, and the
++@ FilterManager can call the filters for the wrong task, so the routines
++@ must not live in the program. A module is always paged in.
++@
++@ Without this module UnixLib copies the same routines into its RMA block
++@ and runs them there; with it, UnixLib runs the module's copy. The
++@ routines themselves are internal/ticker.s. See docs/THREAD-TICKER.md.
++@
++@ No SWIs (none are allocated to it). UnixLib finds the module with
++@ OS_Module 18 ("PThreadTicker") and reads the interface table that
++@ follows the module header (offset &34):
++@
++@   +0  "PTTk" (&6B545450)
++@   +4  interface version (1)
++@   +8  number of entries that follow (7)
++@   +12 offsets from the module start of:
++@       handler, start, stop, pre-filter, post-filter  (ip = RMA block)
++@       attach, detach                                 (ip = workspace)
++@
++@ attach/detach count the programs using the module; it refuses to be
++@ killed while that count isn't 0. UnixLib attaches at start-up and
++@ detaches at exit, after stopping its ticker and removing its filters.
++
++#include "internal/asm_dec.s"
++#include "internal/ticker.s"
++
++	.syntax unified
++	.text
++
++module_start:
++	.word	0				@ Start code
++	.word	init_code - module_start	@ Initialisation
++	.word	final_code - module_start	@ Finalisation
++	.word	0				@ Service call handler
++	.word	title - module_start		@ Title string
++	.word	help - module_start		@ Help string
++	.word	0				@ Command table
++	.word	0				@ SWI chunk
++	.word	0				@ SWI handler
++	.word	0				@ SWI table
++	.word	0				@ SWI decoder
++	.word	0				@ Messages file
++	.word	module_flags - module_start	@ Flags
++
++	@ The interface table (see above); UnixLib expects it at &34
++interface:
++	.word	0x6B545450			@ "PTTk"
++	.word	1				@ Interface version
++	.word	7				@ Entries
++	.word	pt_handler - module_start
++	.word	pt_start - module_start
++	.word	pt_stop - module_start
++	.word	pt_prefilter - module_start
++	.word	pt_postfilter - module_start
++	.word	pt_attach - module_start
++	.word	pt_detach - module_start
++	.if	interface - module_start - 0x34
++	.error	"The interface table must follow the module header (&34)"
++	.endif
++
++title:
++	.asciz	"PThreadTicker"
++help:
++	.asciz	"PThreadTicker\t0.01 (27 Sep 2026) riscos-unixlib"
++	.align
++module_flags:
++	.word	1				@ 32-bit compatible
++
++error_inuse:
++	.word	0
++	.asciz	"PThreadTicker is in use by UnixLib programs"
++	.align
++
++	@ The ticker routines: ip = the program's pthread RMA block
++	TICKER_ROUTINES pt
++
++	@ Count a program using the module. ip = workspace (OS_Module 18's
++	@ R4). Any mode; preserves all registers and flags.
++pt_attach:
++	STMFD	sp!, {a1}
++	LDR	a1, [ip]
++	ADD	a1, a1, #1
++	STR	a1, [ip]
++	LDMFD	sp!, {a1}
++	MOV	pc, lr
++
++	@ ... and one that has finished with it.
++pt_detach:
++	STMFD	sp!, {a1}
++	LDR	a1, [ip]
++	SUBS	a1, a1, #1
++	MOVMI	a1, #0
++	STR	a1, [ip]
++	LDMFD	sp!, {a1}
++	MOV	pc, lr
++
++	@ Workspace: one word, the number of programs attached.
++init_code:
++	STMFD	sp!, {lr}
++	LDR	r2, [r12]
++	TEQ	r2, #0			@ Re-initialising: keep it
++	BNE	init_done
++	MOV	r0, #6
++	MOV	r3, #4
++	SWI	XOS_Module
++	BVS	init_fail
++	STR	r2, [r12]
++	MOV	r0, #0
++	STR	r0, [r2]
++init_done:
++	MSR	CPSR_f, #0		@ V clear: no error
++	LDMFD	sp!, {pc}
++init_fail:
++	LDMFD	sp!, {lr}
++	MSR	CPSR_f, #VFlag
++	MOV	pc, lr
++
++	@ Refuse to die while a program uses the routines: its ticker or
++	@ filters would call freed code.
++final_code:
++	STMFD	sp!, {lr}
++	LDR	r2, [r12]
++	TEQ	r2, #0
++	BEQ	final_done
++	LDR	r0, [r2]
++	TEQ	r0, #0
++	BNE	final_inuse
++	MOV	r0, #7
++	SWI	XOS_Module
++	MOV	r0, #0
++	STR	r0, [r12]
++final_done:
++	MSR	CPSR_f, #0		@ V clear: no error
++	LDMFD	sp!, {pc}
++final_inuse:
++	LDMFD	sp!, {lr}
++	ADR	r0, error_inuse
++	MSR	CPSR_f, #VFlag
++	MOV	pc, lr
++
++	.end
+diff --git a/gcc4/recipe/files/gcc/libunixlib/pthread/_context.s b/gcc4/recipe/files/gcc/libunixlib/pthread/_context.s
+index fada843..1dd8b95 100644
+--- a/gcc4/recipe/files/gcc/libunixlib/pthread/_context.s
++++ b/gcc4/recipe/files/gcc/libunixlib/pthread/_context.s
+@@ -28,251 +28,53 @@
+ @ Filter_RegisterPostFilter) to enable/disable OS_CallEvery.
+ 
+ #include "internal/asm_dec.s"
++#include "internal/ticker.s"
+ 
+ 
+ 	.syntax unified
+ 	.text
+ 
+-@
+-@ Start a ticker which will set the callback flag every clock tick
+-@
+-	.global	__pthread_start_ticker
+-	NAME	__pthread_start_ticker
+-__pthread_start_ticker:
+- PICNE "STMFD	sp!, {v1-v2, v5, lr}"
+- PICEQ "STMFD	sp!, {v1-v2, v4, v5, lr}"
+-
+-	PIC_LOAD v4
+-
+-	LDR	v5, .L0			@=__ul_global
+- PICEQ "LDR	v5, [v4, v5]"
+-
+-	@ Don't start until the thread system has been setup
+-	LDR	a1, [v5, #GBL_PTH_SYSTEM_RUNNING]
+-	TEQ	a1, #0
+- PICEQ "LDMFDEQ	sp!, {v1-v2, v4, v5, pc}"
+- PICNE "LDMFDEQ	sp!, {v1-v2, v5, pc}"
+-
+-	@ Don't start if there's only one thread running
+-	LDR	a1, [v5, #GBL_PTH_NUM_RUNNING_THREADS]
+-	CMP	a1, #1
+- PICEQ "LDMFDLE	sp!, {v1-v2, v4, v5, pc}"
+- PICNE "LDMFDLE	sp!, {v1-v2, v5, pc}"
+-
+-	LDR	a3, [v5, #GBL_PTH_CALLEVERY_RMA]
+-
+-	@ Are we running as WIMP task ?
+-	@ If we are then we need a filter switching off our ticker when we're
+-	@ swapped out and switching back on after we're swapped in.
+-	LDR	a4, [v5, #GBL_TASKHANDLE]
+-	TEQ	a4, #0
+-	BNE	start_ticker_install_filters
+-
+-	@ Application may have called Wimp_Initialise since we last checked
+-	@ Code similar to __get_taskhandle.
+-	MOV	a1, #3				@ In desktop?
+-	SWI	XWimp_ReadSysInfo
+-	MOVVS	a1, #0
+-	TEQ	a1, #0
+-	MOVNE	a1, #5				@ Read taskhandle, iff in desktop
+-	SWINE	XWimp_ReadSysInfo
+-	MOVVS	a1, #0
+-
+-	MOVS	a4, a1
+-	BEQ	start_ticker_test_running
+- 
+-	STR	a4, [v5, #GBL_TASKHANDLE]	@ __ul_global.taskhandle
+- 
+-	@ a4 = current taskhandle
+-start_ticker_install_filters:
+-	@ Install the filter routines (a4 = WIMP taskhandle) :
+-	LDR	v2, .L0+4		@=filter_installed
+- PICEQ "LDR	v2, [v4, v2]"
+-	LDR	a1, [v2]
+-	STR	v2, [v2]
+-	TEQ	a1, #0
+-	BNE	start_ticker_test_running
+-
+-	@ get filter name RMA pointer
+-	ADD	a1, a3, #PTHREAD_CALLEVERY_RMA_FILTER_NAME
+-	ADR	a2, stop_call_every
+-	@ a3 is still the address of the RMA block allocated and populated above.
+-	@ a4 is still equal to taskhandle
+-	SWI	XFilter_RegisterPreFilter
+-	ADRVC	a2, start_call_every
+-	@ a3 is still the RMA block
+-	@ a4 is still equal to taskhandle
+-	MOVVC	v1, #0
+-	SWIVC	XFilter_RegisterPostFilter
+-	ADDVS	a1, a1, #4
+-	BVS	__pthread_fatal_error
+-
+-start_ticker_test_running:
+-	@ start_call_every may be called as a filter routine, in which case
+-	@ it expects a pointer to the RMA data block in r12. Make sure that's
+-	@ the case when called directly.
+-	MOV	r12, a3
+-	BL	start_call_every
+- PICEQ "LDMFD	sp!, {v1-v2, v4, v5, pc}"
+- PICNE "LDMFD	sp!, {v1-v2, v5, pc}"
+-.L0:
+-	WORD	__ul_global
+-	WORD	filter_installed
+-	DECLARE_FUNCTION __pthread_start_ticker
+-
+-	@ Start the RISC OS CallEvery ticker
+-	@ This may be called as a Wimp post filter, so preserve all registers,
+-	@ all processor flags and don't return any errors.
+-	@ R12 is our private word and contains the address of an RMA data block.
+-	NAME	start_call_every
+-start_call_every:
+-	STMFD	sp!, {a1-v1, lr}
+-	MRS	v1, CPSR
+-	LDR	a1, [r12, #PTHREAD_CALLEVERY_RMA_TICKER_STARTED]
+-	TEQ	a1, #0
+-	BNE	start_call_every_end
+-
+-	MOV	a1, #1
+-	ADR	a2, pthread_call_every
+-	MOV	a3, r12
+-	SWI	XOS_CallEvery
+-
+-	MOVVC	a1, #1
+-	STRVC	a1, [r12, #PTHREAD_CALLEVERY_RMA_TICKER_STARTED]
+-start_call_every_end:
+-	MSR	CPSR_f, v1
+-	LDMFD	sp!, {a1-v1, pc}
+-	DECLARE_FUNCTION start_call_every
+-
+-	@ Stop the RISC OS CallEvery ticker
+-	@ This may be called as a Wimp pre filter, so preserve all registers,
+-	@ all processor flags and don't return any errors.
+-	@ R12 is our private word and contains the address of an RMA data block.
+-	NAME	stop_call_every
+-stop_call_every:
+-	STMFD	sp!, {a1-a3, lr}
+-	MRS	a3, CPSR
+-	LDR	a2, [r12, #PTHREAD_CALLEVERY_RMA_TICKER_STARTED]
+-	SUBS	a2, a2, #1
+-	STREQ	a2, [r12, #PTHREAD_CALLEVERY_RMA_TICKER_STARTED]
+-	ADREQ	a1, pthread_call_every
+-	MOVEQ	a2, r12
+-	SWIEQ	XOS_RemoveTickerEvent
+-	MSR	CPSR_f, a3
+-	LDMFD	sp!, {a1-a3, pc}
+-	DECLARE_FUNCTION stop_call_every
+-
+-@
+-@ Stop the ticker running
+-@
+-	.global	__pthread_stop_ticker
+-	NAME	__pthread_stop_ticker
+-__pthread_stop_ticker:
+- PICNE "STMFD	sp!, {v1-v3, lr}"
+- PICEQ "STMFD	sp!, {v1-v3, v4, lr}"
+-
+-	PIC_LOAD v4
+-
+-	@ Don't bother if thread system is not running
+-	LDR	a2, .L1+0		@=__ul_global
+- PICEQ "LDR	a2, [v4, a2]"
+-	LDR	a1, [a2, #GBL_PTH_SYSTEM_RUNNING]
+-	TEQ	a1, #0
+- PICEQ "LDMFDEQ	sp!, {v1-v3, v4, pc}"
+- PICNE "LDMFDEQ	sp!, {v1-v3, pc}"
+-
+-	LDR	a3, [a2, #GBL_PTH_CALLEVERY_RMA]
+-
+-	@ Need to remove the filters ?
+-	LDR	a4, [a2, #GBL_TASKHANDLE]
+-	TEQ	a4, #0
+-	BEQ	stop_ticker_core
+-
+-	@ Remove the filter routines (a4 = WIMP taskhandle) :
+-	@ Ignore any errors.
+-	LDR	v2, .L1+4		@=filter_installed
+- PICEQ "LDR	v2, [v4, v2]"
+-	LDR	a1, [v2]
+-	TEQ	a1, #0
+-	BEQ	stop_ticker_core
+-
+-	ADD	a1, a3, #PTHREAD_CALLEVERY_RMA_FILTER_NAME
+-	ADR	a2, stop_call_every
+-	@ a3 is the address of the RMA block.
+-	@ a4 is still equal to taskhandle
+-	SWI	XFilter_DeRegisterPreFilter
+-	ADD	a1, a3, #PTHREAD_CALLEVERY_RMA_FILTER_NAME	@ a1 can be corrupted, so re-init
+-	ADR	a2, start_call_every
+-	@ a3 is the address of the RMA block.
+-	@ a4 is still equal to taskhandle
+-	MOV	v1, #0
+-	SWI	XFilter_DeRegisterPostFilter
+-
+-	STR	v1, [v2]		@ Mark we no longer have filter installed
+-
+-stop_ticker_core:
+-	@ stop_call_every may be called as a filter routine, in which case
+-	@ it expects a pointer to the RMA data block in r12. Make sure that's
+-	@ the case when called directly.
+-	MOV	r12, a3
+-	BL	stop_call_every
+-
+- PICEQ "LDMFD	sp!, {v1-v3, v4, pc}"
+- PICNE "LDMFD	sp!, {v1-v3, pc}"
+-.L1:
+-	WORD	__ul_global
+-	WORD	filter_installed
+-	DECLARE_FUNCTION __pthread_stop_ticker
+-
+-@ The ticker calls this every clock tick, note that it is every *two*
+-@ centiseconds.
+-@ Called in SVC mode with IRQs disabled, all registers must be preserved.
+-@ r12 contains a pointer to a block of RMA memory which stores the address
+-@ of the SUL upcall handler and the SUL key (and the UnixLib GOT pointer
+-@ for the shared library). We can't be certain the application is paged in
+-@ (despite the filters), so we dare not attempt to access its address space,
+-@ which is why these are in RMA.
+-	NAME	pthread_call_every
+-pthread_call_every:
+-	STMFD	sp!, {a1-a4, lr}
+-
+-	@ First check that our upcall handler is paged in. If it is not
+-	@ then it is likely that the taskwindow module is in the process
+-	@ of paging us out/in so setting a callback would be a bad idea.
+-	@ As the upcall handler is within SUL then we know nothing else
+-	@ can have a handler at the same address except other UnixLib
+-	@ programs. We can distinguish between these with the SUL key.
+-	MOV	a1, #16
+-	MOV	a2, #0
+-	MOV	a3, #0
+-	MOV	a4, #0
+-	SWI	XOS_ChangeEnvironment
+-	LDMFDVS	sp!, {a1-a4, pc}
+-
+-	@ We need to check the SUL upcall handler and key before we attempt
+-	@ to access any data within application space.
+-
+-	@ If it is not a SUL upcall handler, don't set callback
+-	LDR	a1, [ip, #PTHREAD_CALLEVERY_RMA_UPCALL_ADDR]
+-	TEQ	a1, a2
+-	@ If it is not our SUL key, don't set callback
+-	LDREQ	a1, [ip, #PTHREAD_CALLEVERY_RMA_UPCALL_R12]
+-	TEQEQ	a1, a3
+-	LDMFDNE sp!, {a1-a4, pc}
+-
+-	@ Okay, we can access application space now to make further checks.
+-
+-	@ If we are in the middle of a context-switch callback,
+-	@ don't set the callback.
+-	LDREQ	a1, [ip, #PTHREAD_CALLEVERY_RMA_CALLBACK_SEMAPHORE]
+-	TEQEQ	a1, #0
+-	@ If we are in a critical section, don't set the callback
+-	LDREQ	a1, [ip, #PTHREAD_CALLEVERY_RMA_WORKSEMAPHORE]
+-	TEQEQ	a1, #0
+-	SWIEQ	XOS_SetCallBack
+-0:
+-	LDMFD	sp!, {a1-a4, pc}
+-	DECLARE_FUNCTION pthread_call_every
++@ 2026: the ticker routines (starting, stopping, the OS_CallEvery handler
++@ and the Wimp filters) are in internal/ticker.s. The PThreadTicker module
++@ (module/pthticker.s) has its own copy; without it, __pthread_ticker_init
++@ copies the ones below into the RMA block and runs them from there.
++@ Either way they are paged in whichever task is: the ticker can fire while
++@ another task is, and the Filter module can call the filters for the
++@ wrong task. pthread/ticker.c decides which copy to use and manages the
++@ filters.
++
++	.global	__pthread_call_every_code
++	.global	__pthread_call_every_code_end
++	.global	__pthread_ticker_offsets
++__pthread_call_every_code:
++	TICKER_ROUTINES ul_ticker
++__pthread_call_every_code_end:
++	.if	__pthread_call_every_code_end - __pthread_call_every_code > 320
++	.error	"The ticker routines don't fit in PTHREAD_CALLEVERY_RMA_TICKER_CODE"
++	.endif
++	.if	ul_ticker_handler - __pthread_call_every_code
++	.error	"The ticker handler must come first"
++	.endif
++
++	@ Where the routines are in the copy: start, stop, pre-filter,
++	@ post-filter.
++__pthread_ticker_offsets:
++	.word	ul_ticker_start - ul_ticker_handler
++	.word	ul_ticker_stop - ul_ticker_handler
++	.word	ul_ticker_prefilter - ul_ticker_handler
++	.word	ul_ticker_postfilter - ul_ticker_handler
++
++@ void __pthread_ticker_call (void *block, const void *routine)
++@ Call one of the copied routines with ip = the RMA block.
++	.global	__pthread_ticker_call
++	NAME	__pthread_ticker_call
++__pthread_ticker_call:
++	STMFD	sp!, {a1, lr}
++	MOV	ip, a1
++	MOV	lr, pc
++	MOV	pc, a2
++	LDMFD	sp!, {a1, pc}
++	DECLARE_FUNCTION __pthread_ticker_call
+ 
+ @ This is called from _signal.s::__h_cback and pthread_yield.
+ @ Entered in SVC or IRQ mode with IRQs disabled.
+@@ -506,11 +308,4 @@ __pthread_init_save_area:
+ 	DECLARE_FUNCTION __pthread_init_save_area
+ 
+ 
+-	.data
+-
+-	@ Have we installed Filter ?
+-filter_installed:
+-	.word	0
+-	DECLARE_OBJECT filter_installed
+-
+ 	.end
+diff --git a/gcc4/recipe/files/gcc/libunixlib/pthread/context.c b/gcc4/recipe/files/gcc/libunixlib/pthread/context.c
+index 4343190..cd8b1ce 100644
+--- a/gcc4/recipe/files/gcc/libunixlib/pthread/context.c
++++ b/gcc4/recipe/files/gcc/libunixlib/pthread/context.c
+@@ -89,6 +89,15 @@ __pthread_context_switch (void)
+   __pthread_running_thread->thread_errno = errno;
+ #endif
+ 
++  /* 2026: every 64 switches (about 1.3 s), check that the Wimp filters
++     are registered for the task we are now (pthread/ticker.c).  */
++  {
++    static unsigned int switches;
++
++    if ((++switches & 63) == 0)
++      __pthread_ticker_recheck ();
++  }
++
+   pthread_t next = __pthread_running_thread->next;
+ 
+   /* Loop around the list looking for a thread that is running.  */
+diff --git a/gcc4/recipe/files/gcc/libunixlib/pthread/newnode.c b/gcc4/recipe/files/gcc/libunixlib/pthread/newnode.c
+index 37f75aa..069a2f8 100644
+--- a/gcc4/recipe/files/gcc/libunixlib/pthread/newnode.c
++++ b/gcc4/recipe/files/gcc/libunixlib/pthread/newnode.c
+@@ -71,6 +71,10 @@ __pthread_new_node (pthread_t node)
+   node->keys = NULL;
+   node->cleanupfns = NULL;
+   node->state = STATE_RUNNING;
++  /* 2026: these were left uninitialised, so pthread_getschedparam
++     returned whatever malloc left there.  */
++  node->__policy = SCHED_OTHER;
++  node->__param.sched_priority = 0;
+   node->cancelstate = PTHREAD_CANCEL_ENABLE;
+   node->canceltype = PTHREAD_CANCEL_DEFERRED;
+   node->cancelpending = 0;
+diff --git a/gcc4/recipe/files/gcc/libunixlib/pthread/pthinit.c b/gcc4/recipe/files/gcc/libunixlib/pthread/pthinit.c
+index 9457494..44b8617 100644
+--- a/gcc4/recipe/files/gcc/libunixlib/pthread/pthinit.c
++++ b/gcc4/recipe/files/gcc/libunixlib/pthread/pthinit.c
+@@ -14,8 +14,23 @@
+ 
+ static struct __pthread_thread mainthread;
+ 
++/* 2026: the RMA block's layout is also in incl-local/internal/asm_dec.s
++   (PTHREAD_CALLEVERY_RMA_*); the ticker code copy must be where the
++   assembler expects it.  */
++#define OFFSET(f) __builtin_offsetof (struct __pthread_callevery_block, f)
++_Static_assert (OFFSET (ticks) == 120, "ticks: keep in step with asm_dec.s");
++_Static_assert (OFFSET (flags) == 148, "flags: keep in step with asm_dec.s");
++_Static_assert (OFFSET (ticker_code) == 152,
++		"ticker_code: keep in step with asm_dec.s");
++_Static_assert (sizeof (struct __pthread_callevery_block) == 472,
++		"__pthread_callevery_block: keep in step with asm_dec.s");
++#undef OFFSET
++
+ static const char filter_name[] = "UnixLib pthread";
+ 
++/* The block size sys/_syslib.s claimed from the RMA (see there).  */
++extern const unsigned int __pthread_callevery_block_size;
++
+ static void
+ __get_main_stack (struct __pthread_thread *thread)
+ {
+@@ -68,8 +83,21 @@ __pthread_prog_init (void)
+   mainthread.magic = PTHREAD_MAGIC;
+   __get_main_stack (&mainthread);
+ 
++  /* 2026: _syslib.s claims the RMA block with the assembler's idea of its
++     size.  An incremental build once kept an old _syslib.o (assembler files
++     had no dependency on asm_dec.s), the block was too small and copying
++     the ticker code below overran it.  */
++  if (__pthread_callevery_block_size
++      != sizeof (struct __pthread_callevery_block))
++    __unixlib_fatal ("UnixLib was built from mismatched objects "
++		     "(pthread RMA block size); rebuild it from clean");
++
+   strcpy (gbl->pthread_callevery_rma->filter_name, filter_name);
+ 
++  /* The ticker routines run from SharedUnixLibrary or the RMA block
++     (pthread/ticker.c).  */
++  __pthread_ticker_init ();
++
+   __pthread_thread_list = __pthread_running_thread;
+   gbl->pthread_num_running_threads = 1;
+ }
+@@ -83,12 +111,16 @@ __pthread_prog_fini (void)
+   debug_printf ("-- __pthread_prog_fini: Program finalisation\n");
+ #endif
+ 
++  /* 2026: before the ticker is stopped (UnixLib$TickerStats).  */
++  __pthread_ticker_write_stats ();
++
+   /* pthread timers must be stopped */
+   if (gbl->pthread_system_running)
+     {
+       __pthread_stop_ticker ();
+       gbl->pthread_system_running = 0;
+     }
++  __pthread_ticker_fini ();
+ 
+   /* Free the RMA block that was allocated in __pthread_prog_init */
+   int regs[10];
+diff --git a/gcc4/recipe/files/gcc/libunixlib/pthread/schedparam.c b/gcc4/recipe/files/gcc/libunixlib/pthread/schedparam.c
+index f6fa1f3..641632c 100644
+--- a/gcc4/recipe/files/gcc/libunixlib/pthread/schedparam.c
++++ b/gcc4/recipe/files/gcc/libunixlib/pthread/schedparam.c
+@@ -5,17 +5,22 @@
+ #include <pthread.h>
+ #include <sched.h>
+ 
+-/* Set scheduling parameter (currently ignored) */
++/* Set scheduling parameter.
++   2026: the policy test used || and so rejected every policy with EINVAL.
++   UnixLib's scheduler is a round robin without priorities: SCHED_OTHER
++   with priority 0 is accepted (and recorded), the real-time policies are
++   refused with ENOTSUP as POSIX allows, and anything else is EINVAL.  */
+ int pthread_setschedparam (pthread_t thread, int policy,
+ 			   const struct sched_param *param)
+ {
+   if (thread == NULL || param == NULL)
+     return EINVAL;
+ 
+-  if (policy != SCHED_FIFO
+-      || policy != SCHED_RR
+-      || policy != SCHED_SPORADIC
+-      || policy != SCHED_OTHER)
++  if (policy == SCHED_FIFO || policy == SCHED_RR || policy == SCHED_SPORADIC)
++    return ENOTSUP;
++  if (policy != SCHED_OTHER
++      || param->sched_priority < sched_get_priority_min (policy)
++      || param->sched_priority > sched_get_priority_max (policy))
+     return EINVAL;
+ 
+   thread->__policy = policy;
+diff --git a/gcc4/recipe/files/gcc/libunixlib/pthread/ticker.c b/gcc4/recipe/files/gcc/libunixlib/pthread/ticker.c
+new file mode 100644
+index 0000000..17b960c
+--- /dev/null
++++ b/gcc4/recipe/files/gcc/libunixlib/pthread/ticker.c
+@@ -0,0 +1,310 @@
++/* Thread ticker: starting and stopping it, the Wimp filters, statistics.
++   Copyright (c) 2026 UnixLib Developers.
++
++   2026: this was assembler in _context.s.  Background, the reasons for the
++   design and how to read the statistics: docs/THREAD-TICKER.md.
++
++   With more than one thread, an OS_CallEvery ticker sets a callback every
++   2 cs to switch threads.  In a Wimp task, Wimp filters stop the ticker
++   when the program calls Wimp_Poll and start it when Wimp_Poll returns.
++   The ticker routines themselves (internal/ticker.s) run from the
++   PThreadTicker module when it is loaded (module/pthticker.s) or from a
++   copy in the RMA block: never from the program, which isn't paged in
++   when the ticker fires in another task.
++
++   If the system variable UnixLib$TickerStats names a file, a line of
++   counters is appended to it when the program exits.  */
++
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include <swis.h>
++
++#include <pthread.h>
++#include <internal/os.h>
++#include <internal/unix.h>
++
++/* The PThreadTicker module's interface table, after its header.  */
++#define TICKER_MODULE "PThreadTicker"
++#define TICKER_MAGIC 0x6B545450		/* "PTTk" */
++struct ticker_interface
++{
++  unsigned magic, version, entries;
++  unsigned handler, start, stop, prefilter, postfilter, attach, detach;
++};
++
++/* _context.s: the routines to copy, where they are in the copy (start,
++   stop, pre-filter, post-filter), and a way to call one.  */
++extern const unsigned __pthread_ticker_offsets[4];
++extern void __pthread_ticker_call (void *__block, const void *__routine);
++
++/* The routines in use: the module's or the RMA copy's.  */
++static const void *start_routine, *stop_routine, *pre_filter, *post_filter;
++static void *module_ws;		/* The module's workspace, if used.  */
++static const void *detach_routine;
++static int filters_for;		/* Task the filters are registered for.  */
++static volatile int busy;	/* In __pthread_start/stop_ticker.  */
++
++/* For the statistics.  */
++static int startup_handle, startup_version;
++static int first_start_handle = -1;
++static unsigned starts, filter_moves, filter_errors;
++
++/* Task handle and Wimp version (Wimp_ReadSysInfo 5), 0 when not in the
++   desktop or not a Wimp task.  */
++void
++__pthread_ticker_read_task (int *handle, int *version)
++{
++  int desktop = 0;
++
++  *handle = *version = 0;
++  if (_swix (Wimp_ReadSysInfo, _IN(0) | _OUT(0), 3, &desktop) || !desktop)
++    return;
++  if (_swix (Wimp_ReadSysInfo, _IN(0) | _OUTR(0,1), 5, handle, version))
++    *handle = *version = 0;
++}
++
++static inline struct __pthread_callevery_block *
++block (void)
++{
++  return __ul_global.pthread_callevery_rma;
++}
++
++/* The PThreadTicker module's interface, or NULL if it isn't loaded or
++   is not one we know.  */
++static const struct ticker_interface *
++find_module (const char **base, void **ws)
++{
++  const struct ticker_interface *t;
++
++  if (_swix (OS_Module, _INR(0,1) | _OUTR(3,4), 18, TICKER_MODULE, base, ws)
++      || *base == NULL || *ws == NULL)
++    return NULL;
++  t = (const struct ticker_interface *) (*base + 0x34);
++  if (t->magic != TICKER_MAGIC || t->version != 1 || t->entries < 7)
++    return NULL;
++  return t;
++}
++
++/* Called once by __pthread_prog_init: use the PThreadTicker module's
++   routines if it is loaded, else copy them into the RMA block.  */
++void
++__pthread_ticker_init (void)
++{
++  struct __pthread_callevery_block *b = block ();
++  const struct ticker_interface *t;
++  const char *base;
++  void *ws;
++
++  __pthread_ticker_read_task (&startup_handle, &startup_version);
++
++  if ((t = find_module (&base, &ws)) != NULL)
++    {
++      b->flags |= 1;
++      start_routine = base + t->start;
++      stop_routine = base + t->stop;
++      pre_filter = base + t->prefilter;
++      post_filter = base + t->postfilter;
++      detach_routine = base + t->detach;
++      module_ws = ws;
++      /* The module won't be killed while we're attached.  */
++      __pthread_ticker_call (ws, base + t->attach);
++    }
++  else
++    {
++      char *code = (char *) b->ticker_code;
++      size_t len = __pthread_call_every_code_end - __pthread_call_every_code;
++
++      memcpy (code, __pthread_call_every_code, len);
++      _swix (OS_SynchroniseCodeAreas, _INR(0,2), 1, code, code + len - 1);
++      start_routine = code + __pthread_ticker_offsets[0];
++      stop_routine = code + __pthread_ticker_offsets[1];
++      pre_filter = code + __pthread_ticker_offsets[2];
++      post_filter = code + __pthread_ticker_offsets[3];
++    }
++}
++
++static void
++ticker_on (struct __pthread_callevery_block *b)
++{
++  __pthread_ticker_call (b, start_routine);
++}
++
++static void
++ticker_off (struct __pthread_callevery_block *b)
++{
++  __pthread_ticker_call (b, stop_routine);
++}
++
++/* Register the filters for task HANDLE (0: none), removing them from the
++   task they were registered for.  Before 2026 the handle was read once at
++   start-up (before Wimp_Initialise) and only re-read while it was 0, and
++   the filters were registered only when a thread was created.  */
++static void
++set_filters (struct __pthread_callevery_block *b, int handle)
++{
++  if (handle == filters_for)
++    return;
++
++  if (filters_for != 0)
++    {
++      _swix (Filter_DeRegisterPreFilter, _INR(0,3), b->filter_name,
++	     pre_filter, b, filters_for);
++      _swix (Filter_DeRegisterPostFilter, _INR(0,4), b->filter_name,
++	     post_filter, b, filters_for, 0);
++      filters_for = 0;
++    }
++
++  if (handle != 0)
++    {
++      if (_swix (Filter_RegisterPreFilter, _INR(0,3), b->filter_name,
++		 pre_filter, b, handle))
++	filter_errors++;
++      else if (_swix (Filter_RegisterPostFilter, _INR(0,4), b->filter_name,
++		      post_filter, b, handle, 0))
++	{
++	  filter_errors++;
++	  _swix (Filter_DeRegisterPreFilter, _INR(0,3), b->filter_name,
++		 pre_filter, b, handle);
++	}
++      else
++	{
++	  filters_for = handle;
++	  b->filter_handle = handle;
++	  filter_moves++;
++	}
++    }
++}
++
++/* The task handle now; also updates the cached one.  */
++static int
++current_task (void)
++{
++  int handle, version;
++
++  __pthread_ticker_read_task (&handle, &version);
++  if (handle != 0)
++    __ul_global.taskhandle = handle;
++  return handle;
++}
++
++/* Start the ticker if there's more than one thread.  */
++void
++__pthread_start_ticker (void)
++{
++  struct ul_global *gbl = &__ul_global;
++  struct __pthread_callevery_block *b = block ();
++
++  if (!gbl->pthread_system_running || gbl->pthread_num_running_threads <= 1)
++    return;
++
++  busy = 1;
++  set_filters (b, current_task ());
++  ticker_on (b);
++  if (first_start_handle == -1)
++    first_start_handle = filters_for;
++  starts++;
++  busy = 0;
++}
++
++/* Stop the ticker and remove the filters.  */
++void
++__pthread_stop_ticker (void)
++{
++  struct __pthread_callevery_block *b = block ();
++
++  if (!__ul_global.pthread_system_running)
++    return;
++
++  busy = 1;
++  set_filters (b, 0);
++  ticker_off (b);
++  busy = 0;
++}
++
++/* Called now and then by the context switcher (USR mode, in the
++   callback): if the program has become a Wimp task, or its task handle
++   has changed, since the filters were registered, move them.  Threads
++   started before Wimp_Initialise (an SDL timer or audio thread, say) used
++   to leave the ticker running with no filters at all.  */
++void
++__pthread_ticker_recheck (void)
++{
++  struct ul_global *gbl = &__ul_global;
++
++  if (busy || !gbl->pthread_system_running
++      || gbl->pthread_num_running_threads <= 1)
++    return;
++  set_filters (block (), current_task ());
++}
++
++/* Called by __pthread_prog_fini once the ticker is stopped and the filters
++   removed, before the RMA block is freed: let the module go.  */
++void
++__pthread_ticker_fini (void)
++{
++  if (module_ws != NULL)
++    {
++      __pthread_ticker_call (module_ws, detach_routine);
++      module_ws = NULL;
++    }
++}
++
++/* Append one line to the file named by UnixLib$TickerStats.  Called by
++   __pthread_prog_fini, before the RMA block is freed.  Uses the file
++   SWIs, not stdio: this runs very late in exit.  */
++void
++__pthread_ticker_write_stats (void)
++{
++  const struct __pthread_callevery_block *b
++    = __ul_global.pthread_callevery_rma;
++  const char *file = getenv ("UnixLib$TickerStats");
++  static char line[400];
++  char prog[48];
++  const char *cmd = NULL;
++  int handle = 0, version = 0, fh = 0, ext = 0, created = 0, n, i;
++
++  if (b == NULL || file == NULL || file[0] == '\0')
++    return;
++
++  /* The program name: the first word of the command line.  */
++  prog[0] = '\0';
++  if (!_swix (OS_GetEnv, _OUT(0), &cmd) && cmd != NULL)
++    {
++      for (i = 0; i < (int) sizeof (prog) - 1 && cmd[i] > ' '; i++)
++	prog[i] = cmd[i];
++      prog[i] = '\0';
++    }
++
++  __pthread_ticker_read_task (&handle, &version);
++  n = snprintf (line, sizeof (line),
++		"%s ticks=%u foreign=%u last_foreign=%p/%p pre=%u post=%u"
++		" filters_for=%#x startup=%#x/%d cached=%#x now=%#x/%d"
++		" first_start=%#x starts=%u filter_moves=%u filter_errors=%u"
++		" via=%s\n",
++		prog, b->ticks, b->foreign_ticks, b->foreign_handler,
++		b->foreign_r12, b->pre_calls, b->post_calls,
++		b->filter_handle, startup_handle, startup_version,
++		__ul_global.taskhandle, handle, version,
++		first_start_handle == -1 ? 0 : first_start_handle, starts,
++		filter_moves, filter_errors,
++		(b->flags & 1) ? "module" : "RMA");
++  if (n <= 0)
++    return;
++  if (n >= (int) sizeof (line))
++    n = sizeof (line) - 1;
++
++  /* Open for update (no path, error if absent), else create.  */
++  if (_swix (OS_Find, _INR(0,1) | _OUT(0), 0xC7, file, &fh) || fh == 0)
++    {
++      if (_swix (OS_Find, _INR(0,1) | _OUT(0), 0x83, file, &fh) || fh == 0)
++	return;
++      created = 1;
++    }
++  if (!_swix (OS_Args, _INR(0,1) | _OUT(2), 2, fh, &ext))
++    _swix (OS_Args, _INR(0,2), 1, fh, ext);
++  _swix (OS_GBPB, _INR(0,3), 2, fh, line, n);
++  _swix (OS_Find, _INR(0,1), 0, fh);
++  if (created)
++    _swix (OS_File, _INR(0,2), 18, file, 0xFFF);	/* Text */
++}
+diff --git a/gcc4/recipe/files/gcc/libunixlib/sched/sched_prio.c b/gcc4/recipe/files/gcc/libunixlib/sched/sched_prio.c
+new file mode 100644
+index 0000000..09a1e5a
+--- /dev/null
++++ b/gcc4/recipe/files/gcc/libunixlib/sched/sched_prio.c
+@@ -0,0 +1,33 @@
++/* sched_get_priority_min (), sched_get_priority_max ()
++   Copyright (c) 2026 UnixLib Developers.  */
++
++#include <errno.h>
++#include <sched.h>
++
++/* 2026: UnixLib's thread scheduler is a plain round robin that ignores
++   priorities, so every policy has the single priority 0.  Programs that
++   ask (OpenAL Soft, SDL-style thread code) get a valid, empty range
++   instead of a link error.  */
++
++static int
++known_policy (int policy)
++{
++  return policy == SCHED_OTHER || policy == SCHED_FIFO
++	 || policy == SCHED_RR || policy == SCHED_SPORADIC;
++}
++
++int
++sched_get_priority_min (int policy)
++{
++  if (!known_policy (policy))
++    return __set_errno (EINVAL);
++  return 0;
++}
++
++int
++sched_get_priority_max (int policy)
++{
++  if (!known_policy (policy))
++    return __set_errno (EINVAL);
++  return 0;
++}
+diff --git a/gcc4/recipe/files/gcc/libunixlib/signal/sleep.c b/gcc4/recipe/files/gcc/libunixlib/signal/sleep.c
+index d9221ef..c1e3828 100644
+--- a/gcc4/recipe/files/gcc/libunixlib/signal/sleep.c
++++ b/gcc4/recipe/files/gcc/libunixlib/signal/sleep.c
+@@ -30,6 +30,7 @@
+ 
+ #include <internal/unix.h>
+ #include <pthread.h>
++#include <stdint.h>
+ 
+ /* #define DEBUG */
+ #ifdef DEBUG
+@@ -177,24 +178,47 @@ int usleep (useconds_t usec)
+ }
+ 
+ /* Sleep for time periods specified in nanoseconds.  */
++extern uint64_t __ul_monotonic_ns (void);
++
+ int nanosleep (const struct timespec *req, struct timespec *rem)
+ {
+   int ticks, nticks;
++  uint64_t start, target, want;
+   PTHREAD_SAFE_CANCELLATION;
+ 
+   if (req->tv_sec < 0 || req->tv_nsec < 0 || req->tv_nsec > 999999999)
+-    __set_errno (EINVAL);
+-
+-  ticks = (int) sleep_int (((req->tv_nsec + NSECS_PER_CLOCK-1)
+-			    / NSECS_PER_CLOCK)
+-			   + req->tv_sec * CLOCKS_PER_SEC);
++    return __set_errno (EINVAL);
++
++  /* 2026: sleep with sub-centisecond accuracy.  Whole centiseconds are
++     slept as before; the remainder is waited out against the high
++     resolution monotonic clock (yielding to other threads).  */
++  want = (uint64_t) req->tv_sec * 1000000000u + (uint64_t) req->tv_nsec;
++  start = __ul_monotonic_ns ();
++  target = start + want;
++  if (want >= 20000000u)
++    {
++      ticks = (int) sleep_int ((clock_t) (want / NSECS_PER_CLOCK) - 1);
++      if (ticks > 0)
++	{
++	  /* Interrupted by a signal.  */
++	  if (rem != NULL)
++	    {
++	      uint64_t now = __ul_monotonic_ns ();
++	      uint64_t left = now < target ? target - now : 0;
++	      rem->tv_sec = (time_t) (left / 1000000000u);
++	      rem->tv_nsec = (long) (left % 1000000000u);
++	    }
++	  return __set_errno (EINTR);
++	}
++    }
++  while (__ul_monotonic_ns () < target)
++    pthread_yield ();
+ 
+   if (rem != NULL)
+     {
+-      rem->tv_sec = ticks / CLOCKS_PER_SEC;
+-      ticks -= rem->tv_sec * CLOCKS_PER_SEC;
+-      rem->tv_nsec = ticks * NSECS_PER_CLOCK;
++      rem->tv_sec = 0;
++      rem->tv_nsec = 0;
+     }
+-
++  (void) nticks;
+   return 0;
+ }
+diff --git a/gcc4/recipe/files/gcc/libunixlib/sound/dsp.c b/gcc4/recipe/files/gcc/libunixlib/sound/dsp.c
+index 8a2eb72..faa63d0 100644
+--- a/gcc4/recipe/files/gcc/libunixlib/sound/dsp.c
++++ b/gcc4/recipe/files/gcc/libunixlib/sound/dsp.c
+@@ -16,6 +16,10 @@
+  *
+  * We support 16-bit and 8-bit ulaw in stereo and mono.
+  *
++ * 2026: SharedSoundBuffer / StreamManager output when those modules are
++ * loaded (mixes with other programs; see the second half of this file),
++ * and DigitalRenderer is no longer stopped by programs that didn't use it.
++ *
+  * Copyright (c) 2004-2012 UnixLib Developers
+  */
+ 
+@@ -29,6 +33,8 @@
+ #include <unistd.h>
+ #include <fcntl.h>
+ #include <sys/soundcard.h>
++#include <strings.h>
++#include <time.h>
+ 
+ #include <internal/os.h>
+ #include <internal/dev.h>
+@@ -46,17 +52,21 @@ static int dr_frequency = 44100;
+ 
+ static int dr_buffers = 0;     /* Number of buffers in use */
+ static int dr_fragscale = 1;
++static int dr_owner = 0;       /* Non-zero once this program activated it */
+ 
+ 
+-/* Avoid warnings, but don't advertise */
+-void __dsp_exit (void);
+-
+ /* Close /dev/dsp upon exit if it's still open.  This is mostly
+    to ensure that DigitalRenderer is in a good state after
+    an Alt-Break or an exception.  */
+-void
+-__dsp_exit (void)
++static void
++dr_exit (void)
+ {
++  /* 2026: only if this program started DigitalRenderer.  _exit() calls this
++     in every program, so it used to stop the sound of whichever other
++     program was playing whenever any UnixLib program quit.  */
++  if (!dr_owner)
++    return;
++  dr_owner = 0;
+   DRender_Deactivate ();
+   DRender_NumBuffers (0);
+ }
+@@ -91,6 +101,18 @@ static const _kernel_oserror *
+ activate_defaults (void)
+ {
+   const _kernel_oserror *err;
++  int n;
++
++  /* 2026: the buffer settings are applied here, when this program starts
++     playing, not when it opens /dev/dsp or changes a setting: those used to
++     reconfigure (and stop) DigitalRenderer while another program was
++     playing through it.  */
++  if ((n = DRender_NumBuffers (dr_buffers)) > 0)
++    dr_buffers = n;
++  /* Set to fill with zero when out of data,
++     but no upcalls nor blocking on overflow */
++  DRender_StreamFlags (DRStream_OverrunNull, 0);
++
+   if (dr_format == AFMT_S16_LE)
+     {
+       if ((err = DRender_Activate16 (dr_channels, DRENDERER_BUFFER_SIZE,
+@@ -109,6 +131,8 @@ activate_defaults (void)
+       err = DRender_Activate (dr_channels, DRENDERER_BUFFER_SIZE,
+                               1e6 / dr_frequency, NULL);
+     }
++  if (err == NULL)
++    dr_owner = 1;
+   return err;
+ }
+ 
+@@ -123,8 +147,13 @@ set_defaults (struct __unixlib_fd *fd, int channels, int format, int frequency,
+   if ((err = check_state (&old_state)) != NULL)
+     return err;
+ 
+-  if ((old_state & DRState_Active) && (old_state != -1))
+-    DRender_Deactivate ();
++  /* Only stop DigitalRenderer if this program is the one playing; the new
++     settings take effect at the next write.  */
++  if (dr_owner && (old_state & DRState_Active) && (old_state != -1))
++    {
++      DRender_Deactivate ();
++      dr_owner = 0;
++    }
+ 
+   if (channels)
+     dr_channels = channels;
+@@ -148,12 +177,7 @@ set_defaults (struct __unixlib_fd *fd, int channels, int format, int frequency,
+                      )
+                 + 1;
+     }
+-  if ((dr_buffers = DRender_NumBuffers (buffers)) < 0)
+-    dr_buffers = 0;
+-
+-  /* Set to fill with zero when out of data,
+-     but no upcalls nor blocking on overflow */
+-  DRender_StreamFlags (DRStream_OverrunNull, 0);
++  dr_buffers = buffers;
+ 
+ #if 0 /* Defer re-activating until samples are written to the stream */
+   if ((old_state & DRState_Active) && (old_state != -1))
+@@ -164,8 +188,8 @@ set_defaults (struct __unixlib_fd *fd, int channels, int format, int frequency,
+ }
+ 
+ 
+-void *
+-__dspopen (struct __unixlib_fd *fd, const char *file, int mode)
++static void *
++dr_open (struct __unixlib_fd *fd, const char *file, int mode)
+ {
+   const _kernel_oserror *err = NULL;
+   dr_fragscale = 1;
+@@ -181,7 +205,7 @@ __dspopen (struct __unixlib_fd *fd, const char *file, int mode)
+   */
+   {
+     int state;
+-    if (   (err = set_defaults (fd, 2, 2, 44100, 0)) == NULL
++    if (   (err = set_defaults (fd, 2, AFMT_S16_LE, 44100, 0)) == NULL
+         && (err = check_state (&state)) == NULL
+         && !(state & DRState_Active)
+        )
+@@ -191,7 +215,7 @@ __dspopen (struct __unixlib_fd *fd, const char *file, int mode)
+   /*
+     Set the defaults but don't activate them yet.
+   */
+-  err = set_defaults (fd, 2, 2, 44100, 0);
++  err = set_defaults (fd, 2, AFMT_S16_LE, 44100, 0);
+ #endif
+   if (err)
+     return (void *) __ul_seterr (err, EOPSYS);
+@@ -199,12 +223,15 @@ __dspopen (struct __unixlib_fd *fd, const char *file, int mode)
+ }
+ 
+ 
+-int
+-__dspclose (struct __unixlib_fd *fd)
++static int
++dr_close (struct __unixlib_fd *fd)
+ {
+   if (fd->devicehandle->handle)
+     {
+       const _kernel_oserror *err;
++      if (!dr_owner)
++        return 0;	/* Never played anything: leave others' sound alone.  */
++      dr_owner = 0;
+       if ((err = DRender_Deactivate ()) != NULL)
+         return __ul_seterr (err, EOPSYS);
+       DRender_NumBuffers (0);
+@@ -221,8 +248,8 @@ __dsplseek (struct __unixlib_fd *fd, __off_t lpos, int whence)
+ }
+ 
+ 
+-int
+-__dspwrite (struct __unixlib_fd *fd, const void *data, int nbyte)
++static int
++dr_write (struct __unixlib_fd *fd, const void *data, int nbyte)
+ {
+   const _kernel_oserror *err;
+ 
+@@ -240,9 +267,16 @@ __dspwrite (struct __unixlib_fd *fd, const void *data, int nbyte)
+   */
+   {
+     int state;
+-    if (   (err = check_state (&state)) == NULL
+-        && !(state & DRState_Active)
+-       )
++    if ((err = check_state (&state)) == NULL && !dr_owner)
++      {
++        /* Someone else is playing: DigitalRenderer has one user at a
++           time, so take it over (as before), but only now that this
++           program has something to play.  */
++        if (state & DRState_Active)
++          DRender_Deactivate ();
++        err = activate_defaults ();
++      }
++    else if (err == NULL && !(state & DRState_Active))
+       err = activate_defaults ();
+     if (err)
+       return __ul_seterr (err, EOPSYS);
+@@ -280,8 +314,8 @@ __dspwrite (struct __unixlib_fd *fd, const void *data, int nbyte)
+ }
+ 
+ 
+-int
+-__dspioctl (struct __unixlib_fd *fd, unsigned long request, void *arg)
++static int
++dr_ioctl (struct __unixlib_fd *fd, unsigned long request, void *arg)
+ {
+   request &= 0xffff;
+ 
+@@ -405,3 +439,563 @@ __dspioctl (struct __unixlib_fd *fd, unsigned long request, void *arg)
+ 
+   return __set_errno (EINVAL);
+ }
++
++
++/* ------------------------------------------------------------------------
++   2026: SharedSoundBuffer / StreamManager output.
++
++   SharedSoundBuffer (RISC OS 5, SharedSound 1.07+, StreamManager 0.03+,
++   SharedSoundBuffer 0.07+) plays a stream of 16-bit stereo samples at any
++   rate through SharedSound, so it mixes with every other program making
++   sound and resamples to the hardware rate.  StreamManager copies each
++   block into its own memory, so this is plain user mode code with no
++   interrupt handlers.  Same interface as RDPClient and SDL2's RISC OS
++   audio driver.
++
++   Used when those modules are loaded, else DigitalRenderer as before.
++   UnixLib$DSP set to "DigitalRenderer" forces the old path, and to
++   "SharedSound" refuses to fall back.
++
++   Everything the program writes is converted to S16LE stereo here, so all
++   the usual OSS formats work in mono or stereo.  The OSS "fragment" sizes
++   the program sees are in its own format; internally everything is kept in
++   output bytes (4 per frame).
++   ------------------------------------------------------------------------ */
++
++#define XSharedSoundBuffer_OpenStream         0x75FC0
++#define XSharedSoundBuffer_CloseStream        0x75FC1
++#define XSharedSoundBuffer_Volume             0x75FC4
++#define XSharedSoundBuffer_SampleRate         0x75FC5
++#define XSharedSoundBuffer_Pause              0x75FC9
++#define XSharedSoundBuffer_ReturnStreamHandle 0x75FCE
++#define XStreamManager_AddBlock               0x77282
++#define XStreamManager_SetBuffer              0x77287
++#define XStreamManager_BufferStats            0x77288
++
++#define SSB_FORMATS (AFMT_S16_LE | AFMT_S16_BE | AFMT_U8 | AFMT_S8 | AFMT_MU_LAW)
++#define SSB_OUT_FRAG_DEFAULT 4096	/* output bytes: 1024 frames */
++#define SSB_NFRAGS_DEFAULT   8		/* ~190 ms at 44.1 kHz */
++
++enum { BACKEND_NONE, BACKEND_DR, BACKEND_SSB };
++static int dsp_backend = BACKEND_NONE;
++
++static struct
++{
++  int channels, format, rate;
++  int frag_out;			/* fragment size, output bytes */
++  int cap_out;			/* how much may be queued, output bytes */
++  int handle, stream;		/* 0 while the stream isn't open */
++  int started;			/* unpaused */
++  unsigned int played_base;	/* for GETOPTR */
++  unsigned int last_frag;
++  unsigned char carry[4];	/* incomplete input frame */
++  int carry_len;
++  unsigned char conv[8192] __attribute__ ((aligned (4)));
++				/* conversion buffer, output bytes */
++} ssb;
++
++static int
++swi_exists (const char *name)
++{
++  int n;
++  return _swix (OS_SWINumberFromString, _IN(1) | _OUT(0), name, &n) == NULL;
++}
++
++static int
++ssb_available (void)
++{
++  return swi_exists ("SharedSoundBuffer_OpenStream")
++	 && swi_exists ("StreamManager_AddBlock");
++}
++
++static int
++ssb_in_frame (void)
++{
++  int bps = (ssb.format == AFMT_S16_LE || ssb.format == AFMT_S16_BE) ? 2 : 1;
++  return bps * ssb.channels;
++}
++
++/* Output bytes <-> the program's bytes.  */
++static int
++ssb_to_client (int out)
++{
++  return (out / 4) * ssb_in_frame ();
++}
++
++/* Bytes queued and not yet played (output bytes), or -1.  */
++static int
++ssb_queued (unsigned int *played)
++{
++  int added, done;
++  if (!ssb.handle
++      || _swix (XStreamManager_BufferStats, _IN(0) | _OUTR(0,1),
++		ssb.stream, &added, &done) != NULL)
++    return -1;
++  if (played)
++    *played = (unsigned int) done;
++  return added - done;
++}
++
++static void
++ssb_pause (int pause)
++{
++  if (ssb.handle)
++    _swix (XSharedSoundBuffer_Pause, _INR(0,1), ssb.handle, pause ? 0 : 1);
++  ssb.started = !pause;
++}
++
++static void
++ssb_close_stream (void)
++{
++  if (ssb.handle)
++    _swix (XSharedSoundBuffer_CloseStream, _IN(0), ssb.handle);
++  ssb.handle = ssb.stream = 0;
++  ssb.started = 0;
++  ssb.carry_len = 0;
++}
++
++static const _kernel_oserror *
++ssb_open_stream (void)
++{
++  const _kernel_oserror *err;
++  const char *name = program_invocation_short_name;
++
++  if (ssb.handle)
++    return NULL;
++  /* R0 bit 1: R2 is the usual block size.  */
++  err = _swix (XSharedSoundBuffer_OpenStream, _INR(0,2) | _OUT(0), 2,
++	       (name && *name) ? name : "UnixLib", ssb.frag_out, &ssb.handle);
++  if (err)
++    {
++      ssb.handle = 0;
++      return err;
++    }
++  err = _swix (XSharedSoundBuffer_ReturnStreamHandle, _IN(0) | _OUT(0),
++	       ssb.handle, &ssb.stream);
++  if (err)
++    {
++      _swix (XSharedSoundBuffer_CloseStream, _IN(0), ssb.handle);
++      ssb.handle = 0;
++      return err;
++    }
++  /* Room for well over what we queue, so AddBlock never refuses.  */
++  _swix (XStreamManager_SetBuffer, _INR(0,1), ssb.stream,
++	 ssb.cap_out * 2 + (int) sizeof (ssb.conv) * 2);
++  _swix (XSharedSoundBuffer_SampleRate, _INR(0,1), ssb.handle,
++	 ssb.rate * 1024);
++  _swix (XSharedSoundBuffer_Volume, _INR(0,1), ssb.handle, 0xFFFFFFFF);
++  ssb.played_base = ssb.last_frag = 0;
++  /* Paused until a fragment is queued, so it doesn't start by running
++     dry.  */
++  ssb_pause (1);
++  return NULL;
++}
++
++static void
++ssb_set_defaults (void)
++{
++  ssb.channels = 2;
++  ssb.format = AFMT_S16_LE;
++  ssb.rate = 44100;
++  ssb.frag_out = SSB_OUT_FRAG_DEFAULT;
++  ssb.cap_out = SSB_OUT_FRAG_DEFAULT * SSB_NFRAGS_DEFAULT;
++  ssb.carry_len = 0;
++}
++
++/* Wait a little for the queue to drain.  Returns 0 if it's stuck (nothing
++   played for two seconds while unpaused).  */
++static int
++ssb_wait (int *last_queued, clock_t *since)
++{
++  int q = ssb_queued (NULL);
++  if (!ssb.started)
++    ssb_pause (0);		/* waiting for room: it must be playing */
++  if (q < 0)
++    return 0;
++  if (q != *last_queued)
++    {
++      *last_queued = q;
++      *since = clock ();
++    }
++  else if (clock () - *since > 200)
++    return 0;
++  __pthread_enable_ints ();
++  pthread_yield ();
++  __pthread_disable_ints ();
++  return 1;
++}
++
++static inline short
++ulaw_to_s16 (unsigned char u)
++{
++  int t;
++  u = ~u;
++  t = ((u & 0x0f) << 3) + 0x84;
++  t <<= (u & 0x70) >> 4;
++  return (short) ((u & 0x80) ? (0x84 - t) : (t - 0x84));
++}
++
++/* Convert FRAMES input frames at IN to S16LE stereo at OUT.  */
++static void
++ssb_convert (const unsigned char *in, short *out, int frames)
++{
++  int i, c, ch = ssb.channels;
++  for (i = 0; i < frames; i++)
++    {
++      short v[2] = { 0, 0 };
++      for (c = 0; c < ch; c++)
++	{
++	  switch (ssb.format)
++	    {
++	    case AFMT_S16_LE: v[c] = (short) (in[0] | (in[1] << 8)); in += 2; break;
++	    case AFMT_S16_BE: v[c] = (short) (in[1] | (in[0] << 8)); in += 2; break;
++	    case AFMT_U8:     v[c] = (short) ((in[0] - 128) << 8); in++; break;
++	    case AFMT_S8:     v[c] = (short) (((signed char) in[0]) << 8); in++; break;
++	    default:          v[c] = ulaw_to_s16 (in[0]); in++; break;
++	    }
++	}
++      *out++ = v[0];
++      *out++ = (ch == 2) ? v[1] : v[0];
++    }
++}
++
++static int
++ssb_add (const void *block, int len)
++{
++  return _swix (XStreamManager_AddBlock, _INR(0,2), ssb.stream, block, len)
++	 == NULL;
++}
++
++static void
++ssb_maybe_start (void)
++{
++  if (!ssb.started && ssb_queued (NULL) >= ssb.frag_out)
++    ssb_pause (0);
++}
++
++static int
++ssb_write (struct __unixlib_fd *fd, const void *data, int nbyte)
++{
++  const _kernel_oserror *err;
++  const unsigned char *in = data;
++  int fs = ssb_in_frame ();
++  int left = nbyte, done = 0;
++  int nonblock = (fd->fflag & O_NONBLOCK) != 0;
++  int last_q = -1;
++  clock_t since = clock ();
++
++  if (!ssb.handle && (err = ssb_open_stream ()) != NULL)
++    return __ul_seterr (err, EOPSYS);
++
++  /* Finish an input frame left over from the last write.  */
++  if (ssb.carry_len)
++    {
++      int need = fs - ssb.carry_len;
++      if (left < need)
++	{
++	  memcpy (ssb.carry + ssb.carry_len, in, left);
++	  ssb.carry_len += left;
++	  return nbyte;
++	}
++      memcpy (ssb.carry + ssb.carry_len, in, need);
++      ssb_convert (ssb.carry, (short *) ssb.conv, 1);
++      while (!ssb_add (ssb.conv, 4))
++	if (nonblock || !ssb_wait (&last_q, &since))
++	  break;		/* drop one frame rather than hang */
++      ssb.carry_len = 0;
++      in += need; left -= need; done += need;
++    }
++
++  while (left >= fs)
++    {
++      int q = ssb_queued (NULL), space, frames, out;
++      if (q < 0)
++	return done ? done : __set_errno (EIO);
++      space = ssb.cap_out - q;
++      frames = left / fs;
++      if (frames > (int) sizeof (ssb.conv) / 4)
++	frames = sizeof (ssb.conv) / 4;
++      out = frames * 4;
++      if (space < out)
++	{
++	  /* Full.  Wait for room for a whole block (or what's left), so we
++	     don't trickle tiny blocks into the stream.  */
++	  if ((space >= ssb.frag_out || space >= out / 2) && space >= 4)
++	    out = space & ~3, frames = out / 4;
++	  else
++	    {
++	      if (!ssb.started)
++		ssb_pause (0);	/* queue full: must play now */
++	      if (nonblock)
++		break;
++	      if (!ssb_wait (&last_q, &since))
++		{
++		  if (done)
++		    break;
++		  return __set_errno (EIO);
++		}
++	      continue;
++	    }
++	}
++      ssb_convert (in, (short *) ssb.conv, frames);
++      if (!ssb_add (ssb.conv, out))
++	{
++	  if (nonblock)
++	    break;
++	  if (!ssb_wait (&last_q, &since))
++	    return done ? done : __set_errno (EIO);
++	  continue;
++	}
++      in += frames * fs; left -= frames * fs; done += frames * fs;
++      ssb_maybe_start ();
++    }
++
++  /* Keep an incomplete trailing frame for next time.  */
++  if (left > 0 && left < fs)
++    {
++      memcpy (ssb.carry, in, left);
++      ssb.carry_len = left;
++      done += left;
++    }
++
++  if (done == 0 && nbyte > 0)
++    return __set_errno (EAGAIN);
++  return done;
++}
++
++/* Start playing and wait until everything queued has played.  */
++static void
++ssb_drain (void)
++{
++  int last_q = -1;
++  clock_t since = clock ();
++  if (!ssb.handle)
++    return;
++  if (!ssb.started)
++    ssb_pause (0);
++  while (ssb_queued (NULL) > 0 && ssb_wait (&last_q, &since))
++    ;
++}
++
++static int
++ssb_ioctl (struct __unixlib_fd *fd, unsigned long full_request, void *arg)
++{
++  int *iarg = arg;
++  unsigned long request = full_request & 0xffff;
++
++  switch (request)
++    {
++    case SNDCTL_DSP_RESET & 0xffff:	/* also SNDCTL_DSP_HALT */
++      ssb_close_stream ();		/* drops what's queued */
++      return 0;
++
++    case SNDCTL_DSP_SYNC & 0xffff:
++      ssb_drain ();
++      return 0;
++
++    case SNDCTL_DSP_POST & 0xffff:
++      if (ssb.handle && !ssb.started)
++	ssb_pause (0);
++      return 0;
++    }
++
++  if (!arg)
++    return __set_errno (EINVAL);
++
++  switch (request)
++    {
++    case SNDCTL_DSP_SPEED & 0xffff:
++      {
++	int rate = *iarg;
++	if (rate < 4000)
++	  rate = 4000;
++	if (rate > 96000)
++	  rate = 96000;
++	ssb.rate = rate;
++	if (ssb.handle)
++	  _swix (XSharedSoundBuffer_SampleRate, _INR(0,1), ssb.handle,
++		 rate * 1024);
++	*iarg = rate;
++	return 0;
++      }
++
++    case SNDCTL_DSP_SETFMT & 0xffff:
++      if (*iarg != AFMT_QUERY)
++	{
++	  ssb.format = (*iarg & SSB_FORMATS) && !(*iarg & (*iarg - 1))
++		       ? *iarg : AFMT_S16_LE;
++	  ssb.carry_len = 0;
++	}
++      *iarg = ssb.format;
++      return 0;
++
++    case SNDCTL_DSP_STEREO & 0xffff:
++      ssb.channels = *iarg ? 2 : 1;
++      ssb.carry_len = 0;
++      *iarg = ssb.channels - 1;
++      return 0;
++
++    case SNDCTL_DSP_CHANNELS & 0xffff:
++      if (*iarg != 0)
++	{
++	  ssb.channels = (*iarg == 1) ? 1 : 2;
++	  ssb.carry_len = 0;
++	}
++      *iarg = ssb.channels;
++      return 0;
++
++    case SNDCTL_DSP_GETFMTS & 0xffff:
++      *iarg = SSB_FORMATS;
++      return 0;
++
++    case SNDCTL_DSP_GETBLKSIZE & 0xffff:
++      *iarg = ssb_to_client (ssb.frag_out);
++      return 0;
++
++    case SNDCTL_DSP_SETFRAGMENT & 0xffff:
++      {
++	int frags = (*iarg >> 16) & 0x7fff;
++	int size = 1 << (*iarg & 0xffff);
++	int fs = ssb_in_frame ();
++	int min_cap = ssb.rate * 4 / 50;	/* 20 ms */
++	int max_cap = ssb.rate * 4 * 2;		/* 2 s */
++
++	if ((*iarg & 0xffff) > 16)
++	  size = 65536;
++	if (size < 128)
++	  size = 128;
++	/* Program bytes -> output bytes, whole frames.  */
++	ssb.frag_out = (size / fs) * 4;
++	if (ssb.frag_out < 64)
++	  ssb.frag_out = 64;
++	if (frags == 0 || frags == 0x7fff)
++	  frags = SSB_NFRAGS_DEFAULT;
++	if (frags < 2)
++	  frags = 2;
++	ssb.cap_out = ssb.frag_out * frags;
++	if (ssb.cap_out < min_cap)
++	  ssb.cap_out = min_cap;
++	if (ssb.cap_out > max_cap)
++	  ssb.cap_out = max_cap;
++	if (ssb.handle)
++	  _swix (XStreamManager_SetBuffer, _INR(0,1), ssb.stream,
++		 ssb.cap_out * 2 + (int) sizeof (ssb.conv) * 2);
++	return 0;
++      }
++
++    case SNDCTL_DSP_GETOSPACE & 0xffff:
++      {
++	struct audio_buf_info *info = arg;
++	int q = ssb_queued (NULL), space;
++	if (q < 0)
++	  q = 0;
++	space = ssb.cap_out - q;
++	if (space < 0)
++	  space = 0;
++	info->fragsize = ssb_to_client (ssb.frag_out);
++	info->fragstotal = ssb.cap_out / ssb.frag_out;
++	info->fragments = space / ssb.frag_out;
++	info->bytes = ssb_to_client (space);
++	return 0;
++      }
++
++    case SNDCTL_DSP_GETODELAY & 0xffff:
++      {
++	int q = ssb_queued (NULL);
++	*iarg = q > 0 ? ssb_to_client (q) : 0;
++	return 0;
++      }
++
++    case SNDCTL_DSP_GETOPTR & 0xffff:
++      {
++	struct count_info *info = arg;
++	unsigned int played = 0;
++	ssb_queued (&played);
++	info->bytes = ssb_to_client ((int) (played - ssb.played_base));
++	info->blocks = (int) ((played - ssb.last_frag) / (unsigned) ssb.frag_out);
++	ssb.last_frag += (unsigned) info->blocks * ssb.frag_out;
++	info->ptr = 0;
++	return 0;
++      }
++
++    case SNDCTL_DSP_GETCAPS & 0xffff:
++      *iarg = DSP_CAP_REALTIME;
++      return 0;
++
++    case SNDCTL_DSP_GETTRIGGER & 0xffff:	/* and SETTRIGGER */
++      if (full_request == (unsigned long) SNDCTL_DSP_GETTRIGGER)
++	*iarg = PCM_ENABLE_OUTPUT;
++      return 0;
++    }
++
++  return __set_errno (EINVAL);
++}
++
++
++/* ---- The /dev/dsp device: pick a back end when it's opened.  ---------- */
++
++void __dsp_exit (void);
++
++/* Called from _exit() in every program: only undo what this one did.  */
++void
++__dsp_exit (void)
++{
++  ssb_close_stream ();
++  dr_exit ();
++}
++
++void *
++__dspopen (struct __unixlib_fd *fd, const char *file, int mode)
++{
++  const char *want = getenv ("UnixLib$DSP");
++  int force_dr = want && (strcasecmp (want, "DigitalRenderer") == 0
++			  || strcasecmp (want, "DRender") == 0);
++  int force_ssb = want && strcasecmp (want, "SharedSound") == 0;
++
++  ssb_close_stream ();
++  if (!force_dr && ssb_available ())
++    {
++      dsp_backend = BACKEND_SSB;
++      ssb_set_defaults ();
++      return (void *) 1;
++    }
++  if (force_ssb)
++    {
++      __set_errno (ENODEV);
++      return (void *) -1;
++    }
++  dsp_backend = BACKEND_DR;
++  return dr_open (fd, file, mode);
++}
++
++int
++__dspclose (struct __unixlib_fd *fd)
++{
++  if (dsp_backend == BACKEND_SSB)
++    {
++      /* Like OSS: let what was written finish playing.  */
++      if (!(fd->fflag & O_NONBLOCK))
++	ssb_drain ();
++      ssb_close_stream ();
++      dsp_backend = BACKEND_NONE;
++      return 0;
++    }
++  dsp_backend = BACKEND_NONE;
++  return dr_close (fd);
++}
++
++int
++__dspwrite (struct __unixlib_fd *fd, const void *data, int nbyte)
++{
++  if (dsp_backend == BACKEND_SSB)
++    return ssb_write (fd, data, nbyte);
++  return dr_write (fd, data, nbyte);
++}
++
++int
++__dspioctl (struct __unixlib_fd *fd, unsigned long request, void *arg)
++{
++  if (dsp_backend == BACKEND_SSB)
++    return ssb_ioctl (fd, request, arg);
++  return dr_ioctl (fd, request, arg);
++}
+diff --git a/gcc4/recipe/files/gcc/libunixlib/sound/midi.c b/gcc4/recipe/files/gcc/libunixlib/sound/midi.c
+new file mode 100644
+index 0000000..47cb3e8
+--- /dev/null
++++ b/gcc4/recipe/files/gcc/libunixlib/sound/midi.c
+@@ -0,0 +1,215 @@
++/*
++ * /dev/midi: OSS-style raw MIDI output for RISC OS.
++ *
++ * Programs write raw MIDI bytes (note on/off, program change, controllers,
++ * running status, SysEx) to /dev/midi and they play at once, as with a
++ * MIDI port on Linux.
++ *
++ * Where the bytes go, first one found:
++ *   1. the MIDISynth module (a General MIDI software synthesiser shared by
++ *      every program; SWIs MIDISynth_Open/Write/Reset/Close, see
++ *      docs/MIDISYNTH-MODULE.md in riscos-unixlib);
++ *   2. the RISC OS MIDI module (external MIDI hardware or USB MIDI),
++ *      byte by byte with MIDI_TxByte.
++ * UnixLib$MIDI set to "MIDISynth" or "MIDI" allows only that one.
++ * If neither is loaded, opening /dev/midi fails with ENODEV.
++ *
++ * The SWIs are looked up by name when the device is opened, so no SWI
++ * numbers are built in.  Reading gives end of file: there is no MIDI in.
++ *
++ * Copyright (c) 2026 UnixLib Developers
++ * Written by Andrew Youll.
++ */
++
++#include <errno.h>
++#include <stdlib.h>
++#include <string.h>
++#include <strings.h>
++#include <fcntl.h>
++#include <swis.h>
++#include <sys/types.h>
++#include <sys/soundcard.h>
++
++#include <internal/os.h>
++#include <internal/dev.h>
++
++enum { MIDI_NONE, MIDI_SYNTH, MIDI_HW };
++
++static int midi_kind = MIDI_NONE;
++static int midi_opens;			/* open /dev/midi descriptors */
++static int swi_open, swi_close, swi_write, swi_reset, swi_txbyte;
++static int synth_handle;
++
++/* Avoid warnings, but don't advertise.  */
++void __midi_exit (void);
++
++static int
++swi_number (const char *name)
++{
++  int n;
++  if (_swix (OS_SWINumberFromString, _IN(1) | _OUT(0), name, &n) != NULL)
++    return 0;
++  return n | (1 << 17);			/* X bit */
++}
++
++static int
++find_synth (void)
++{
++  swi_open = swi_number ("MIDISynth_Open");
++  swi_close = swi_number ("MIDISynth_Close");
++  swi_write = swi_number ("MIDISynth_Write");
++  swi_reset = swi_number ("MIDISynth_Reset");
++  return swi_open && swi_close && swi_write;
++}
++
++static int
++find_hw (void)
++{
++  swi_txbyte = swi_number ("MIDI_TxByte");
++  return swi_txbyte != 0;
++}
++
++/* All notes off and reset controllers on every channel.  */
++static void
++hw_panic (void)
++{
++  int ch;
++  for (ch = 0; ch < 16; ch++)
++    {
++      _swix (swi_txbyte, _IN(0), 0xB0 | ch);
++      _swix (swi_txbyte, _IN(0), 123);	/* all notes off */
++      _swix (swi_txbyte, _IN(0), 0);
++      _swix (swi_txbyte, _IN(0), 0xB0 | ch);
++      _swix (swi_txbyte, _IN(0), 121);	/* reset all controllers */
++      _swix (swi_txbyte, _IN(0), 0);
++    }
++}
++
++void *
++__midiopen (struct __unixlib_fd *fd, const char *file, int mode)
++{
++  const char *want = getenv ("UnixLib$MIDI");
++  int only_synth = want && strcasecmp (want, "MIDISynth") == 0;
++  int only_hw = want && strcasecmp (want, "MIDI") == 0;
++  const _kernel_oserror *err;
++  const char *name = program_invocation_short_name;
++
++  (void) fd;
++  (void) file;
++  if ((mode & O_ACCMODE) == O_RDONLY)
++    return (void *) __set_errno (ENODEV);	/* no MIDI in */
++
++  /* One connection per program, shared by its descriptors.  */
++  if (midi_kind != MIDI_NONE)
++    {
++      midi_opens++;
++      return (void *) 1;
++    }
++
++  if (!only_hw && find_synth ())
++    {
++      err = _swix (swi_open, _INR(0,1) | _OUT(0), 0,
++		   (name && *name) ? name : "UnixLib", &synth_handle);
++      if (err == NULL)
++	{
++	  midi_kind = MIDI_SYNTH;
++	  midi_opens = 1;
++	  return (void *) 1;
++	}
++      if (only_synth)
++	return (void *) __ul_seterr (err, EOPSYS);
++    }
++  if (!only_synth && find_hw ())
++    {
++      midi_kind = MIDI_HW;
++      midi_opens = 1;
++      return (void *) 1;
++    }
++  return (void *) __set_errno (ENODEV);
++}
++
++static void
++midi_disconnect (void)
++{
++  if (midi_kind == MIDI_SYNTH)
++    _swix (swi_close, _IN(0), synth_handle);
++  else if (midi_kind == MIDI_HW)
++    hw_panic ();
++  midi_kind = MIDI_NONE;
++  midi_opens = 0;
++  synth_handle = 0;
++}
++
++int
++__midiclose (struct __unixlib_fd *fd)
++{
++  (void) fd;
++  if (midi_kind != MIDI_NONE && --midi_opens <= 0)
++    midi_disconnect ();
++  return 0;
++}
++
++int
++__midiwrite (struct __unixlib_fd *fd, const void *data, int nbyte)
++{
++  const _kernel_oserror *err;
++  const unsigned char *p = data;
++  int i;
++
++  (void) fd;
++  switch (midi_kind)
++    {
++    case MIDI_SYNTH:
++      {
++	int done = 0, n;
++	while (done < nbyte)
++	  {
++	    err = _swix (swi_write, _INR(0,2) | _OUT(0), synth_handle,
++			 p + done, nbyte - done, &n);
++	    if (err)
++	      return done ? done : __ul_seterr (err, EOPSYS);
++	    if (n <= 0)
++	      break;		/* the module is full: report a short write */
++	    done += n;
++	  }
++	return done;
++      }
++
++    case MIDI_HW:
++      for (i = 0; i < nbyte; i++)
++	if ((err = _swix (swi_txbyte, _IN(0), p[i])) != NULL)
++	  return i ? i : __ul_seterr (err, EOPSYS);
++      return nbyte;
++    }
++  return __set_errno (EBADF);
++}
++
++int
++__midiioctl (struct __unixlib_fd *fd, unsigned long request, void *arg)
++{
++  (void) fd;
++  (void) arg;
++  switch (request & 0xffff)
++    {
++    case SNDCTL_SEQ_RESET & 0xffff:
++    case SNDCTL_SEQ_PANIC & 0xffff:
++      if (midi_kind == MIDI_SYNTH && swi_reset)
++	_swix (swi_reset, _IN(0), synth_handle);
++      else if (midi_kind == MIDI_HW)
++	hw_panic ();
++      return 0;
++
++    case SNDCTL_SEQ_SYNC & 0xffff:
++      return 0;			/* bytes play as they are written */
++    }
++  return __set_errno (EINVAL);
++}
++
++/* Called from _exit(): don't leave notes hanging if the program didn't
++   close /dev/midi (or crashed).  Nothing happens if it never opened it.  */
++void
++__midi_exit (void)
++{
++  if (midi_kind != MIDI_NONE)
++    midi_disconnect ();
++}
+diff --git a/gcc4/recipe/files/gcc/libunixlib/stdlib/alloc.c b/gcc4/recipe/files/gcc/libunixlib/stdlib/alloc.c
+index 46a40ba..de75f5a 100644
+--- a/gcc4/recipe/files/gcc/libunixlib/stdlib/alloc.c
++++ b/gcc4/recipe/files/gcc/libunixlib/stdlib/alloc.c
+@@ -1300,6 +1300,15 @@ void     public_mSTATs(void);
+ 
+ #define M_MMAP_MAX             -4
+ 
++/* 2026: for ARMEABI (GCC 10) builds, don't service large requests with
++   mmap().  Each mapping lives in an ARMEABISupport "mmap#N" dynamic area,
++   and those were observed to leak (and not be released at program exit).
++   Large blocks now come from the normal heap (the <prog>$Heap dynamic
++   area), which UnixLib removes when the program exits.  */
++#if defined(__ARM_EABI__) && !defined(DEFAULT_MMAP_MAX)
++#define DEFAULT_MMAP_MAX       (0)
++#endif
++
+ #ifndef DEFAULT_MMAP_MAX
+ #if HAVE_MMAP
+ #define DEFAULT_MMAP_MAX       (65536)
+diff --git a/gcc4/recipe/files/gcc/libunixlib/stdlib/atexit.c b/gcc4/recipe/files/gcc/libunixlib/stdlib/atexit.c
+index 79e92bd..266b0fc 100644
+--- a/gcc4/recipe/files/gcc/libunixlib/stdlib/atexit.c
++++ b/gcc4/recipe/files/gcc/libunixlib/stdlib/atexit.c
+@@ -79,11 +79,28 @@ __cxa_atexit(void (*destructor)(void *),
+ void
+ __cxa_finalize(void *dso_handle)
+ {
++  atexit_entry *entry, *next;
++  int call;
++
++  /* 2026: thread switching is only held off while the list is read and
++     an entry marked, not while the handler runs.  Before, the whole walk
++     was PTHREAD_UNSAFE, so a handler that waited for another thread
++     (pthread_join, SDL_WaitThread in a C++ destructor or atexit function)
++     hit __pthread_fatal_error in pthread_yield and the program aborted as
++     it quit.  */
+ #ifndef __TARGET_SCL__
+-  PTHREAD_UNSAFE
++#  define FINALIZE_LOCK() \
++  do { if (__ul_global.pthread_system_running) __pthread_disable_ints (); } while (0)
++#  define FINALIZE_UNLOCK() \
++  do { if (__ul_global.pthread_system_running) __pthread_enable_ints (); } while (0)
++#else
++#  define FINALIZE_LOCK() do { } while (0)
++#  define FINALIZE_UNLOCK() do { } while (0)
+ #endif
+ 
+-  atexit_entry *entry = (atexit_entry *)__linklist_first (&atexit_function_list);
++  FINALIZE_LOCK ();
++  entry = (atexit_entry *)__linklist_first (&atexit_function_list);
++  FINALIZE_UNLOCK ();
+ 
+   /* __cxa_atexit adds handlers to the front of the list, so running through
+    * it forwards here means that we process the handlers in reverse order as
+@@ -96,10 +113,16 @@ __cxa_finalize(void *dso_handle)
+    */
+   while (entry)
+     {
+-      atexit_entry *next = (atexit_entry *)__linklist_next (&entry->link);
+-      if (!entry->called && (dso_handle == NULL || dso_handle == entry->dso_handle))
+-        {
+-	  entry->called = 1;
++      FINALIZE_LOCK ();
++      next = (atexit_entry *)__linklist_next (&entry->link);
++      call = !entry->called
++	     && (dso_handle == NULL || dso_handle == entry->dso_handle);
++      if (call)
++	entry->called = 1;
++      FINALIZE_UNLOCK ();
++
++      if (call)
++	{
+ #ifndef __TARGET_SCL__
+ 	  __funcall ((*entry->func), (entry->arg));
+ #else
+@@ -108,6 +131,8 @@ __cxa_finalize(void *dso_handle)
+ 	}
+       entry = next;
+     }
++#undef FINALIZE_LOCK
++#undef FINALIZE_UNLOCK
+ }
+ 
+ #ifndef __TARGET_SCL__
+diff --git a/gcc4/recipe/files/gcc/libunixlib/sys/_syslib.s b/gcc4/recipe/files/gcc/libunixlib/sys/_syslib.s
+index 3f7c274..dce7b87 100644
+--- a/gcc4/recipe/files/gcc/libunixlib/sys/_syslib.s
++++ b/gcc4/recipe/files/gcc/libunixlib/sys/_syslib.s
+@@ -1537,3 +1537,12 @@ __ul_memory:
+ 	.word	0			@ appspace_limit	offset = 44
+ 	.word	0			@ old_himem		offset = 48
+ 	DECLARE_OBJECT __ul_memory
++
++	@ 2026: the size of the pthread RMA block this file claims (OS_Module 6
++	@ above). __pthread_prog_init checks it against the C structure, so a
++	@ library built from old and new objects stops with a clear error
++	@ instead of overrunning the block.
++	.global	__pthread_callevery_block_size
++__pthread_callevery_block_size:
++	.word	PTHREAD_CALLEVERY_STRUCT_SIZE
++	DECLARE_OBJECT __pthread_callevery_block_size
+diff --git a/gcc4/recipe/files/gcc/libunixlib/time/clk_gettime.c b/gcc4/recipe/files/gcc/libunixlib/time/clk_gettime.c
+index 9927105..8cb2de5 100644
+--- a/gcc4/recipe/files/gcc/libunixlib/time/clk_gettime.c
++++ b/gcc4/recipe/files/gcc/libunixlib/time/clk_gettime.c
+@@ -8,6 +8,83 @@
+ #include <internal/os.h>
+ #include <internal/local.h>
+ 
++/* 2026: high resolution monotonic time.  RISC OS's monotonic timer only
++   ticks every centisecond, which makes frame pacing in games (via
++   std::chrono::steady_clock / SDL) jitter by up to 10ms.  Interpolate
++   within the current centisecond using the HAL counter (timer 0, which
++   generates the centisecond tick).  HAL entries: 19 = HAL_CounterRate,
++   20 = HAL_CounterPeriod, 21 = HAL_CounterRead (all read-only).
++   Falls back to centisecond resolution if the HAL values look wrong.  */
++#include <stdint.h>
++#include <swis.h>
++
++#define HAL_CounterRate   19
++#define HAL_CounterPeriod 20
++#define HAL_CounterRead   21
++
++static int hr_state;			/* 0 = unknown, 1 = usable, -1 = not */
++static unsigned int hr_rate, hr_period;
++static uint64_t hr_last_ns;
++
++static int
++hr_init (void)
++{
++  unsigned int rate, period;
++
++  if (hr_state != 0)
++    return hr_state > 0;
++
++  hr_state = -1;
++  if (_swix (OS_Hardware, _INR(8,9)|_OUT(0), 0, HAL_CounterRate, &rate) != NULL
++      || _swix (OS_Hardware, _INR(8,9)|_OUT(0), 0, HAL_CounterPeriod, &period) != NULL)
++    return 0;
++
++  /* The counter must reload once per centisecond.  */
++  if (rate < 10000 || period == 0
++      || period < rate / 100 - rate / 10000 - 1
++      || period > rate / 100 + rate / 10000 + 1)
++    return 0;
++
++  hr_rate = rate;
++  hr_period = period;
++  hr_state = 1;
++  return 1;
++}
++
++uint64_t
++__ul_monotonic_ns (void)
++{
++  unsigned int cs1, cs2, cnt = 0;
++  uint64_t ns;
++
++  if (!hr_init ())
++    return (uint64_t) clock () * 10000000u;
++
++  do
++    {
++      _swix (OS_ReadMonotonicTime, _OUT(0), &cs1);
++      if (_swix (OS_Hardware, _INR(8,9)|_OUT(0), 0, HAL_CounterRead, &cnt) != NULL)
++	{
++	  hr_state = -1;
++	  return (uint64_t) cs1 * 10000000u;
++	}
++      _swix (OS_ReadMonotonicTime, _OUT(0), &cs2);
++    }
++  while (cs1 != cs2);
++
++  if (cnt > hr_period)
++    cnt = hr_period;
++  ns = (uint64_t) cs1 * 10000000u
++       + (uint64_t) (hr_period - cnt) * 1000000000u / hr_rate;
++
++  /* The counter can reload a moment before the centisecond count is
++     incremented; never let the clock go backwards.  */
++  if (ns < hr_last_ns)
++    ns = hr_last_ns;
++  hr_last_ns = ns;
++  return ns;
++}
++
+ int
+ clock_gettime (clockid_t clk_id, struct timespec *tp)
+ {
+@@ -39,11 +116,9 @@ clock_gettime (clockid_t clk_id, struct timespec *tp)
+ 
+       case CLOCK_MONOTONIC:
+ 	{
+-	  /* UnixLib's clock function reads RISC OS's Monotonic Timer
+-	     and has centisecond resolution.  */
+-	  clock_t c = clock ();
+-	  tp->tv_sec = c / 100;
+-	  tp->tv_nsec = (c - tp->tv_sec * 100) * 10000000;
++	  uint64_t ns = __ul_monotonic_ns ();
++	  tp->tv_sec = (time_t) (ns / 1000000000u);
++	  tp->tv_nsec = (long) (ns % 1000000000u);
+ 	  break;
+ 	}
+ 
+diff --git a/gcc4/recipe/files/gcc/libunixlib/unix/dev.c b/gcc4/recipe/files/gcc/libunixlib/unix/dev.c
+index de312db..a529ff2 100644
+--- a/gcc4/recipe/files/gcc/libunixlib/unix/dev.c
++++ b/gcc4/recipe/files/gcc/libunixlib/unix/dev.c
+@@ -78,6 +78,11 @@ const struct dev __dev[NDEV] = {
+   /* DEV_EVENTFD */
+   {__nullopen, __eventfd_close, __eventfd_read, __eventfd_write,
+    __nulllseek, __nullioctl, __eventfd_select, __nullstat, __nullfstat,
++   __nullstat},
++
++  /* DEV_MIDI */
++  {__midiopen, __midiclose, __nullread, __midiwrite,
++   __nulllseek, __midiioctl, __nullselect, __nullstat, __nullfstat,
+    __nullstat}
+ };
+ 
+@@ -105,6 +110,9 @@ static const struct sfile __sfile[] = {
+   {"random", DEV_RANDOM},
+   {"urandom", DEV_RANDOM},
+   {"dsp", DEV_DSP},
++  {"midi", DEV_MIDI},
++  {"midi0", DEV_MIDI},
++  {"midi00", DEV_MIDI},
+   {"custom", DEV_CUSTOM},
+ /*   {"pipe", DEV_PIPE}, does open on /dev/pipe make sense ?  */
+ /*   {"socket", DEV_SOCKET}, does open on /dev/socket make sense ?  */
+diff --git a/gcc4/recipe/files/gcc/libunixlib/unix/sync.c b/gcc4/recipe/files/gcc/libunixlib/unix/sync.c
+index f6b1a2f..8547c9f 100644
+--- a/gcc4/recipe/files/gcc/libunixlib/unix/sync.c
++++ b/gcc4/recipe/files/gcc/libunixlib/unix/sync.c
+@@ -30,14 +30,17 @@ fsync (int fd)
+ 
+   struct __unixlib_fd *file_desc = getfd (fd);
+ 
+-  /* Must be only for write.  */
+-  if (!(file_desc->fflag & (O_WRONLY | O_RDWR)))
+-    return __set_errno (EBADF);
+-
+-  /* Only meaningful for those backed by a read RISC OS file handle.  */
++  /* Only meaningful for those backed by a real RISC OS file handle.  */
+   if (file_desc->devicehandle->type != DEV_RISCOS)
+     return __set_errno (EINVAL);
+ 
++  /* 2026: a file open only for reading has nothing to write back, so
++     succeed (as glibc and the BSDs do) rather than fail with EBADF.
++     Programs that fsync() before close() (PhysFS) otherwise never closed
++     read-only files.  */
++  if (!(file_desc->fflag & (O_WRONLY | O_RDWR)))
++    return 0;
++
+   /* Ensure data has been written to the file.  */
+   const _kernel_oserror *err;
+   if ((err = SWI_OS_Args_Flush ((int) file_desc->devicehandle->handle)) != NULL)
+@@ -45,3 +48,10 @@ fsync (int fd)
+ 
+   return 0;
+ }
++
++/* 2026: RISC OS has nothing separate to flush for metadata.  */
++int
++fdatasync (int fd)
++{
++  return fsync (fd);
++}
+diff --git a/gcc4/recipe/files/gcc/libunixlib/unix/unix.c b/gcc4/recipe/files/gcc/libunixlib/unix/unix.c
+index 7f47f19..ef2abb8 100644
+--- a/gcc4/recipe/files/gcc/libunixlib/unix/unix.c
++++ b/gcc4/recipe/files/gcc/libunixlib/unix/unix.c
+@@ -47,6 +47,7 @@ static void __badr (void) __attribute__ ((__noreturn__));
+ 
+ /* Only called externally from here - see comment below */
+ extern void __dsp_exit(void);
++extern void __midi_exit(void);
+ 
+ static struct proc ___u;
+ struct proc *__u = &___u;	/* current process */
+@@ -386,6 +387,7 @@ _exit (int return_code)
+ 
+   /* De-register with DigitalRenderer in case of an exception */
+   __dsp_exit();
++  __midi_exit();
+ 
+   /* Convert the 16-bit return code into an 8-bit equivalent
+      for compatibility with RISC OS.
+diff --git a/gcc4/recipe/files/gcc/libunixlib/vscript b/gcc4/recipe/files/gcc/libunixlib/vscript
+index 606421f..34736ec 100644
+--- a/gcc4/recipe/files/gcc/libunixlib/vscript
++++ b/gcc4/recipe/files/gcc/libunixlib/vscript
+@@ -16,6 +16,7 @@ VERSION {
+      __close;
+      __custom*;
+      __dsp*;
++     __midi*;
+      __dynamic_area_exit;
+      __dynamic_area_refcount;
+      __env_read;
+@@ -126,6 +127,10 @@ VERSION {
+      _vsnprintf;
+ 
+      __pthread_prog_init;
++     __pthread_call_every_code;
++     __pthread_call_every_code_end;
++     __pthread_callevery_block_size;
++     __pthread_ticker_*;
+      __pthread_init;
+      __pthread_fatal_error;
+      __pthread_new_node;
+diff --git a/gcc4/recipe/files/gcc/libunixlib/wchar/wctype.c b/gcc4/recipe/files/gcc/libunixlib/wchar/wctype.c
+index ae323ac..36804df 100644
+--- a/gcc4/recipe/files/gcc/libunixlib/wchar/wctype.c
++++ b/gcc4/recipe/files/gcc/libunixlib/wchar/wctype.c
+@@ -1,73 +1,22 @@
+ /* iswalnum(), iswalpha(), iswcntrl(), iswdigit(), iswgraph(), towlower(),
+  * iswprint(), iswpunct(), iswspace(), towupper(), iswxdigit()
+  * Copyright (c) 2010 UnixLib Developers
++ * 2026: guard against wide characters outside the 8-bit ctype tables.
+  */
+ 
+ #include <ctype.h>
+ #include <wctype.h>
+ 
+-int
+-iswalnum (wint_t wc)
+-{
+-  return isalnum (wc);
+-}
+-
+-int
+-iswalpha (wint_t wc)
+-{
+-  return isalpha (wc);
+-}
+-
+-int
+-iswcntrl (wint_t wc)
+-{
+-  return iscntrl (wc);
+-}
+-
+-int
+-iswdigit (wint_t wc)
+-{
+-  return isdigit (wc);
+-}
+-
+-int
+-iswgraph (wint_t wc)
+-{
+-  return isgraph (wc);
+-}
+-
+-wint_t
+-towlower (wint_t wc)
+-{
+-  return tolower (wc);
+-}
+-
+-int
+-iswprint (wint_t wc)
+-{
+-  return isprint (wc);
+-}
+-
+-int
+-iswpunct (wint_t wc)
+-{
+-  return ispunct (wc);
+-}
+-
+-int
+-iswspace (wint_t wc)
+-{
+-  return isspace (wc);
+-}
+-
+-wint_t
+-towupper (wint_t wc)
+-{
+-  return toupper (wc);
+-}
+-
+-int
+-iswxdigit (wint_t wc)
+-{
+-  return isxdigit (wc);
+-}
++#define NARROW(wc) ((wc) >= 0 && (wc) < 256)
++
++int iswalnum (wint_t wc) { return NARROW (wc) ? isalnum (wc) : 0; }
++int iswalpha (wint_t wc) { return NARROW (wc) ? isalpha (wc) : 0; }
++int iswcntrl (wint_t wc) { return NARROW (wc) ? iscntrl (wc) : 0; }
++int iswdigit (wint_t wc) { return NARROW (wc) ? isdigit (wc) : 0; }
++int iswgraph (wint_t wc) { return NARROW (wc) ? isgraph (wc) : 0; }
++wint_t towlower (wint_t wc) { return NARROW (wc) ? (wint_t) tolower (wc) : wc; }
++int iswprint (wint_t wc) { return NARROW (wc) ? isprint (wc) : 0; }
++int iswpunct (wint_t wc) { return NARROW (wc) ? ispunct (wc) : 0; }
++int iswspace (wint_t wc) { return NARROW (wc) ? isspace (wc) : 0; }
++wint_t towupper (wint_t wc) { return NARROW (wc) ? (wint_t) toupper (wc) : wc; }
++int iswxdigit (wint_t wc) { return NARROW (wc) ? isxdigit (wc) : 0; }
+diff --git a/gcc4/recipe/files/gcc/libunixlib/wchar/wmissing.c b/gcc4/recipe/files/gcc/libunixlib/wchar/wmissing.c
+index d3436a3..54a8020 100644
+--- a/gcc4/recipe/files/gcc/libunixlib/wchar/wmissing.c
++++ b/gcc4/recipe/files/gcc/libunixlib/wchar/wmissing.c
+@@ -1,203 +1,234 @@
++/* Wide character functions that UnixLib previously stubbed out with
++   "Not implemented" + abort().  These are simple implementations that
++   are correct for the 8-bit range UnixLib's ctype tables cover, which is
++   what libstdc++'s generic locale model needs (it calls wctype() and
++   iswctype() while initialising std::locale).
++   2026 Andrew Youll.  */
++
+ #include <locale.h>
++#include <stdarg.h>
+ #include <stdio.h>
+ #include <stdlib.h>
++#include <string.h>
++#include <time.h>
++#include <ctype.h>
++#include <wchar.h>
+ #include <wctype.h>
+ 
+-int iswupper (wint_t __wc)
+-{
+-  printf("%s: Not implemented\n", __func__);
+-  abort();
+-}
+-
+-int
+-iswupper_l (wint_t wc, locale_t locale)
+-{
+-  printf("%s: Not implemented\n", __func__);
+-  abort();
+-}
+-
+-int iswlower (wint_t __wc)
+-{
+-  printf("%s: Not implemented\n", __func__);
+-  abort();
+-}
+-
+-int
+-iswlower_l (wint_t wc, locale_t locale)
+-{
+-  printf("%s: Not implemented\n", __func__);
+-  abort();
+-}
++#define NARROW(wc) ((wc) >= 0 && (wc) < 256)
+ 
+-int wcscoll (__const wchar_t *__s1, __const wchar_t *__s2)
+-{
+-  printf("%s: Not implemented\n", __func__);
+-  abort();
+-}
++enum { WT_NONE, WT_ALNUM, WT_ALPHA, WT_BLANK, WT_CNTRL, WT_DIGIT, WT_GRAPH,
++       WT_LOWER, WT_PRINT, WT_PUNCT, WT_SPACE, WT_UPPER, WT_XDIGIT };
+ 
+-int wcscoll_l (__const wchar_t *__s1, __const wchar_t *__s2,
+-		locale_t loc)
+-{
+-  printf("%s: Not implemented\n", __func__);
+-  abort();
+-}
++int iswupper (wint_t wc) { return NARROW (wc) ? isupper (wc) : 0; }
++int iswupper_l (wint_t wc, locale_t l) { (void) l; return iswupper (wc); }
++int iswlower (wint_t wc) { return NARROW (wc) ? islower (wc) : 0; }
++int iswlower_l (wint_t wc, locale_t l) { (void) l; return iswlower (wc); }
++int iswblank (wint_t wc) { return wc == L' ' || wc == L'\t'; }
++int iswblank_l (wint_t wc, locale_t l) { (void) l; return iswblank (wc); }
+ 
+-int wcscasecmp (__const wchar_t *__s1, __const wchar_t *__s2)
++wctype_t
++wctype (const char *name)
+ {
+-  printf("%s: Not implemented\n", __func__);
+-  abort();
++  static const char *const names[] = { "alnum", "alpha", "blank", "cntrl",
++    "digit", "graph", "lower", "print", "punct", "space", "upper", "xdigit" };
++  unsigned i;
++  if (name == NULL)
++    return WT_NONE;
++  for (i = 0; i < sizeof (names) / sizeof (names[0]); i++)
++    if (strcmp (name, names[i]) == 0)
++      return (wctype_t) (i + 1);
++  return WT_NONE;
+ }
+ 
+-int wcsncasecmp (__const wchar_t *__s1, __const wchar_t *__s2,
+-		size_t __n)
+-{
+-  printf("%s: Not implemented\n", __func__);
+-  abort();
+-}
+-
+-int wcscasecmp_l (__const wchar_t *__s1, __const wchar_t *__s2,
+-		 locale_t __loc)
+-{
+-  printf("%s: Not implemented\n", __func__);
+-  abort();
+-}
+-
+-int wcsncasecmp_l (__const wchar_t *__s1, __const wchar_t *__s2,
+-		size_t __n, locale_t __loc)
+-{
+-  printf("%s: Not implemented\n", __func__);
+-  abort();
+-}
+-
+-unsigned long int wcstoul (__const wchar_t *__restrict __nptr,
+-				  wchar_t **__restrict __endptr, int __base)
+-{
+-  printf("%s: Not implemented\n", __func__);
+-  abort();
+-}
+-
+-long long int wcstoll (__const wchar_t *__restrict __nptr,
+-			      wchar_t **__restrict __endptr, int __base)
+-{
+-  printf("%s: Not implemented\n", __func__);
+-  abort();
+-}
+-
+-int swprintf (wchar_t *__restrict __s, size_t __n,
+-		     __const wchar_t *__restrict __format, ...)
+-{
+-  printf("%s: Not implemented\n", __func__);
+-  abort();
+-}
+-
+-long double wcstold (__const wchar_t *__restrict __nptr,
+-			    wchar_t **__restrict __endptr)
+-{
+-  printf("%s: Not implemented\n", __func__);
+-  abort();
+-}
+-
+-long int wcstol (__const wchar_t *__restrict __nptr,
+-			wchar_t **__restrict __endptr, int __base)
+-{
+-  printf("%s: Not implemented\n", __func__);
+-  abort();
+-}
+-
+-size_t wcsxfrm (wchar_t *__restrict __s1,
+-		       __const wchar_t *__restrict __s2, size_t __n)
+-{
+-  printf("%s: Not implemented\n", __func__);
+-  abort();
+-}
+-
+-size_t wcsxfrm_l (wchar_t *__s1, __const wchar_t *__s2,
+-		size_t __n, locale_t __loc)
+-{
+-  printf("%s: Not implemented\n", __func__);
+-  abort();
+-}
+-
+-float wcstof (__const wchar_t *__restrict __nptr,
+-		     wchar_t **__restrict __endptr)
+-{
+-  printf("%s: Not implemented\n", __func__);
+-  abort();
+-}
+-
+-double wcstod (__const wchar_t *__restrict __nptr,
+-		      wchar_t **__restrict __endptr)
+-{
+-  printf("%s: Not implemented\n", __func__);
+-  abort();
+-}
+-
+-int iswblank (wint_t __wc)
+-{
+-  printf("%s: Not implemented\n", __func__);
+-  abort();
+-}
++wctype_t wctype_l (const char *name, locale_t l) { (void) l; return wctype (name); }
+ 
+ int
+-iswblank_l (wint_t __wc, locale_t __locale)
+-{
+-  printf("%s: Not implemented\n", __func__);
+-  abort();
+-}
+-
+-int iswctype (wint_t __wc, wctype_t __desc)
++iswctype (wint_t wc, wctype_t desc)
+ {
+-  printf("%s: Not implemented\n", __func__);
+-  abort();
++  switch (desc)
++    {
++    case WT_ALNUM: return iswalnum (wc);
++    case WT_ALPHA: return iswalpha (wc);
++    case WT_BLANK: return iswblank (wc);
++    case WT_CNTRL: return iswcntrl (wc);
++    case WT_DIGIT: return iswdigit (wc);
++    case WT_GRAPH: return iswgraph (wc);
++    case WT_LOWER: return iswlower (wc);
++    case WT_PRINT: return iswprint (wc);
++    case WT_PUNCT: return iswpunct (wc);
++    case WT_SPACE: return iswspace (wc);
++    case WT_UPPER: return iswupper (wc);
++    case WT_XDIGIT: return iswxdigit (wc);
++    default: return 0;
++    }
+ }
+ 
+-int iswctype_l (wint_t __wc, wctype_t __desc, locale_t __locale)
+-{
+-  printf("%s: Not implemented\n", __func__);
+-  abort();
+-}
+-
+-unsigned long long int wcstoull (__const wchar_t *__restrict __nptr,
+-					wchar_t **__restrict __endptr,
+-					int __base)
+-{
+-  printf("%s: Not implemented\n", __func__);
+-  abort();
+-}
++int iswctype_l (wint_t wc, wctype_t d, locale_t l) { (void) l; return iswctype (wc, d); }
+ 
+-size_t wcsftime(wchar_t *restrict wcs, size_t maxsize,
+-       const wchar_t *restrict format, const struct tm *restrict timeptr)
+-{
+-  printf("%s: Not implemented\n", __func__);
+-  abort();
+-}
++int wcscoll (const wchar_t *s1, const wchar_t *s2) { return wcscmp (s1, s2); }
++int wcscoll_l (const wchar_t *s1, const wchar_t *s2, locale_t l) { (void) l; return wcscmp (s1, s2); }
+ 
+-wint_t putwc(wchar_t wc, FILE *stream)
++size_t
++wcsxfrm (wchar_t *restrict s1, const wchar_t *restrict s2, size_t n)
+ {
+-  printf("%s: Not implemented\n", __func__);
+-  abort();
++  size_t len = wcslen (s2);
++  if (n > len)
++    wcscpy (s1, s2);
++  return len;
+ }
+ 
+-wctype_t  wctype(const char *name)
+-{
+-  printf("%s: Not implemented\n", __func__);
+-  abort();
+-}
++size_t wcsxfrm_l (wchar_t *s1, const wchar_t *s2, size_t n, locale_t l) { (void) l; return wcsxfrm (s1, s2, n); }
+ 
+-wctype_t wctype_l (__const char *__property, locale_t __locale)
+-{
+-  printf("%s: Not implemented\n", __func__);
+-  abort();
+-}
+-
+-wint_t ungetwc(wint_t wc, FILE *stream)
+-{
+-  printf("%s: Not implemented\n", __func__);
+-  abort();
+-}
+-
+-wint_t getwc(FILE *stream)
+-{
+-  printf("%s: Not implemented\n", __func__);
+-  abort();
++int
++wcsncasecmp (const wchar_t *s1, const wchar_t *s2, size_t n)
++{
++  for (; n; n--, s1++, s2++)
++    {
++      wint_t a = towlower (*s1), b = towlower (*s2);
++      if (a != b)
++	return a < b ? -1 : 1;
++      if (a == 0)
++	break;
++    }
++  return 0;
++}
++
++int wcscasecmp (const wchar_t *s1, const wchar_t *s2) { return wcsncasecmp (s1, s2, (size_t) -1); }
++int wcscasecmp_l (const wchar_t *s1, const wchar_t *s2, locale_t l) { (void) l; return wcscasecmp (s1, s2); }
++int wcsncasecmp_l (const wchar_t *s1, const wchar_t *s2, size_t n, locale_t l) { (void) l; return wcsncasecmp (s1, s2, n); }
++
++/* Numeric conversions: narrow the (ASCII) number text, convert, and map
++   the end pointer back.  */
++#define NUMBUF 128
++static size_t
++narrow_num (const wchar_t *src, char *dst)
++{
++  size_t i;
++  for (i = 0; i < NUMBUF - 1 && src[i] != 0 && src[i] < 128; i++)
++    dst[i] = (char) src[i];
++  dst[i] = 0;
++  return i;
++}
++
++#define WCSTO(name, type, call)						\
++  type name (const wchar_t *restrict nptr, wchar_t **restrict endptr, int base) \
++  {									\
++    char buf[NUMBUF], *end;						\
++    type r;								\
++    narrow_num (nptr, buf);						\
++    r = call (buf, &end, base);						\
++    if (endptr)								\
++      *endptr = (wchar_t *) nptr + (end - buf);				\
++    return r;								\
++  }
++WCSTO (wcstol, long int, strtol)
++WCSTO (wcstoul, unsigned long int, strtoul)
++WCSTO (wcstoll, long long int, strtoll)
++WCSTO (wcstoull, unsigned long long int, strtoull)
++
++#define WCSTOF(name, type, call)					\
++  type name (const wchar_t *restrict nptr, wchar_t **restrict endptr)	\
++  {									\
++    char buf[NUMBUF], *end;						\
++    type r;								\
++    narrow_num (nptr, buf);						\
++    r = call (buf, &end);						\
++    if (endptr)								\
++      *endptr = (wchar_t *) nptr + (end - buf);				\
++    return r;								\
++  }
++WCSTOF (wcstod, double, strtod)
++WCSTOF (wcstof, float, strtof)
++WCSTOF (wcstold, long double, strtold)
++
++/* swprintf: narrow the format (wide string arguments via %ls are not
++   supported), format with vsnprintf, then widen the result.  */
++int
++swprintf (wchar_t *restrict s, size_t n, const wchar_t *restrict format, ...)
++{
++  size_t flen = wcslen (format), i;
++  char *nfmt, *out;
++  int len;
++  va_list ap;
++
++  if (n == 0)
++    return -1;
++  nfmt = malloc (flen + 1);
++  out = malloc (n);
++  if (nfmt == NULL || out == NULL)
++    {
++      free (nfmt);
++      free (out);
++      return -1;
++    }
++  for (i = 0; i <= flen; i++)
++    nfmt[i] = (char) format[i];
++  va_start (ap, format);
++  len = vsnprintf (out, n, nfmt, ap);
++  va_end (ap);
++  if (len >= 0)
++    {
++      for (i = 0; i < n && out[i] != 0; i++)
++	s[i] = (unsigned char) out[i];
++      s[i < n ? i : n - 1] = 0;
++      if ((size_t) len >= n)
++	len = -1;
++    }
++  free (nfmt);
++  free (out);
++  return len;
++}
++
++size_t
++wcsftime (wchar_t *restrict wcs, size_t maxsize,
++	  const wchar_t *restrict format, const struct tm *restrict timeptr)
++{
++  size_t flen = wcslen (format), i, r;
++  char *nfmt, *out;
++
++  if (maxsize == 0)
++    return 0;
++  nfmt = malloc (flen + 1);
++  out = malloc (maxsize);
++  if (nfmt == NULL || out == NULL)
++    {
++      free (nfmt);
++      free (out);
++      return 0;
++    }
++  for (i = 0; i <= flen; i++)
++    nfmt[i] = (char) format[i];
++  r = strftime (out, maxsize, nfmt, timeptr);
++  for (i = 0; i < r; i++)
++    wcs[i] = (unsigned char) out[i];
++  if (r < maxsize)
++    wcs[r] = 0;
++  free (nfmt);
++  free (out);
++  return r;
++}
++
++/* Byte-oriented wide stream I/O (Latin-1).  */
++wint_t
++putwc (wchar_t wc, FILE *stream)
++{
++  if (wc < 0 || wc > 255)
++    return WEOF;
++  return fputc ((int) wc, stream) == EOF ? WEOF : (wint_t) wc;
++}
++
++wint_t
++getwc (FILE *stream)
++{
++  int c = fgetc (stream);
++  return c == EOF ? WEOF : (wint_t) c;
++}
++
++wint_t
++ungetwc (wint_t wc, FILE *stream)
++{
++  if (wc == WEOF || wc > 255)
++    return WEOF;
++  return ungetc ((int) wc, stream) == EOF ? WEOF : wc;
+ }

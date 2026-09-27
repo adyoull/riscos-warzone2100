@@ -11,6 +11,11 @@ RMEnsure SharedUnixLibrary 1.16 IfThere System:Modules.SharedULib Then RMLoad Sy
 RMEnsure SharedUnixLibrary 1.16 Error Warzone 2100 needs SharedUnixLibrary 1.16 or later. Install it with PackMan.
 RMEnsure ARMEABISupport 0 IfThere System:Modules.ARMEABISupport Then RMLoad System:Modules.ARMEABISupport
 RMEnsure ARMEABISupport 0 Error Warzone 2100 needs the ARMEABISupport module. Install it with PackMan.
+| PThreadTicker (from riscos-unixlib) runs UnixLib's thread switcher, so it
+| is always paged in, whichever task is. A copy in !System is used if it's
+| newer; without the module the game runs the same code from the RMA.
+RMEnsure PThreadTicker 0.01 IfThere System:Modules.PThrTicker Then RMLoad System:Modules.PThrTicker
+RMEnsure PThreadTicker 0.01 RMLoad <Warzone2100$Dir>.PThrTicker
 
 | --- Sound ------------------------------------------------------------
 | Sound goes through SharedSoundBuffer, StreamManager and SharedSound
@@ -65,6 +70,10 @@ Unset Warzone2100$Output
 Unset Warzone2100$LogArg
 If "<Warzone2100$Log>"<>"" Then Set Warzone2100$Output /|<Wimp$ScrapDir>/Warzone2100log
 If "<Warzone2100$Log>"<>"" Then Set Warzone2100$LogArg --debugfile=/|<Choices$Write>/Warzone2100/WZlog
+| With logging on, UnixLib also adds a line of thread switcher counters to
+| <Wimp$ScrapDir>.WZTickerStats when the game quits. (The variable is
+| read by every UnixLib program; *Unset UnixLib$TickerStats to stop.)
+If "<Warzone2100$Log>"<>"" Then Set UnixLib$TickerStats <Wimp$ScrapDir>.WZTickerStats
 | For a more detailed log (with Warzone2100$Log set), also set e.g.
 |   *Set Warzone2100$Debug --debug=all --flush-debug-stderr
 | (the log gets big quickly; *Unset Warzone2100$Debug afterwards).

@@ -48,19 +48,12 @@ them in order with `patch -p1`. To edit them, use `tools/wz-patches.sh`
 
 ## unixlib/
 
-`unixlib-pthread-ticker-rma.diff` (ours): UnixLib's thread-switching
-ticker (OS_CallEvery, every 2cs while a program has more than one thread)
-runs a copy of its handler kept in the RMA instead of the one in the
-program. On a Pi it fired while another task was paged in and that task
-died with "abort on instruction fetch" at the handler's address (seen
-from Organizer while Warzone ran its path-finding thread). The handler
-already checks that its program is paged in before it does anything, using
-only its RMA block, so from the RMA it's safe whichever task is current.
-Offered to riscos-unixlib.
-
-`unixlib-riscos-openttd.diff` comes from the RISC OS OpenTTD port.
-`build/build-toolchain.sh` applies it to GCCSDK's UnixLib. Among other
-things it adds real wide-character functions: the stubs aborted with
-"wctype: Not implemented" when the C++ library started up. riscos-unixlib's
-`unixlib-riscos.diff` is a superset of it and can replace it once that
-library has been tested on a Pi.
+`unixlib-riscos.diff`: riscos-unixlib v0.1.1-rc1
+(github.com/adyoull/riscos-unixlib), the whole change set for GCCSDK's
+UnixLib. It includes the OpenTTD port's changes (real wide-character
+functions: the stubs aborted with "wctype: Not implemented" when the C++
+library started up) and Warzone's: the pthread ticker (OS_CallEvery, every
+2cs while a program has more than one thread) and its Wimp filters run
+from the PThreadTicker module or a copy in the RMA, never from the
+program; they used to crash other tasks when the ticker fired while those
+were paged in. `build/build-toolchain.sh` applies it to GCCSDK.
