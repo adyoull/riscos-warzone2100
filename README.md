@@ -46,6 +46,8 @@ and ARMEABISupport, both from PackMan.
 See `app/!Warzone2100/!Help,fff`. In short:
 
 - It opens an 800x600 desktop window. Alt+Return switches to full screen.
+- It has an icon bar icon. Quit (its menu), the window's close icon and a
+  desktop shutdown all quit the game cleanly.
 - Texture filtering: `Warzone2100$Filter` in `!Run` passes
   `--texfilter=` (`fast` by default; also `nearest`, `smooth`, `best`); the
   game saves it as `textureFilter` in its config.

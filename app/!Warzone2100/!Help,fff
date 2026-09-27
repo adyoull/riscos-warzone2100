@@ -43,6 +43,9 @@ Things to know
 - To save time, a new configuration starts with shadows off and fog set
   to "Fog Of War" instead of "Mist". Alt+S turns shadows on; both are in
   Options > Graphics. Each costs around 10% of the frame rate.
+- The game has an icon on the icon bar. Quit from its menu, or the
+  window's close icon, quits the game (your settings are saved first); so
+  does a desktop shutdown.
 - There is no sound or music in this build yet.
 - The campaign videos (sequences.wz) and music are separate downloads and
   are not included. The game runs without them.
