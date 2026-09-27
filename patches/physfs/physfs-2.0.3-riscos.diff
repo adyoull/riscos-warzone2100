@@ -1,7 +1,6 @@
-diff --git a/physfs_platforms.h b/physfs_platforms.h
-index 112193c..d3554e2 100644
---- a/physfs_platforms.h
-+++ b/physfs_platforms.h
+diff -ru a/physfs_platforms.h b/physfs_platforms.h
+--- a/physfs_platforms.h	2012-10-23 04:40:52.000000000 +0100
++++ b/physfs_platforms.h	2026-09-27 09:35:31.257785962 +0100
 @@ -41,6 +41,13 @@
  #elif defined(unix) || defined(__unix__)
  #  define PHYSFS_PLATFORM_UNIX
@@ -16,23 +15,279 @@ index 112193c..d3554e2 100644
  #else
  #  error Unknown platform.
  #endif
-diff --git a/platform/posix.c b/platform/posix.c
-index 652d9f7..c56de9e 100644
---- a/platform/posix.c
-+++ b/platform/posix.c
-@@ -390,7 +390,15 @@ int __PHYSFS_platformEOF(void *opaque)
- int __PHYSFS_platformFlush(void *opaque)
- {
-     int fd = *((int *) opaque);
-+#ifdef __riscos__
-+    /* UnixLib's fsync() fails with EBADF on a file opened for reading, and
-+       DIR_fileClose() flushes before it closes, so every read-only file
-+       stayed open ("This file is already open" when it was next written).
-+       Nothing is lost by ignoring it: RISC OS writes are not cached here. */
-+    (void) fsync(fd);
-+#else
-     BAIL_IF_MACRO(fsync(fd) == -1, strerror(errno), 0);
-+#endif
-     return(1);
- } /* __PHYSFS_platformFlush */
+diff -ru a/platform/posix.c b/platform/posix.c
+--- a/platform/posix.c	2012-10-23 04:40:52.000000000 +0100
++++ b/platform/posix.c	2026-09-27 09:36:10.761953239 +0100
+@@ -15,6 +15,7 @@
+ #include <stdlib.h>
+ #include <string.h>
+ #include <unistd.h>
++#include <stddef.h>
+ #include <ctype.h>
+ #include <sys/types.h>
+ #include <sys/stat.h>
+@@ -247,6 +248,254 @@
+ } /* __PHYSFS_platformMkDir */
  
+ 
++#ifdef __riscos__
++/* RISC OS: every read(), lseek() and fsync() is a FileSwitch call to the
++   filing system, a thousand times dearer than on Unix. The zip archiver
++   reads its directory a field (2 or 4 bytes) at a time: over 100,000
++   reads for Warzone 2100's base.wz, minutes on an SD card, and again each
++   time it is remounted. So files opened for reading get a read buffer,
++   and their position, length and end of file are kept here instead of
++   asked for. Files opened for writing are unbuffered, as before. */
++#define RISCOS_READ_BUFFER 32768
++
++typedef struct
++{
++    int fd;
++    int reading;              /* opened for reading: buffered */
++    PHYSFS_sint64 pos;        /* where the caller is */
++    PHYSFS_sint64 fdpos;      /* where the file pointer is */
++    PHYSFS_sint64 len;        /* file length (read-only, so it can't change) */
++    PHYSFS_sint64 bufstart;   /* file offset of buf[0] */
++    PHYSFS_uint32 buflen;     /* bytes in buf */
++    unsigned char buf[RISCOS_READ_BUFFER];
++} RISCOSFile;
++
++static void *doOpen(const char *filename, int mode)
++{
++    const int appending = (mode & O_APPEND);
++    const int reading = (mode == O_RDONLY);
++    RISCOSFile *f;
++    struct stat statbuf;
++    int fd;
++    errno = 0;
++
++    mode &= ~O_APPEND;
++    fd = open(filename, mode, S_IRUSR | S_IWUSR);
++    BAIL_IF_MACRO(fd < 0, strerror(errno), NULL);
++
++    if (appending && lseek(fd, 0, SEEK_END) < 0)
++    {
++        close(fd);
++        BAIL_MACRO(strerror(errno), NULL);
++    } /* if */
++
++    /* Writers don't need the buffer. */
++    f = (RISCOSFile *) allocator.Malloc(reading ? sizeof (RISCOSFile)
++                                        : offsetof(RISCOSFile, buf));
++    if (f == NULL)
++    {
++        close(fd);
++        BAIL_MACRO(ERR_OUT_OF_MEMORY, NULL);
++    } /* if */
++
++    f->fd = fd;
++    f->reading = reading;
++    f->pos = f->fdpos = 0;
++    f->bufstart = 0;
++    f->buflen = 0;
++    f->len = -1;
++    if (reading && fstat(fd, &statbuf) == 0)
++        f->len = (PHYSFS_sint64) statbuf.st_size;
++    return((void *) f);
++} /* doOpen */
++
++
++void *__PHYSFS_platformOpenRead(const char *filename)
++{
++    return(doOpen(filename, O_RDONLY));
++} /* __PHYSFS_platformOpenRead */
++
++
++void *__PHYSFS_platformOpenWrite(const char *filename)
++{
++    return(doOpen(filename, O_WRONLY | O_CREAT | O_TRUNC));
++} /* __PHYSFS_platformOpenWrite */
++
++
++void *__PHYSFS_platformOpenAppend(const char *filename)
++{
++    return(doOpen(filename, O_WRONLY | O_CREAT | O_APPEND));
++} /* __PHYSFS_platformOpenAppend */
++
++
++/* Read at f->pos, straight into dst: rc as for read(). */
++static int riscosReadAt(RISCOSFile *f, void *dst, int max)
++{
++    int rc;
++    if (f->fdpos != f->pos)
++    {
++        if (lseek(f->fd, (off_t) f->pos, SEEK_SET) == -1)
++            return(-1);
++        f->fdpos = f->pos;
++    } /* if */
++    rc = read(f->fd, dst, max);
++    if (rc > 0)
++        f->fdpos += rc;
++    return(rc);
++} /* riscosReadAt */
++
++
++PHYSFS_sint64 __PHYSFS_platformRead(void *opaque, void *buffer,
++                                    PHYSFS_uint32 size, PHYSFS_uint32 count)
++{
++    RISCOSFile *f = (RISCOSFile *) opaque;
++    unsigned char *dst = (unsigned char *) buffer;
++    int max = size * count;
++    int got = 0;
++    int err = 0;
++
++    BAIL_IF_MACRO(!f->reading, ERR_NOT_SUPPORTED, -1);
++
++    while (got < max)
++    {
++        int want = max - got;
++        int rc;
++
++        /* From the buffer. */
++        if (f->pos >= f->bufstart && f->pos < f->bufstart + f->buflen)
++        {
++            int avail = (int) (f->bufstart + f->buflen - f->pos);
++            int n = (avail < want) ? avail : want;
++            memcpy(dst + got, f->buf + (f->pos - f->bufstart), n);
++            f->pos += n;
++            got += n;
++            continue;
++        } /* if */
++
++        /* Big reads go straight to the caller's memory. */
++        if (want >= RISCOS_READ_BUFFER)
++        {
++            rc = riscosReadAt(f, dst + got, want);
++            if (rc <= 0)
++            {
++                if (rc < 0)
++                    err = errno;
++                break;
++            } /* if */
++            f->pos += rc;
++            got += rc;
++            continue;
++        } /* if */
++
++        /* Refill. */
++        f->bufstart = f->pos;
++        f->buflen = 0;
++        rc = riscosReadAt(f, f->buf, RISCOS_READ_BUFFER);
++        if (rc <= 0)
++        {
++            if (rc < 0)
++                err = errno;
++            break;
++        } /* if */
++        f->buflen = rc;
++    } /* while */
++
++    if ((got == 0) && (err != 0))
++        BAIL_MACRO(strerror(err), -1);
++
++    if ((got < max) && (size > 1))
++        f->pos -= (got % size);   /* rollback to object boundary. */
++
++    return(got / size);
++} /* __PHYSFS_platformRead */
++
++
++PHYSFS_sint64 __PHYSFS_platformWrite(void *opaque, const void *buffer,
++                                     PHYSFS_uint32 size, PHYSFS_uint32 count)
++{
++    RISCOSFile *f = (RISCOSFile *) opaque;
++    int max = size * count;
++    int rc;
++
++    BAIL_IF_MACRO(f->reading, ERR_NOT_SUPPORTED, -1);
++    rc = write(f->fd, (void *) buffer, max);
++    BAIL_IF_MACRO(rc == -1, strerror(errno), rc);
++    assert(rc <= max);
++
++    if ((rc < max) && (size > 1))
++        lseek(f->fd, -(rc % size), SEEK_CUR); /* rollback to object boundary. */
++
++    return(rc / size);
++} /* __PHYSFS_platformWrite */
++
++
++int __PHYSFS_platformSeek(void *opaque, PHYSFS_uint64 pos)
++{
++    RISCOSFile *f = (RISCOSFile *) opaque;
++    if (f->reading)
++    {
++        f->pos = (PHYSFS_sint64) pos;   /* the buffer is kept */
++        return(1);
++    } /* if */
++    BAIL_IF_MACRO(lseek(f->fd, (int) pos, SEEK_SET) == -1, strerror(errno), 0);
++    return(1);
++} /* __PHYSFS_platformSeek */
++
++
++PHYSFS_sint64 __PHYSFS_platformTell(void *opaque)
++{
++    RISCOSFile *f = (RISCOSFile *) opaque;
++    PHYSFS_sint64 retval;
++    if (f->reading)
++        return(f->pos);
++    retval = (PHYSFS_sint64) lseek(f->fd, 0, SEEK_CUR);
++    BAIL_IF_MACRO(retval == -1, strerror(errno), -1);
++    return(retval);
++} /* __PHYSFS_platformTell */
++
++
++PHYSFS_sint64 __PHYSFS_platformFileLength(void *opaque)
++{
++    RISCOSFile *f = (RISCOSFile *) opaque;
++    struct stat statbuf;
++    if (f->reading && f->len >= 0)
++        return(f->len);
++    BAIL_IF_MACRO(fstat(f->fd, &statbuf) == -1, strerror(errno), -1);
++    return((PHYSFS_sint64) statbuf.st_size);
++} /* __PHYSFS_platformFileLength */
++
++
++int __PHYSFS_platformEOF(void *opaque)
++{
++    PHYSFS_sint64 pos = __PHYSFS_platformTell(opaque);
++    PHYSFS_sint64 len = __PHYSFS_platformFileLength(opaque);
++    return((pos < 0) || (len < 0) || (pos >= len));
++} /* __PHYSFS_platformEOF */
++
++
++int __PHYSFS_platformFlush(void *opaque)
++{
++    RISCOSFile *f = (RISCOSFile *) opaque;
++    /* Nothing to flush for a reader (and UnixLib's fsync() fails with
++       EBADF on one: DIR_fileClose() flushes before it closes, and a failed
++       flush used to leave the file open). RISC OS doesn't cache our
++       writes, so fsync()'s result is ignored for writers too. */
++    if (!f->reading)
++        (void) fsync(f->fd);
++    return(1);
++} /* __PHYSFS_platformFlush */
++
++
++int __PHYSFS_platformClose(void *opaque)
++{
++    RISCOSFile *f = (RISCOSFile *) opaque;
++    BAIL_IF_MACRO(close(f->fd) == -1, strerror(errno), 0);
++    allocator.Free(opaque);
++    return(1);
++} /* __PHYSFS_platformClose */
++
++#else /* !__riscos__ */
++
+ static void *doOpen(const char *filename, int mode)
+ {
+     const int appending = (mode & O_APPEND);
+@@ -404,6 +653,9 @@
+ } /* __PHYSFS_platformClose */
+ 
+ 
++#endif /* __riscos__ */
++
++
+ int __PHYSFS_platformDelete(const char *path)
+ {
+     BAIL_IF_MACRO(remove(path) == -1, strerror(errno), 0);

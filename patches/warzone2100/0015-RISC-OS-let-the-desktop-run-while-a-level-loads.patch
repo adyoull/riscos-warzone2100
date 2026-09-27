@@ -1,0 +1,44 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Andrew Youll <adyoull@users.noreply.github.com>
+Date: Sun, 27 Sep 2026 09:37:59 +0100
+Subject: [PATCH] RISC OS: let the desktop run while a level loads
+
+RISC OS multitasks cooperatively: other tasks only run when we call
+Wimp_Poll, which SDL does from SDL_PumpEvents() in a desktop window.
+The game pumps events once per frame of its main loop, but not while a
+level loads, so the whole desktop froze on the loading screen (a
+campaign load took minutes on a Pi 4). loadingScreenCallback(), which
+redraws the progress bar at most every 50ms, now pumps events too.
+Events that arrive meanwhile wait in SDL's queue for the main loop.
+---
+ src/wrappers.c | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+diff --git a/src/wrappers.c b/src/wrappers.c
+index 425efe0..211abbf 100644
+--- a/src/wrappers.c
++++ b/src/wrappers.c
+@@ -43,6 +43,10 @@
+ #include "warzoneconfig.h"
+ #include "wrappers.h"
+ 
++#if defined(WZ_OS_RISCOS)
++#include <SDL.h>
++#endif
++
+ typedef struct _star
+ {
+ 	int      xPos;
+@@ -314,6 +318,12 @@ void loadingScreenCallback(void)
+ 
+ 	pie_ScreenFlip(CLEAR_OFF_AND_NO_BUFFER_DOWNLOAD);//loading callback		// dont clear.
+ 	audio_Update();
++#if defined(WZ_OS_RISCOS)
++	// Let the rest of the desktop run: RISC OS multitasks cooperatively,
++	// and in a desktop window SDL_PumpEvents() calls Wimp_Poll. Events
++	// that arrive are queued for the main loop after loading.
++	SDL_PumpEvents();
++#endif
+ }
+ 
+ // fill buffers with the static screen

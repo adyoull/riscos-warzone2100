@@ -23,13 +23,19 @@ them in order with `patch -p1`. To edit them, use `tools/wz-patches.sh`
 | 0012 | No compressed textures on RISC OS: swrast decoded a DXT3 block per texel (half the frame time). |
 | 0013 | A new config on RISC OS has shadows off, vsync off and "Fog Of War" instead of "Mist" (GL fog on every pixel). |
 | 0014 | Terrain textures use `GL_REPEAT` on RISC OS: swrast's fast textured-triangle path needs it (30 -> 51 fps). |
+| 0015 | Pump events (Wimp_Poll) from the loading screen callback, so the desktop keeps running while a level loads. |
 
 ## physfs/ (PhysicsFS 2.0.3)
 
 - Treat RISC OS as a POSIX platform, with no CD-ROM enumeration.
-- Ignore `fsync()`'s result: UnixLib fails it on read-only files, which
-  used to stop them being closed. riscos-unixlib 751de68 fixes that
-  failure; the patch is harmless with the fixed library.
+- Files opened for reading are buffered (32KB), and their position,
+  length and end of file are kept in memory. The zip reader reads the
+  archive directory 2 or 4 bytes at a time; on RISC OS each read() is a
+  FileSwitch call, so loading a campaign made over 100,000 of them
+  (2-3 minutes on a Pi 4). Now about 1,600.
+- No `fsync()` when a read-only file is closed (UnixLib fails it with
+  EBADF, which used to stop the file being closed); for files being
+  written its result is ignored.
 
 ## quesoglc/ (QuesoGLC 0.7.2)
 
