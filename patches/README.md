@@ -24,6 +24,7 @@ them in order with `patch -p1`. To edit them, use `tools/wz-patches.sh`
 | 0013 | A new config on RISC OS has shadows off, vsync off and "Fog Of War" instead of "Mist" (GL fog on every pixel). |
 | 0014 | Terrain textures use `GL_REPEAT` on RISC OS: swrast's fast textured-triangle path needs it (30 -> 51 fps). |
 | 0015 | Pump events (Wimp_Poll) from the loading screen callback, so the desktop keeps running while a level loads. |
+| 0016 | glFlush() before the text code pushes the texture matrix: Mesa's classic swrast doesn't flush before glPushMatrix (skirmish buttons and map preview went missing). |
 
 ## physfs/ (PhysicsFS 2.0.3)
 

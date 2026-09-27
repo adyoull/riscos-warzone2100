@@ -1,0 +1,43 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Andrew Youll <adyoull@users.noreply.github.com>
+Date: Sun, 27 Sep 2026 10:23:44 +0100
+Subject: [PATCH] RISC OS: flush before pushing the texture matrix for text
+
+On the skirmish setup screen most option buttons and the map preview
+were missing (a button appeared only while the pointer was over it).
+The game made exactly the same GL calls as on a hardware driver; Mesa's
+classic software renderer, which OSMesa uses, drew them differently.
+
+Mesa's push_matrix() doesn't flush buffered immediate-mode vertices, and
+pushing the texture matrix can reallocate its stack. Quads still in the
+vertex buffer were then drawn with a wrong texture matrix, their texture
+coordinates (0-256, scaled by the matrix) fell outside the texture, and
+GL_CLAMP gave transparent texels. A 40-line GL program shows it on plain
+Mesa 20.3.5 swrast; llvmpipe is fine, and so is swrast with
+FLUSH_VERTICES() in push_matrix() (handed to riscos-mesa).
+
+The game pushes the texture matrix in one place, before drawing text, so
+a glFlush() there fixes it. No measurable cost (51 fps either way in
+CAM_1A on the profiling host).
+---
+ lib/ivis_opengl/textdraw.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/lib/ivis_opengl/textdraw.c b/lib/ivis_opengl/textdraw.c
+index f710c57..f8e0f0f 100644
+--- a/lib/ivis_opengl/textdraw.c
++++ b/lib/ivis_opengl/textdraw.c
+@@ -631,6 +631,13 @@ void iV_DrawTextRotated(const char* string, float XPos, float YPos, float rotati
+ 	pie_SetTexturePage(TEXPAGE_FONT);
+ 
+ 	glGetIntegerv(GL_MATRIX_MODE, &matrix_mode);
++#if defined(WZ_OS_RISCOS)
++	// Mesa's classic software renderer (OSMesa) doesn't flush buffered
++	// vertices before glPushMatrix(), and pushing the texture matrix can
++	// move it: 2D images drawn just before some text then came out
++	// transparent (skirmish setup buttons, the map preview). Draw them now.
++	glFlush();
++#endif
+ 	glMatrixMode(GL_TEXTURE);
+ 	glPushMatrix();
+ 	glLoadIdentity();
