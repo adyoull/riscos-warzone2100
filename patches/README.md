@@ -14,14 +14,14 @@ them in order with `patch -p1`. To edit them, use `tools/wz-patches.sh`
 | 0003 | Cross-build fixes: the RISC OS triplet in configure, host-built autorevision, current flex/bison, no Unix crash handler, missing includes. |
 | 0004 | C heap in the dynamic area "Warzone2100 Heap" (up to 512MB). |
 | 0005 | No `popen("which")` at start-up; URIdispatch through `Wimp_StartTask`. |
-| 0006 | 800x600 window by default; "started"/"quit requested" logged with `debug(LOG_INFO)`, exit marked on stderr. |
+| 0006 | 1024x768 window by default (smaller on small screens); "started"/"quit requested" logged with `debug(LOG_INFO)`, exit marked on stderr. |
 | 0007 | Shut down before `exit()`, not from `atexit()`. |
 | 0008 | `WZ_DECL_PACKED` (wzglobal.h); the map file structures use it (unaligned reads). |
 | 0009 | `wz_load_*`/`wz_store_*` in endian_hack.h; the network code uses them (unaligned). |
 | 0010 | Script state in save games uses `wz_load_*`/`wz_store_*` (unaligned). |
 | 0011 | Texture filtering setting: config `textureFilter`, `--texfilter=best\|smooth\|fast\|nearest`; RISC OS defaults to `fast` (bilinear, no mipmaps). |
 | 0012 | No compressed textures on RISC OS: swrast decoded a DXT3 block per texel (half the frame time). |
-| 0013 | A new config on RISC OS has shadows off and "Fog Of War" instead of "Mist" (GL fog on every pixel). |
+| 0013 | A new config on RISC OS has shadows off, vsync off and "Fog Of War" instead of "Mist" (GL fog on every pixel). |
 | 0014 | Terrain textures use `GL_REPEAT` on RISC OS: swrast's fast textured-triangle path needs it (30 -> 51 fps). |
 
 ## physfs/ (PhysicsFS 2.0.3)

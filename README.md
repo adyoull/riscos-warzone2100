@@ -46,24 +46,24 @@ and ARMEABISupport, both from PackMan.
 
 See `app/!Warzone2100/!Help,fff`. In short:
 
-- It opens an 800x600 desktop window. Alt+Return switches to full screen.
+- It opens a 1024x768 desktop window (smaller on small screens).
+  Alt+Return switches to full screen.
 - It has an icon bar icon. Quit (its menu), the window's close icon and a
   desktop shutdown all quit the game cleanly.
 - Texture filtering: `Warzone2100$Filter` in `!Run` passes
   `--texfilter=` (`fast` by default; also `nearest`, `smooth`, `best`); the
   game saves it as `textureFilter` in its config.
-- A new config starts with shadows off (Alt+S turns them on) and fog set
-  to "Fog Of War", not "Mist": both cost software OpenGL about 10%.
+- A new config starts with shadows off (Alt+S turns them on), vsync off,
+  and fog set to "Fog Of War", not "Mist": each costs software OpenGL
+  about 10%.
 - The game's log is `<Wimp$ScrapDir>.Warzone2100log`. Crash backtraces are
   in `<Choices$Write>.Warzone2100.logs.WZlog-*`.
 
 ## Status
 
-- **Works on a Pi 4 (riscos8/riscos9):** the menus, the campaign, saving
-  settings, and quitting.
-- **Slow:** software OpenGL runs at a low frame rate. Pi reports on the
-  skirmish, saving and loading games, fonts and the frame rate are
-  outstanding.
+- **Playable on a Pi 4 (riscos16):** 1024x768 in a window, vsync off.
+  The menus, the campaign, saving settings and quitting work. Pi reports
+  on the skirmish and on saving and loading games are outstanding.
 - **Missing:**
   - No sound (built with `--disable-sound`).
   - No campaign videos or music (separate downloads upstream).

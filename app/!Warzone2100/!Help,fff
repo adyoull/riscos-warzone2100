@@ -20,8 +20,8 @@ Requirements
 
 Running
 -------
-Double-click !Warzone2100. The game opens an 800x600 desktop window
-(640x480 on a small screen).
+Double-click !Warzone2100. The game opens a 1024x768 desktop window
+(800x600 or 640x480 on a smaller screen).
 - Options > Video changes the size and switches to full screen; the
   change takes effect the next time the game starts.
 - Settings, saved games and screenshots are kept in
@@ -40,9 +40,10 @@ Things to know
   better quality the usual ones: see "Texture filtering" in !Run
   (Warzone2100$Filter nearest / smooth / best / fast). The game keeps the
   last choice in its Choices.
-- To save time, a new configuration starts with shadows off and fog set
-  to "Fog Of War" instead of "Mist". Alt+S turns shadows on; both are in
-  Options > Graphics. Each costs around 10% of the frame rate.
+- To save time, a new configuration starts with shadows off, vsync off
+  and fog set to "Fog Of War" instead of "Mist". Alt+S turns shadows on;
+  shadows and fog are in Options > Graphics, vsync in Options > Video.
+  Each costs around 10% of the frame rate.
 - The game has an icon on the icon bar. Quit from its menu, or the
   window's close icon, quits the game (your settings are saved first); so
   does a desktop shutdown.

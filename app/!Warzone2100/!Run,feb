@@ -31,7 +31,7 @@ CDir <Wimp$ScrapDir>.WZ2100fc
 WimpSlot -min 32768K -max 32768K
 
 | --- Display ---------------------------------------------------------
-| The game opens an 800x600 desktop window (640x480 on small screens)
+| The game opens a 1024x768 desktop window (smaller on small screens)
 | unless the Choices say otherwise (Options > Video in the game). Everything is drawn by software OpenGL, so
 | bigger windows and full screen are slower.
 | Uncomment one of these to force a mode from here instead:
