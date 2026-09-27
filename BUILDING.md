@@ -131,13 +131,13 @@ PATH=$GCCSDK_ENV/bin:$PATH python3 tools/check-stack-probes.py src/warzone2100-2
   time, so a frame over 4KB must probe it page by page.
 - **No thread joins from `atexit()`.** Older UnixLib can't switch threads
   during `exit()`.
-- **No long-lived threads.** While a program has a second thread, UnixLib
-  runs a thread-switching ticker whose code is in our application space.
-  One fired while another task (Organizer) was paged in: "abort on
-  instruction fetch" in that task. UnixLib's threads share one core
-  anyway, so a thread only adds switching costs. Path-finding runs on the
-  main thread on RISC OS (patch 0015); UPnP discovery still starts a
-  thread for about 2 seconds when hosting a network game.
+- **Threads need the patched UnixLib.** While a program has a second
+  thread, UnixLib's thread-switching ticker runs every 2cs, whichever task
+  is paged in. Unpatched, its handler was in our application space and
+  crashed other tasks ("abort on instruction fetch" in Organizer);
+  `patches/unixlib/unixlib-pthread-ticker-rma.diff` runs it from the RMA.
+  A toolchain built before that patch must be rebuilt
+  (`build/build-toolchain.sh`, or reapply the diff and rebuild UnixLib).
 
 **Speed.** Before changing anything for speed, measure it on Linux with
 `tools/profile` (the Pi has no profiler). Software OpenGL makes some

@@ -28,7 +28,8 @@ mkdir -p "$TC" "$GCCSDK_ENV"; cd "$TC"
   # patches/unixlib): real wide-character functions (the stubs printed
   # "Not implemented" and aborted: libstdc++'s locale setup calls wctype()),
   # a high resolution monotonic clock, nanosleep accuracy, no mmap for
-  # large blocks.
+  # large blocks. Ours: the pthread ticker's handler runs from the RMA
+  # (it used to crash other tasks when it fired while they were paged in).
   for p in "$REPO_DIR"/patches/unixlib/*.diff; do patch -d gccsdk -p1 -s < "$p"; done; }
 H=$TC/gccsdk/autobuilder/develop/gcc
 UL=$TC/gccsdk/gcc4/recipe/files/gcc/libunixlib

@@ -23,7 +23,6 @@ them in order with `patch -p1`. To edit them, use `tools/wz-patches.sh`
 | 0012 | No compressed textures on RISC OS: swrast decoded a DXT3 block per texel (half the frame time). |
 | 0013 | A new config on RISC OS has shadows off and "Fog Of War" instead of "Mist" (GL fog on every pixel). |
 | 0014 | Terrain textures use `GL_REPEAT` on RISC OS: swrast's fast textured-triangle path needs it (30 -> 51 fps). |
-| 0015 | Path-finding runs on the main thread on RISC OS (`FPATH_THREAD`): UnixLib's thread ticker crashed other tasks. |
 
 ## physfs/ (PhysicsFS 2.0.3)
 
@@ -39,6 +38,16 @@ them in order with `patch -p1`. To edit them, use `tools/wz-patches.sh`
   thread-local storage.
 
 ## unixlib/
+
+`unixlib-pthread-ticker-rma.diff` (ours): UnixLib's thread-switching
+ticker (OS_CallEvery, every 2cs while a program has more than one thread)
+runs a copy of its handler kept in the RMA instead of the one in the
+program. On a Pi it fired while another task was paged in and that task
+died with "abort on instruction fetch" at the handler's address (seen
+from Organizer while Warzone ran its path-finding thread). The handler
+already checks that its program is paged in before it does anything, using
+only its RMA block, so from the RMA it's safe whichever task is current.
+Offered to riscos-unixlib.
 
 `unixlib-riscos-openttd.diff` comes from the RISC OS OpenTTD port.
 `build/build-toolchain.sh` applies it to GCCSDK's UnixLib. Among other
