@@ -18,7 +18,7 @@ WZ=${WZ_SRC:-$SRC/warzone2100-2.3.9}
 cd "$WZ"
 LOG=$(mktemp); trap 'rm -f "$LOG"' EXIT
 I="-I$STAGE/include -I$STAGE/include/SDL2 -I$STAGE/include/libpng16"
-for f in $(find src lib -name '*.c' -o -name '*.cpp' | grep -v -e '/test' -e 'lib/sound/' \
+for f in $(find src lib -name '*.c' -o -name '*.cpp' | grep -v -e '/test' \
            -e exchndl.c -e x-motif-messagebox.c -e miniupnpcmodule.c | sort); do
   case $f in *.cpp) C=$CXX;; *) C=$CC;; esac
   $C -fsyntax-only -Wcast-align=strict -DHAVE_CONFIG_H -DYY_NO_INPUT -D_REENTRANT \

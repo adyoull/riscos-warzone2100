@@ -47,9 +47,12 @@ Things to know
 - The game has an icon on the icon bar. Quit from its menu, or the
   window's close icon, quits the game (your settings are saved first); so
   does a desktop shutdown.
-- There is no sound or music in this build yet.
-- The campaign videos (sequences.wz) and music are separate downloads and
-  are not included. The game runs without them.
+- Sound and music play through SharedSoundBuffer (with StreamManager and
+  SharedSound, in !System on most machines); without them the game is
+  silent. Volume is in Options > Sound. Sound costs a little speed: to
+  turn it off, set sound=0 in <Choices$Write>.Warzone2100.config.
+- The campaign videos (sequences.wz) are a separate download and are
+  not included. The game runs without them.
 - Multiplayer over the internet used a lobby server that no longer exists.
   Games on a local network, or joining a host by address, may work.
 

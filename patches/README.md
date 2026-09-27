@@ -44,6 +44,16 @@ them in order with `patch -p1`. To edit them, use `tools/wz-patches.sh`
 - `glew.c` loads GL functions with `OSMesaGetProcAddress`, and uses no
   thread-local storage.
 
+## openal/ (OpenAL Soft 1.19.1)
+
+Built by `build/build-deps.sh` with only the SDL2 output backend, which
+the riscos-mesa devkit's SDL sends to SharedSoundBuffer.
+
+- `bformatdec.h` declares three tables `extern` (GCC 10's -fno-common
+  made the tentative definitions collide; fixed upstream after 1.19.1).
+- No real-time thread priority on RISC OS: UnixLib has no
+  `sched_get_priority_min()`.
+
 ## unixlib/
 
 `unixlib-pthread-ticker-rma.diff` (ours): UnixLib's thread-switching

@@ -10,11 +10,13 @@ $CC $CFLAGS -DOUTPUT_VAR='"Warzone2100$Output"' -c "$REPO_DIR/riscos/riscos_outp
     -o "$STAGE/lib/riscos_output.o"
 cd "$WZ_SRC"
 [ -f configure ] || ./autogen.sh
-# Static libraries don't carry their own dependencies: PhysicsFS needs zlib.
-# No sound yet (the devkit's SDL2 has no RISC OS audio driver), no NLS.
+# Static libraries don't carry their own dependencies: PhysicsFS needs zlib,
+# vorbisfile needs vorbis and ogg. Sound (OpenAL -> SDL2 -> SharedSoundBuffer)
+# unless WZ_SOUND=0. No NLS.
+SOUND=--enable-sound; [ "${WZ_SOUND:-1}" = 0 ] && SOUND=--disable-sound
 [ -f Makefile ] || ./configure --host=$HOST --build=$BUILD \
-  --prefix=/Warzone2100 --enable-static --disable-sound --disable-nls \
-  --disable-motif LIBS="$STAGE/lib/riscos_output.o -lz" LDFLAGS="$LDFLAGS -static" \
+  --prefix=/Warzone2100 --enable-static $SOUND --disable-nls \
+  --disable-motif LIBS="$STAGE/lib/riscos_output.o -lvorbis -logg -lz" LDFLAGS="$LDFLAGS -static" \
   CC_FOR_BUILD=gcc CXX_FOR_BUILD=g++ CFLAGS_FOR_BUILD=-O2 CXXFLAGS_FOR_BUILD=-O2 \
   CPPFLAGS_FOR_BUILD= LDFLAGS_FOR_BUILD=
 make -j$JOBS "$@"

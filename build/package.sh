@@ -8,7 +8,7 @@
 : "${ELF2AIF:=$REPO_DIR/toolchain/elf2aif}"
 [ -x "$ELF2AIF" ] || { echo "no $ELF2AIF: run build/build-toolchain.sh elf2aif" >&2; exit 1; }
 : "${DEJAVU:=$SRC/dejavu-fonts-ttf-2.37}"
-VERSION=2.3.9-riscos19
+VERSION=2.3.9-riscos20
 OUT="$REPO_DIR/dist"; APP="$OUT/!Warzone2100"
 rm -rf "$OUT"; mkdir -p "$OUT"
 cp -a "$REPO_DIR/app/!Warzone2100" "$APP"
@@ -19,8 +19,10 @@ $STRIP -o "$OUT/warzone2100.elf" "$WZ_SRC/src/warzone2100"
 rm "$OUT/warzone2100.elf"
 
 # Game data (zip archives, typed Data so SparkFS leaves them alone).
-mkdir -p "$APP/data"
+mkdir -p "$APP/data/music"
 cp "$WZ_SRC/data/base.wz" "$WZ_SRC/data/mp.wz" "$APP/data/"
+# Music (Ogg Vorbis) and its playlist, played when the build has sound.
+cp "$WZ_SRC"/data/music/*.ogg "$WZ_SRC/data/music/music.wpl" "$APP/data/music/"
 
 # Fonts (the game asks fontconfig for "DejaVu Sans").
 cp "$DEJAVU/ttf/DejaVuSans.ttf" "$DEJAVU/ttf/DejaVuSans-Bold.ttf" "$APP/fonts/"
@@ -32,6 +34,20 @@ cp "$WZ_SRC/COPYING" "$APP/docs/COPYING,fff"
 cp "$WZ_SRC/COPYING.NONGPL" "$APP/docs/COPYING-NONGPL,fff"
 cp "$WZ_SRC/COPYING.README" "$APP/docs/COPYING-README,fff"
 cp "$DEVKIT/LICENCES.txt" "$APP/docs/riscos-mesa-LICENCES,fff"
+# The libraries linked in from stage/ (see build/build-deps.sh).
+mkdir -p "$APP/docs/licences"
+lic() { cp "$SRC/$2" "$APP/docs/licences/$1,fff"; }
+lic libpng       libpng-1.6.37/LICENSE
+lic FreeType     freetype-2.10.1/docs/FTL.TXT
+lic fontconfig   fontconfig-2.12.6/COPYING
+lic expat        libexpat-R_2_2_9/expat/COPYING
+lic PhysicsFS    physfs-release-2.0.3/LICENSE.txt
+lic popt         popt-1.16/COPYING
+lic QuesoGLC     quesoglc-0.7.2/COPYING
+lic libogg       libogg-1.3.5/COPYING
+lic libvorbis    libvorbis-1.3.7/COPYING
+lic libtheora    libtheora-1.1.1/COPYING
+lic OpenAL-Soft  openal-soft-openal-soft-1.19.1/COPYING
 mkdir -p "$APP/docs/patches"
 for p in "$REPO_DIR"/patches/*/*; do cp "$p" "$APP/docs/patches/$(basename "$p"),fff"; done
 

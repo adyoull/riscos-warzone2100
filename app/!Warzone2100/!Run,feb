@@ -12,6 +12,14 @@ RMEnsure SharedUnixLibrary 1.16 Error Warzone 2100 needs SharedUnixLibrary 1.16 
 RMEnsure ARMEABISupport 0 IfThere System:Modules.ARMEABISupport Then RMLoad System:Modules.ARMEABISupport
 RMEnsure ARMEABISupport 0 Error Warzone 2100 needs the ARMEABISupport module. Install it with PackMan.
 
+| --- Sound ------------------------------------------------------------
+| Sound goes through SharedSoundBuffer, StreamManager and SharedSound
+| (in !System on most machines), mixed with other programs' sound. Without
+| them the game plays silently. Volume: Options > Sound in the game.
+RMEnsure SharedSound 1.07 IfThere System:Modules.SSound Then RMLoad System:Modules.SSound
+RMEnsure StreamManager 0.03 IfThere System:Modules.StreamMan Then RMLoad System:Modules.StreamMan
+RMEnsure SharedSoundBuffer 0.07 IfThere System:Modules.SSBuffer Then RMLoad System:Modules.SSBuffer
+
 | --- Files ------------------------------------------------------------
 | Paths handed to the program are UnixLib paths of the form /<Var$Dir>/...
 | Set and Do expand <variables>, so they are written /|<Var$Dir>/... here:
@@ -55,5 +63,4 @@ If "<Warzone2100$Filter>"<>"" Then Set Warzone2100$FilterArg --texfilter=<Warzon
 | (the log gets big quickly; *Unset Warzone2100$Debug afterwards).
 
 | --- Program -------------------------------------------------------
-| No sound yet: this build is made with --disable-sound.
 Do Run <Warzone2100$Dir>.warzone2100 --datadir=/|<Warzone2100$Dir>/data --configdir=/|<Choices$Write>/Warzone2100 <Warzone2100$Mode> <Warzone2100$FilterArg> <Warzone2100$Debug> %*0
