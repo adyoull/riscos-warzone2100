@@ -8,3 +8,8 @@ dl/
 toolchain/
 work/
 tools/profile/shim.so
+# Notes between the RISC OS port conversations (kept next to the repo, never in it)
+handoffs/
+*handoff*.md
+# macOS Finder files
+.DS_Store
