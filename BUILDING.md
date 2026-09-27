@@ -169,13 +169,19 @@ checklist:
 5. **Save/load:** save a game and load it back.
 6. **Controls:** typing (a save name), the scroll wheel, Alt+Return (full
    screen), Alt+S (shadows).
-7. **Quit:** quitting leaves no "Aborted" in the newest
-   `<Choices$Write>.Warzone2100.logs.WZlog-*`.
+7. **Quit:** quitting leaves no "Aborted" in
+   `<Choices$Write>.Warzone2100.WZlog`.
+
+Logging is off in a normal run: set `Warzone2100$Log` (in `!Run`, or
+`*Set Warzone2100$Log 1`) for the tests. The game's stdout/stderr then go
+to `<Wimp$ScrapDir>.Warzone2100log` (`riscos/riscos_output.c`; without the
+variable they are discarded), and `--debugfile` writes its log to
+`<Choices$Write>.Warzone2100.WZlog` (patch 0018: no automatic log file).
 
 ### Reading a crash
 
-UnixLib writes "Fatal signal received" and a backtrace of `lr` values into
-the `WZlog` file. To turn them into source lines:
+With logging on, UnixLib writes "Fatal signal received" and a backtrace
+of `lr` values into the `WZlog` file. To turn them into source lines:
 
 1. Rebuild the same version, unstripped: `src/warzone2100-2.3.9/src/warzone2100`.
 2. Run:

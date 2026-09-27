@@ -1,0 +1,32 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Andrew Youll <adyoull@users.noreply.github.com>
+Date: Sun, 27 Sep 2026 13:03:44 +0100
+Subject: [PATCH] RISC OS: no log file unless --debugfile asks for one
+
+The game wrote logs/WZlog-MMDD_HHMMSS.txt in its Choices on every run,
+and never removed them. On RISC OS it now only logs to a file given with
+--debugfile, which !Run passes when Warzone2100$Log is set (along with
+the stdout/stderr log). Other platforms keep upstream's behaviour.
+---
+ src/main.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/src/main.c b/src/main.c
+index 96a915f..04f9ba9 100644
+--- a/src/main.c
++++ b/src/main.c
+@@ -1118,7 +1118,14 @@ int main(int argc, char *argv[])
+ 	make_dir(MultiPlayersPath, "multiplay", "players");
+ 	sstrcpy(MultiCustomMapsPath, "maps");
+ 
++#if defined(WZ_OS_RISCOS)
++	// No log file unless --debugfile names one (!Run passes it when
++	// Warzone2100$Log is set): a release shouldn't leave a file behind
++	// every time it runs.
++	if (false)
++#else
+ 	if (!customDebugfile)
++#endif
+ 	{
+ 		// there was no custom debug file specified  (--debug-file=blah)
+ 		// so we use our write directory to store our logs.

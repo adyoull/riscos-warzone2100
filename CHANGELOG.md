@@ -15,6 +15,7 @@ software OpenGL, SDL 2.26 with the RISC OS Wimp driver, OpenAL Soft
 - Icon bar icon; Quit from its menu, the close icon and a desktop
   shutdown quit cleanly.
 - The desktop keeps running while a level loads.
+- Logging is off unless `Warzone2100$Log` is set (see `!Run`).
 
 **Sound**
 - Sound effects and music through OpenAL Soft, SDL2 and SharedSoundBuffer.

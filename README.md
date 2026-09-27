@@ -56,8 +56,9 @@ See `app/!Warzone2100/!Help,fff`. In short:
 - A new config starts with shadows off (Alt+S turns them on), vsync off,
   and fog set to "Fog Of War", not "Mist": each costs software OpenGL
   about 10%.
-- The game's log is `<Wimp$ScrapDir>.Warzone2100log`. Crash backtraces are
-  in `<Choices$Write>.Warzone2100.logs.WZlog-*`.
+- Logging is off unless `Warzone2100$Log` is set (a line in `!Run`): then
+  the game's output goes to `<Wimp$ScrapDir>.Warzone2100log` and its log,
+  with any crash backtrace, to `<Choices$Write>.Warzone2100.WZlog`.
 
 ## Status
 

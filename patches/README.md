@@ -26,6 +26,7 @@ them in order with `patch -p1`. To edit them, use `tools/wz-patches.sh`
 | 0015 | Pump events (Wimp_Poll) from the loading screen callback, so the desktop keeps running while a level loads. |
 | 0016 | glFlush() before the text code pushes the texture matrix: Mesa's classic swrast doesn't flush before glPushMatrix (skirmish buttons and map preview went missing). |
 | 0017 | `GL_FASTEST` perspective hint and `GL_CLAMP_TO_EDGE` texture pages on RISC OS: riscos-mesa 7pre10's fast path covers them (52 -> 59 fps with mipmapped "fast"). |
+| 0018 | No automatic `logs/WZlog-*` file on RISC OS; `--debugfile` (passed by `!Run` when `Warzone2100$Log` is set) still logs. |
 
 ## physfs/ (PhysicsFS 2.0.3)
 

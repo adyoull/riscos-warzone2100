@@ -29,8 +29,11 @@ Double-click !Warzone2100. The game opens a 1024x768 desktop window
   change takes effect the next time the game starts.
 - Settings, saved games and screenshots are kept in
   <Choices$Write>.Warzone2100.
-- The game's log is written to <Wimp$ScrapDir>.Warzone2100log. Please
-  include it with any bug report.
+- Logging is off. To report a problem, turn it on in !Run (remove the |
+  from "| Set Warzone2100$Log 1", or *Set Warzone2100$Log 1 before
+  running the game), repeat the problem, and include
+  <Wimp$ScrapDir>.Warzone2100log and <Choices$Write>.Warzone2100.WZlog
+  with the report.
 
 
 Things to know

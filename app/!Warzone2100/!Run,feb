@@ -26,8 +26,6 @@ RMEnsure SharedSoundBuffer 0.07 IfThere System:Modules.SSBuffer Then RMLoad Syst
 | "|<" keeps the "<", and UnixLib expands the variable when it's used.
 | Settings, saved games and screenshots go in Choices.
 CDir <Choices$Write>.Warzone2100
-| The game's log (stdout and stderr) goes to this file.
-Set Warzone2100$Output /|<Wimp$ScrapDir>/Warzone2100log
 | Fonts: the bundled DejaVu fonts, found through fontconfig.
 Set FONTCONFIG_FILE /|<Warzone2100$Dir>/fonts/fonts.conf
 CDir <Wimp$ScrapDir>.WZ2100fc
@@ -57,10 +55,19 @@ If "<Warzone2100$Mode>"="" Then Set Warzone2100$Mode --window
 Unset Warzone2100$FilterArg
 If "<Warzone2100$Filter>"<>"" Then Set Warzone2100$FilterArg --texfilter=<Warzone2100$Filter>
 
-| --- Diagnostics ----------------------------------------------------
-| For a detailed log, set this before running the game, e.g.
+| --- Logging --------------------------------------------------------
+| Off by default. To report a problem, set Warzone2100$Log (remove the |
+| from the next line, or *Set Warzone2100$Log 1 before running the game):
+| the game's output then goes to <Wimp$ScrapDir>.Warzone2100log, and its
+| log (with any crash backtrace) to <Choices$Write>.Warzone2100.WZlog.
+| Set Warzone2100$Log 1
+Unset Warzone2100$Output
+Unset Warzone2100$LogArg
+If "<Warzone2100$Log>"<>"" Then Set Warzone2100$Output /|<Wimp$ScrapDir>/Warzone2100log
+If "<Warzone2100$Log>"<>"" Then Set Warzone2100$LogArg --debugfile=/|<Choices$Write>/Warzone2100/WZlog
+| For a more detailed log (with Warzone2100$Log set), also set e.g.
 |   *Set Warzone2100$Debug --debug=all --flush-debug-stderr
 | (the log gets big quickly; *Unset Warzone2100$Debug afterwards).
 
 | --- Program -------------------------------------------------------
-Do Run <Warzone2100$Dir>.warzone2100 --datadir=/|<Warzone2100$Dir>/data --configdir=/|<Choices$Write>/Warzone2100 <Warzone2100$Mode> <Warzone2100$FilterArg> <Warzone2100$Debug> %*0
+Do Run <Warzone2100$Dir>.warzone2100 --datadir=/|<Warzone2100$Dir>/data --configdir=/|<Choices$Write>/Warzone2100 <Warzone2100$Mode> <Warzone2100$FilterArg> <Warzone2100$LogArg> <Warzone2100$Debug> %*0
