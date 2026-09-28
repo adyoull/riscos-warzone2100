@@ -22,7 +22,11 @@ elf2aif -> !Warzone2100.warzone2100,ff8 (Absolute: needs no !SharedLibs)
 ```
 
 Everything is linked statically into one program. It needs SharedUnixLibrary
-and ARMEABISupport, both from PackMan.
+and ARMEABISupport, both from PackMan. For sound it also needs
+SharedSoundBuffer and StreamManager, John Duffell's freeware: the `ssb.zip`
+download on [Andrew Sellors' RDPClient page](https://orac.co.uk/software/rdpclient/rdpclient.html)
+(merge its `!System` into yours). John Duffell's own site is on the Internet
+Archive: <https://web.archive.org/web/20110920080106/http://www.duffell.riscos.me.uk/>.
 
 ## What's in this repository
 

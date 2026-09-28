@@ -19,7 +19,9 @@ RMEnsure PThreadTicker 0.01 RMLoad <Warzone2100$Dir>.PThrTicker
 
 | --- Sound ------------------------------------------------------------
 | Sound goes through SharedSoundBuffer, StreamManager and SharedSound
-| (in !System on most machines), mixed with other programs' sound. Without
+| (in !System), mixed with other programs' sound. SharedSoundBuffer and
+| StreamManager are in ssb.zip from
+| https://orac.co.uk/software/rdpclient/rdpclient.html. Without
 | them the game plays silently. Volume: Options > Sound in the game.
 RMEnsure SharedSound 1.07 IfThere System:Modules.SSound Then RMLoad System:Modules.SSound
 RMEnsure StreamManager 0.03 IfThere System:Modules.StreamMan Then RMLoad System:Modules.StreamMan

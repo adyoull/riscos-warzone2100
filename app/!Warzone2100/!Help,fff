@@ -22,8 +22,17 @@ Requirements
   threads, so it's paged in whichever program is running.
 - About 32MB of free memory for the program, plus the game's heap, which
   goes in a dynamic area called "Warzone2100 Heap".
-- For sound: SharedSoundBuffer, StreamManager and SharedSound (in !System
-  on most machines). Without them the game runs silently.
+- For sound: SharedSoundBuffer, StreamManager and SharedSound. Without
+  them the game runs silently. SharedSound is part of RISC OS (in !System
+  on most machines). SharedSoundBuffer and StreamManager are John
+  Duffell's freeware: download ssb.zip from Andrew Sellors' RDPClient page
+  and merge its !System into yours:
+
+    https://orac.co.uk/software/rdpclient/rdpclient.html
+
+  John Duffell's own site (now on the Internet Archive) has more details:
+
+    https://web.archive.org/web/20110920080106/http://www.duffell.riscos.me.uk/
 
 
 Running
