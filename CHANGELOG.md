@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.3.9-3 (2026-09-28)
+
+- Rebuilt with the released riscos-mesa devkit 20.3.5-8 (2.3.9-2 used
+  its 20.3.5-8c pre-release). Mesa, SDL2, GLU and OpenAL are the release
+  builds; still VFPv3 throughout and linked with UnixLib 5.0.1. No change
+  to the game.
+
 ## 2.3.9-2 (2026-09-28)
 
 Built with UnixLib 5.0.1 (riscos-unixlib) and riscos-mesa devkit 20.3.5-8c.

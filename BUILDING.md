@@ -15,10 +15,10 @@ apt-get install build-essential autogen autoconf2.69 autoconf2.64 automake1.11 \
 
 Unpack a riscos-mesa devkit (github.com/adyoull/riscos-mesa releases) into
 `devkit/`. `build/env.sh` names the one this version is built with
-(`DEVKIT`, currently `riscos-mesa-devkit-20.3.5-8c`):
+(`DEVKIT`, currently `riscos-mesa-devkit-20.3.5-8`):
 
 ```sh
-mkdir -p devkit && tar xzf riscos-mesa-devkit-20.3.5-8c.tgz -C devkit
+mkdir -p devkit && tar xzf riscos-mesa-devkit-20.3.5-8.tgz -C devkit
 ```
 
 ## 3. Build
@@ -133,7 +133,7 @@ PATH=$GCCSDK_ENV/bin:$PATH python3 tools/check-stack-probes.py src/warzone2100-2
   2 onwards. VFPv4 only adds fused multiply-add, which GCC uses whenever it
   can. The devkit has to be built the same way: `tools/check-fpu.sh` lists
   any library or program with VFPv4-only instructions; it must say OK.
-  The riscos-mesa devkit is VFPv3 from 20.3.5-8c.
+  The riscos-mesa devkit is VFPv3 from 20.3.5-8.
 - **Stack clash protection is required.** Everything is built with
   `-fstack-clash-protection`: ARMEABISupport maps the stack a page at a
   time, so a frame over 4KB must probe it page by page.
