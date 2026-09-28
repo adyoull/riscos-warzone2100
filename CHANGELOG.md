@@ -16,6 +16,13 @@
 - With logging on, `!Run` sets `UnixLib$TickerStats`: a line of thread
   switcher counters goes to `<Wimp$ScrapDir>.WZTickerStats` at exit.
 - `build/build-toolchain.sh unixlib` rebuilds only UnixLib, from clean.
+- **Tested (test2, Pi 4):** an hour of play with other tasks running, and
+  no errors in the game or in other programs. The ticker stats showed the
+  module in use (`via=module`) and the filters moved to the real task
+  handle once it appeared (the first thread starts before it's known,
+  which is why the old UnixLib never installed them). The run without the
+  module (RMA copy) and the Cortex-A8/A9 boards are still untested.
+- Release waits for riscos-unixlib 0.1.1 final.
 
 ## 2.3.9-1 (2026-09-27)
 
