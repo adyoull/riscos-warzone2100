@@ -25,7 +25,12 @@ export CC=$HOST-gcc CXX=$HOST-g++ AR=$HOST-ar RANLIB=$HOST-ranlib STRIP=$HOST-st
 # Same flags as riscos-mesa (Pi 4 benchmarked). -fstack-clash-protection is
 # REQUIRED: ARMEABISupport maps the stack a page at a time, so any frame
 # > 4 KB must probe page by page or it skips the guard page and aborts.
-export RO_CFLAGS="-O3 -mtune=cortex-a72 -mfpu=vfpv4 -mfloat-abi=hard -fstack-clash-protection"
+# FPU: vfpv3 (default) runs on every ARMv7 RISC OS machine with VFP (Cortex-A8
+# and A9 boards as well as the Pi 2 onwards); vfpv4 adds fused multiply-add,
+# which only Cortex-A7/A15/A53/A72 have. The devkit must match (tools/check-fpu.sh).
+: "${FPU:=vfpv3}"
+export FPU
+export RO_CFLAGS="-O3 -mtune=cortex-a72 -mfpu=$FPU -mfloat-abi=hard -fstack-clash-protection"
 export CFLAGS="$RO_CFLAGS" CXXFLAGS="$RO_CFLAGS"
 export CPPFLAGS="-I$STAGE/include" LDFLAGS="-L$STAGE/lib"
 export PKG_CONFIG_LIBDIR="$STAGE/lib/pkgconfig:$STAGE/share/pkgconfig"

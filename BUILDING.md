@@ -127,6 +127,12 @@ PATH=$GCCSDK_ENV/bin:$PATH python3 tools/check-stack-probes.py src/warzone2100-2
 - **No `popen()`, `system()`, `fork()` or `exec()`.** UnixLib runs a child
   as a *command inside our own memory. To launch something, use
   `Wimp_StartTask`.
+- **VFPv3, not VFPv4.** `build/env.sh` builds with `-mfpu=$FPU`, default
+  `vfpv3`, so the program can run on Cortex-A8/A9 boards as well as the Pi
+  2 onwards. VFPv4 only adds fused multiply-add, which GCC uses whenever it
+  can. The devkit has to be built the same way: `tools/check-fpu.sh` lists
+  any library or program with VFPv4-only instructions. The 7pre11 devkit
+  still has them, in OSMesa, SDL2 and GLU (handoff to riscos-mesa).
 - **Stack clash protection is required.** Everything is built with
   `-fstack-clash-protection`: ARMEABISupport maps the stack a page at a
   time, so a frame over 4KB must probe it page by page.
