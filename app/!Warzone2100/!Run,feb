@@ -33,11 +33,12 @@ RMEnsure SharedSoundBuffer 0.07 IfThere System:Modules.SSBuffer Then RMLoad Syst
 | "|<" keeps the "<", and UnixLib expands the variable when it's used.
 | Settings, saved games and screenshots go in Choices.
 CDir <Choices$Write>.Warzone2100
-| Fonts: the bundled DejaVu fonts, found through fontconfig. The program
-| points fontconfig at fonts.conf itself, for itself only. Releases up to
-| 2.3.9-4 set FONTCONFIG_FILE here, globally, which other fontconfig
-| programs (such as Iris) then picked up; the next line removes it if it's
-| still ours.
+| Fonts: with PackMan's fontconfig installed (UnixFC), the game uses its
+| setup, like other fontconfig programs, plus its own DejaVu fonts;
+| without it, it uses its own fonts.conf. The program sets this up for
+| itself only. Releases up to 2.3.9-4 set FONTCONFIG_FILE here, globally,
+| which other fontconfig programs (such as Iris) then picked up; the next
+| line removes it if it's still ours.
 If "<FONTCONFIG_FILE>"="/|<Warzone2100$Dir>/fonts/fonts.conf" Then Unset FONTCONFIG_FILE
 CDir <Wimp$ScrapDir>.WZ2100fc
 

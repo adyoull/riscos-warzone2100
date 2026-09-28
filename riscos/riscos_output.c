@@ -20,7 +20,8 @@
 #define OUTPUT_VAR "Program$Output"
 #endif
 
-__attribute__((constructor))
+/* Priority 101: before any library constructor that might print. */
+__attribute__((constructor(101)))
 static void riscos_redirect_output(void)
 {
     const char *o = getenv(OUTPUT_VAR);

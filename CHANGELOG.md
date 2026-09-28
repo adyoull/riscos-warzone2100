@@ -1,5 +1,22 @@
 # Changelog
 
+## 2.3.9-6 (2026-09-28)
+
+- **Fonts: fixed "Cannot load default config file" in 2.3.9-5.**
+  QuesoGLC sets up fontconfig in its own start-up constructor, which ran
+  before the one that told fontconfig where its configuration is. The
+  game's constructors now run first (priorities 101 and 102), so the log
+  redirection is also in place before any library prints.
+- **Uses PackMan's fontconfig setup when it's installed** (UnixFC,
+  `UnixFC$Dir`): its `fonts.conf`, font mapping and cache, like other
+  fontconfig programs such as Iris. The game's DejaVu fonts are added on
+  top (QuesoGLC patch: `RISCOS_APPFONTS`), so the text still shows if the
+  system has no DejaVu. Without UnixFC it uses its own `fonts.conf`.
+  Suggested by Chris Gransden. The game links fontconfig 2.12.6; PackMan's
+  is 2.14.1: they read the same files, and their cache files have
+  different names.
+- Nothing global is set for fonts.
+
 ## 2.3.9-5 (2026-09-28)
 
 - **Other fontconfig programs are no longer affected.** Up to 2.3.9-4,
