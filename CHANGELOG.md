@@ -1,6 +1,11 @@
 # Changelog
 
-## Unreleased (test build 2.3.9-2test1)
+## Unreleased (test builds 2.3.9-2test1, test2)
+
+- **Runs on more machines (test2):** built for VFPv3 (`-mfpu=vfpv3`) with
+  riscos-mesa devkit 20.3.5-8c, so Cortex-A8/A9 boards (BeagleBoard-xM,
+  PandaBoard, ARMini, i.MX6) as well as the Pi 2 onwards. riscos-mesa
+  measured no difference on a Pi 4. `tools/check-fpu.sh` checks the program.
 
 - UnixLib is riscos-unixlib v0.1.1-rc1 (`patches/unixlib/unixlib-riscos.diff`),
   replacing the OpenTTD UnixLib diff and our RMA ticker diff. The thread

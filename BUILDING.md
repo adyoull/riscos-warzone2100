@@ -15,10 +15,10 @@ apt-get install build-essential autogen autoconf2.69 autoconf2.64 automake1.11 \
 
 Unpack a riscos-mesa devkit (github.com/adyoull/riscos-mesa releases) into
 `devkit/`. `build/env.sh` names the one this version is built with
-(`DEVKIT`, currently `riscos-mesa-devkit-20.3.5-7pre11`):
+(`DEVKIT`, currently `riscos-mesa-devkit-20.3.5-8c`):
 
 ```sh
-mkdir -p devkit && tar xzf riscos-mesa-devkit-20.3.5-7pre11.tgz -C devkit
+mkdir -p devkit && tar xzf riscos-mesa-devkit-20.3.5-8c.tgz -C devkit
 ```
 
 ## 3. Build
@@ -109,6 +109,7 @@ without `env.sh`'s settings and breaks the Makefile. If that happens, delete
 tools/wz-patches.sh check
 tools/check-unaligned.sh                                   # must report 0 left to review
 tools/check-unixlib.sh                                     # must say OK (UnixLib built consistently)
+tools/check-fpu.sh                                         # must say OK (runs on VFPv3 machines)
 PATH=$GCCSDK_ENV/bin:$PATH python3 tools/check-stack-probes.py src/warzone2100-2.3.9/src/warzone2100
                                                            # must report 0 without stack probes
 ```
@@ -131,8 +132,8 @@ PATH=$GCCSDK_ENV/bin:$PATH python3 tools/check-stack-probes.py src/warzone2100-2
   `vfpv3`, so the program can run on Cortex-A8/A9 boards as well as the Pi
   2 onwards. VFPv4 only adds fused multiply-add, which GCC uses whenever it
   can. The devkit has to be built the same way: `tools/check-fpu.sh` lists
-  any library or program with VFPv4-only instructions. The 7pre11 devkit
-  still has them, in OSMesa, SDL2 and GLU (handoff to riscos-mesa).
+  any library or program with VFPv4-only instructions; it must say OK.
+  The riscos-mesa devkit is VFPv3 from 20.3.5-8c.
 - **Stack clash protection is required.** Everything is built with
   `-fstack-clash-protection`: ARMEABISupport maps the stack a page at a
   time, so a frame over 4KB must probe it page by page.

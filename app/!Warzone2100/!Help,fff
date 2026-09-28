@@ -12,8 +12,10 @@ sound and music.
 
 Requirements
 ------------
-- RISC OS 5 on an ARMv7 machine (Raspberry Pi 2 or later; a Pi 4 is
-  recommended). The program uses VFPv4 instructions.
+- RISC OS 5 on an ARMv7 machine with VFP: a Raspberry Pi 2 or later,
+  or a Cortex-A8/A9 board such as the BeagleBoard-xM, PandaBoard, ARMini
+  or an i.MX6 board. A Pi 4 is recommended: everything is drawn in
+  software, so slower machines need a small window (640x480).
 - SharedUnixLibrary 1.16 or later and ARMEABISupport (both from PackMan).
 - The PThreadTicker module is included, and !Run loads it (or a newer
   copy from !System). It runs the code that switches between the game's

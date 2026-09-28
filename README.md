@@ -37,6 +37,7 @@ and ARMEABISupport, both from PackMan.
 | `tools/wz-patches.sh` | Edit the patch series with git (see BUILDING.md). |
 | `tools/check-unaligned.sh` | Finds code that can do unaligned loads and stores, which RISC OS traps. |
 | `tools/check-unixlib.sh` | Checks the program's UnixLib claims the full 472-byte pthread ticker block and agrees with the C side (a stale build hung the machine). |
+| `tools/check-fpu.sh` | Checks nothing in the program needs VFPv4, so it runs on Cortex-A8/A9 machines too. |
 | `tools/check-stack-probes.py` | Finds big stack frames that don't probe the stack. |
 | `tools/profile/` | Profile the renderer on Linux with the same Mesa (see its README): where the frame time goes. |
 | `tools/elf2aif/` | ELF to Absolute converter with the >32MB fix (copy from riscos-openttd). |
