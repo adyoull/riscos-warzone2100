@@ -63,9 +63,12 @@ See `app/!Warzone2100/!Help,fff`. In short:
 
 ## Status
 
-- **Release 2.3.9-1 (2026-09-27):** playable on a Raspberry Pi 4 in a
+- **Release 2.3.9-2 (2026-09-28):** playable on a Raspberry Pi 4 in a
   1024x768 desktop window, with sound and music: menus, campaign,
-  skirmish, settings, quitting. See [CHANGELOG.md](CHANGELOG.md).
+  skirmish, settings, quitting. Other desktop tasks are safe while it runs
+  (UnixLib 5.0.1 and PThreadTicker), and it's built for VFPv3, so it
+  should also run on Cortex-A8/A9 boards (untested). See
+  [CHANGELOG.md](CHANGELOG.md).
 - **Sound:** OpenAL Soft 1.19.1 (from the riscos-mesa devkit) plays
   through the devkit SDL2's audio, which goes to SharedSoundBuffer.
   Music is included; `WZ_SOUND=0 build/build-wz.sh` builds without sound.

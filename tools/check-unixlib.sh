@@ -1,6 +1,6 @@
 #!/bin/bash
 # Check that the linked program has riscos-unixlib's pthread ticker fix
-# (patches/unixlib/unixlib-riscos.diff, v0.1.1-rc1) built consistently:
+# (patches/unixlib/unixlib-riscos.diff, UnixLib 5.0.1) built consistently:
 # the start-up code (_syslib.s) must claim the whole 472-byte pthread ticker
 # block from the RMA (counters and the RMA copy of the ticker routines,
 # used when the PThreadTicker module isn't loaded), and agree with the C
@@ -19,7 +19,7 @@
 ELF=${1:-$SRC/warzone2100-2.3.9/src/warzone2100}
 OBJDUMP=$GCCSDK_ENV/bin/arm-riscos-gnueabihf-objdump
 NM=$GCCSDK_ENV/bin/arm-riscos-gnueabihf-nm
-"$NM" "$ELF" | grep -q ' __pthread_ticker_init$' || { echo "no __pthread_ticker_init: not riscos-unixlib 0.1.1's ticker" >&2; exit 1; }
+"$NM" "$ELF" | grep -q ' __pthread_ticker_init$' || { echo "no __pthread_ticker_init: not UnixLib 5.0.1's ticker" >&2; exit 1; }
 # The claim: "mov r3, #<size>" then OS_Module (svc 0x2001e) in no_dynamic_area.
 size=$("$OBJDUMP" -d "$ELF" | awk '/^[0-9a-f]+ <no_dynamic_area>:$/{p=1;next} p&&/^$/{exit}
   p&&/mov\tr3, #/{s=$0} p&&/svc\t0x0002001e/{sub(/.*#/,"",s); sub(/[ \t;].*/,"",s); print s; exit}')

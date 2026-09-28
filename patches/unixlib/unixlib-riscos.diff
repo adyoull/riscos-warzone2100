@@ -90,6 +90,29 @@ index d7a6a30..da15f81 100644
  	/* Terminal type device file.  */
  	mode |= S_IFCHR;
  	break;
+diff --git a/gcc4/recipe/files/gcc/libunixlib/configure.ac b/gcc4/recipe/files/gcc/libunixlib/configure.ac
+index 53fe31c..8f34d51 100644
+--- a/gcc4/recipe/files/gcc/libunixlib/configure.ac
++++ b/gcc4/recipe/files/gcc/libunixlib/configure.ac
+@@ -5,7 +5,7 @@ dnl Process this file with autoconf to produce a configure script
+ dnl Written by Nick Burrett <nick@sqrt.co.uk>
+ 
+ AC_PREREQ(2.64)
+-AC_INIT([RISC OS UnixLib C Runtime Library], 5.0, [http://gccsdk.riscos.info/], [libunixlib])
++AC_INIT([RISC OS UnixLib C Runtime Library], 5.0.1, [http://gccsdk.riscos.info/], [libunixlib])
+ AC_CONFIG_SRCDIR([assert/assert.c])
+ AC_CONFIG_HEADER(config.h)
+ 
+diff --git a/gcc4/recipe/files/gcc/libunixlib/doc/UnixLib/Help b/gcc4/recipe/files/gcc/libunixlib/doc/UnixLib/Help
+index 7775d56..6045913 100644
+--- a/gcc4/recipe/files/gcc/libunixlib/doc/UnixLib/Help
++++ b/gcc4/recipe/files/gcc/libunixlib/doc/UnixLib/Help
+@@ -1,4 +1,4 @@
+-                                UnixLib 5.0
++                                UnixLib 5.0.1
+                                 ~~~~~~~~~~~
+ 
+ This document provides a VERY short introduction to UnixLib, and only covers
 diff --git a/gcc4/recipe/files/gcc/libunixlib/incl-local/internal/asm_dec.s b/gcc4/recipe/files/gcc/libunixlib/incl-local/internal/asm_dec.s
 index 7f01c57..4aff7fc 100644
 --- a/gcc4/recipe/files/gcc/libunixlib/incl-local/internal/asm_dec.s
@@ -945,10 +968,10 @@ index f6fa1f3..641632c 100644
    thread->__policy = policy;
 diff --git a/gcc4/recipe/files/gcc/libunixlib/pthread/ticker.c b/gcc4/recipe/files/gcc/libunixlib/pthread/ticker.c
 new file mode 100644
-index 0000000..17b960c
+index 0000000..9dcce42
 --- /dev/null
 +++ b/gcc4/recipe/files/gcc/libunixlib/pthread/ticker.c
-@@ -0,0 +1,310 @@
+@@ -0,0 +1,317 @@
 +/* Thread ticker: starting and stopping it, the Wimp filters, statistics.
 +   Copyright (c) 2026 UnixLib Developers.
 +
@@ -1011,8 +1034,9 @@ index 0000000..17b960c
 +  *handle = *version = 0;
 +  if (_swix (Wimp_ReadSysInfo, _IN(0) | _OUT(0), 3, &desktop) || !desktop)
 +    return;
-+  if (_swix (Wimp_ReadSysInfo, _IN(0) | _OUTR(0,1), 5, handle, version))
-+    *handle = *version = 0;
++  if (_swix (Wimp_ReadSysInfo, _IN(0) | _OUTR(0,1), 5, handle, version)
++      || *handle == 0)
++    *handle = *version = 0;	/* R1 is undefined when not a task.  */
 +}
 +
 +static inline struct __pthread_callevery_block *
@@ -1218,12 +1242,18 @@ index 0000000..17b960c
 +  if (b == NULL || file == NULL || file[0] == '\0')
 +    return;
 +
-+  /* The program name: the first word of the command line.  */
++  /* The program name: the leaf of the first word of the command line
++     (the whole path was cut short: "...!Warzone2100.warzone210").  */
 +  prog[0] = '\0';
 +  if (!_swix (OS_GetEnv, _OUT(0), &cmd) && cmd != NULL)
 +    {
-+      for (i = 0; i < (int) sizeof (prog) - 1 && cmd[i] > ' '; i++)
-+	prog[i] = cmd[i];
++      const char *leaf = cmd;
++
++      for (i = 0; cmd[i] > ' '; i++)
++	if (cmd[i] == '.' || cmd[i] == ':')
++	  leaf = cmd + i + 1;
++      for (i = 0; i < (int) sizeof (prog) - 1 && leaf[i] > ' '; i++)
++	prog[i] = leaf[i];
 +      prog[i] = '\0';
 +    }
 +

@@ -27,7 +27,7 @@ T=arm-riscos-gnueabihf
 mkdir -p "$TC" "$GCCSDK_ENV"; cd "$TC"
 [ -d gccsdk ] || { tar xf "$DL"/gccsdk-64c6f81.tar.gz; mv riscos-gccsdk-64c6f81* gccsdk
   # riscos-unixlib's whole change set (patches/unixlib/unixlib-riscos.diff,
-  # v0.1.1-rc1): real wide-character functions (the stubs aborted when
+  # UnixLib 5.0.1): real wide-character functions (the stubs aborted when
   # libstdc++'s locale setup called wctype()), a high resolution monotonic
   # clock, nanosleep accuracy, no mmap for large blocks, sched priorities,
   # and the pthread ticker fix: its handler and Wimp filters run from the

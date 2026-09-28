@@ -144,8 +144,8 @@ PATH=$GCCSDK_ENV/bin:$PATH python3 tools/check-stack-probes.py src/warzone2100-2
   is paged in. In GCCSDK's UnixLib its handler (and the Wimp filters that
   should stop it while the program is paged out) are in our application
   space, and crashed other tasks ("abort on instruction fetch" in
-  Organizer). `patches/unixlib/unixlib-riscos.diff` (riscos-unixlib
-  v0.1.1-rc1) runs them from the PThreadTicker module when it's loaded
+  Organizer). `patches/unixlib/unixlib-riscos.diff` (UnixLib
+  5.0.1, from riscos-unixlib) runs them from the PThreadTicker module when it's loaded
   (`!Run` loads the copy in the app), otherwise from a copy in the RMA.
 - **After changing `patches/unixlib`, rebuild UnixLib from clean:**
   `build/build-toolchain.sh unixlib` (a few minutes; it re-patches GCCSDK

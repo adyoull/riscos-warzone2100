@@ -1,4 +1,4 @@
-Warzone 2100 2.3.9 for RISC OS (release 2.3.9-1)
+Warzone 2100 2.3.9 for RISC OS (release 2.3.9-2)
 =================================================
 
 Warzone 2100 is a real-time strategy game, originally released by Pumpkin
@@ -81,7 +81,8 @@ This build contains, statically linked:
   fontconfig 2.12.6 and expat 2.2.9 (MIT), PhysicsFS 2.0.3 and zlib
   (zlib licence), libpng 1.6.37 (libpng licence), popt 1.16 (MIT),
   libogg 1.3.5, libvorbis 1.3.7 and libtheora 1.1.1 (BSD).
-- UnixLib and the GCC runtime from GCCSDK.
+- UnixLib 5.0.1 (riscos-unixlib: GCCSDK's UnixLib with the ports' fixes)
+  and the GCC runtime from GCCSDK.
 
 Fonts: DejaVu Sans 2.37 (see docs.DejaVu-LICENSE).
 

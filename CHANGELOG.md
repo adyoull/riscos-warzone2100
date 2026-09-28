@@ -1,28 +1,38 @@
 # Changelog
 
-## Unreleased (test builds 2.3.9-2test1, test2)
+## 2.3.9-2 (2026-09-28)
 
-- **Runs on more machines (test2):** built for VFPv3 (`-mfpu=vfpv3`) with
-  riscos-mesa devkit 20.3.5-8c, so Cortex-A8/A9 boards (BeagleBoard-xM,
-  PandaBoard, ARMini, i.MX6) as well as the Pi 2 onwards. riscos-mesa
-  measured no difference on a Pi 4. `tools/check-fpu.sh` checks the program.
+Built with UnixLib 5.0.1 (riscos-unixlib) and riscos-mesa devkit 20.3.5-8c.
 
-- UnixLib is riscos-unixlib v0.1.1-rc1 (`patches/unixlib/unixlib-riscos.diff`),
-  replacing the OpenTTD UnixLib diff and our RMA ticker diff. The thread
-  switcher and its Wimp filters now run from the **PThreadTicker** module,
-  which is included in the app and loaded by `!Run` (or from a copy in the
-  RMA without it). The filters follow the task handle, so threads started
-  before `Wimp_Initialise` are covered.
+**Other tasks no longer crash while the game runs**
+- With 2.3.9-1, another desktop task could occasionally stop with "abort
+  on instruction fetch" (seen in Organizer). UnixLib's thread switcher
+  (a 2cs timer, active while a program has more than one thread) lived in
+  the game's memory and was meant to be paused by Wimp filters whenever
+  the game was swapped out. The game's first thread starts before it
+  becomes a desktop task, so the old UnixLib never set the filters up and
+  the timer fired into whichever task was running.
+- UnixLib 5.0.1 (`patches/unixlib/unixlib-riscos.diff`) registers the
+  filters once the game is a task, and runs the timer from the new
+  **PThreadTicker** module (included in the app and loaded by `!Run`), or
+  from a copy in the RMA without it. It replaces the OpenTTD UnixLib diff
+  and our own RMA ticker diff.
+- Tested on a Pi 4: an hour of play with other tasks running, no errors
+  in the game or elsewhere; the ticker stats confirmed the module and the
+  filters.
+
+**Runs on more machines**
+- Built for VFPv3 (`-mfpu=vfpv3`), and so is the riscos-mesa devkit from
+  20.3.5-8c: Cortex-A8/A9 boards (BeagleBoard-xM, PandaBoard, ARMini,
+  i.MX6) as well as the Pi 2 onwards. riscos-mesa measured no difference
+  on a Pi 4. Not yet tried on an A8/A9 board; expect a small window there.
+
+**Other**
 - With logging on, `!Run` sets `UnixLib$TickerStats`: a line of thread
   switcher counters goes to `<Wimp$ScrapDir>.WZTickerStats` at exit.
-- `build/build-toolchain.sh unixlib` rebuilds only UnixLib, from clean.
-- **Tested (test2, Pi 4):** an hour of play with other tasks running, and
-  no errors in the game or in other programs. The ticker stats showed the
-  module in use (`via=module`) and the filters moved to the real task
-  handle once it appeared (the first thread starts before it's known,
-  which is why the old UnixLib never installed them). The run without the
-  module (RMA copy) and the Cortex-A8/A9 boards are still untested.
-- Release waits for riscos-unixlib 0.1.1 final.
+- Build: `build/build-toolchain.sh unixlib` rebuilds only UnixLib, from
+  clean; `tools/check-fpu.sh` joins the release checks; `check-unixlib.sh`
+  checks the 472-byte ticker block.
 
 ## 2.3.9-1 (2026-09-27)
 

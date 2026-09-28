@@ -48,7 +48,7 @@ them in order with `patch -p1`. To edit them, use `tools/wz-patches.sh`
 
 ## unixlib/
 
-`unixlib-riscos.diff`: riscos-unixlib v0.1.1-rc1
+`unixlib-riscos.diff`: UnixLib 5.0.1 (riscos-unixlib)
 (github.com/adyoull/riscos-unixlib), the whole change set for GCCSDK's
 UnixLib. It includes the OpenTTD port's changes (real wide-character
 functions: the stubs aborted with "wctype: Not implemented" when the C++
