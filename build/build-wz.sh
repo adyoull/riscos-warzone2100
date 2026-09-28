@@ -9,6 +9,8 @@
 $CC $CFLAGS -DOUTPUT_VAR='"Warzone2100$Output"' \
     -DOUTPUT_DEFAULT='"/<Wimp$ScrapDir>/Warzone2100log"' -c "$REPO_DIR/riscos/riscos_output.c" \
     -o "$STAGE/lib/riscos_output.o"
+# fontconfig's FONTCONFIG_FILE, set for this program only (riscos_fontconfig.c).
+$CC $CFLAGS -c "$REPO_DIR/riscos/riscos_fontconfig.c" -o "$STAGE/lib/riscos_fontconfig.o"
 cd "$WZ_SRC"
 [ -f configure ] || ./autogen.sh
 # Static libraries don't carry their own dependencies: PhysicsFS needs zlib,
@@ -17,7 +19,7 @@ cd "$WZ_SRC"
 SOUND=--enable-sound; [ "${WZ_SOUND:-1}" = 0 ] && SOUND=--disable-sound
 [ -f Makefile ] || ./configure --host=$HOST --build=$BUILD \
   --prefix=/Warzone2100 --enable-static $SOUND --disable-nls \
-  --disable-motif LIBS="$STAGE/lib/riscos_output.o -lvorbis -logg -lz" LDFLAGS="$LDFLAGS -static" \
+  --disable-motif LIBS="$STAGE/lib/riscos_output.o $STAGE/lib/riscos_fontconfig.o -lvorbis -logg -lz" LDFLAGS="$LDFLAGS -static" \
   CC_FOR_BUILD=gcc CXX_FOR_BUILD=g++ CFLAGS_FOR_BUILD=-O2 CXXFLAGS_FOR_BUILD=-O2 \
   CPPFLAGS_FOR_BUILD= LDFLAGS_FOR_BUILD=
 make -j$JOBS "$@"

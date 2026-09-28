@@ -128,6 +128,12 @@ PATH=$GCCSDK_ENV/bin:$PATH python3 tools/check-stack-probes.py src/warzone2100-2
 - **No `popen()`, `system()`, `fork()` or `exec()`.** UnixLib runs a child
   as a *command inside our own memory. To launch something, use
   `Wimp_StartTask`.
+- **No global variables for the program's own settings.** `*Set NAME`
+  without a `$` in the name reaches every UnixLib program started
+  afterwards (UnixLib copies such variables into each program's
+  environment). Use `setenv()` in the program (it stays in the program's
+  own environment), as `riscos/riscos_fontconfig.c` does for
+  `FONTCONFIG_FILE`, or an `App$...` variable.
 - **VFPv3, not VFPv4.** `build/env.sh` builds with `-mfpu=$FPU`, default
   `vfpv3`, so the program can run on Cortex-A8/A9 boards as well as the Pi
   2 onwards. VFPv4 only adds fused multiply-add, which GCC uses whenever it

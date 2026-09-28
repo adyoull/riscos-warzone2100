@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.3.9-5 (2026-09-28)
+
+- **Other fontconfig programs are no longer affected.** Up to 2.3.9-4,
+  `!Run` set `FONTCONFIG_FILE` to the game's own fonts.conf. That is a
+  global variable, which UnixLib passes to every program started later,
+  so programs such as Iris used Warzone's font list and put their font
+  cache in its scrap directory (reported by Chris Gransden). The game now
+  sets it for itself only (`riscos/riscos_fontconfig.c`), and `!Run`
+  removes the old global setting if it's still Warzone's. A reboot also
+  clears it.
+
 ## 2.3.9-4 (2026-09-28)
 
 - A game that fails to start no longer does so silently. Errors, and any

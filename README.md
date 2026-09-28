@@ -68,7 +68,7 @@ See `app/!Warzone2100/!Help,fff`. In short:
 
 ## Status
 
-- **Release 2.3.9-4 (2026-09-28):** playable on a Raspberry Pi 4 in a
+- **Release 2.3.9-5 (2026-09-28):** playable on a Raspberry Pi 4 in a
   1024x768 desktop window, with sound and music: menus, campaign,
   skirmish, settings, quitting. Other desktop tasks are safe while it runs
   (UnixLib 5.0.1 and PThreadTicker), and it's built for VFPv3, so it
