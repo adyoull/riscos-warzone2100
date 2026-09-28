@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.3.9-4 (2026-09-28)
+
+- A game that fails to start no longer does so silently. Errors, and any
+  crash backtrace, now always go to `<Wimp$ScrapDir>.Warzone2100log`
+  (empty after a normal run); before, they were discarded unless
+  `Warzone2100$Log` was set. `Warzone2100$Log` now adds the game's full
+  log (`<Choices$Write>.Warzone2100.WZlog`) and the thread-switcher
+  counters.
+- Docs: where to get SharedSoundBuffer and StreamManager (ssb.zip on the
+  RDPClient page), and John Duffell's site on the Internet Archive.
+
 ## 2.3.9-3 (2026-09-28)
 
 - Rebuilt with the released riscos-mesa devkit 20.3.5-8 (2.3.9-2 used

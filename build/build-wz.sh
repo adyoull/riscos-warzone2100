@@ -6,7 +6,8 @@
 # stdout/stderr -> the file named by Warzone2100$Output (riscos-mesa's
 # riscos_output.c, MIT): Warzone logs to stderr, which in a Wimp task would
 # otherwise open a command window.
-$CC $CFLAGS -DOUTPUT_VAR='"Warzone2100$Output"' -c "$REPO_DIR/riscos/riscos_output.c" \
+$CC $CFLAGS -DOUTPUT_VAR='"Warzone2100$Output"' \
+    -DOUTPUT_DEFAULT='"/<Wimp$ScrapDir>/Warzone2100log"' -c "$REPO_DIR/riscos/riscos_output.c" \
     -o "$STAGE/lib/riscos_output.o"
 cd "$WZ_SRC"
 [ -f configure ] || ./autogen.sh

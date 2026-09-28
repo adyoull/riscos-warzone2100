@@ -1,4 +1,4 @@
-Warzone 2100 2.3.9 for RISC OS (release 2.3.9-3)
+Warzone 2100 2.3.9 for RISC OS (release 2.3.9-4)
 =================================================
 
 Warzone 2100 is a real-time strategy game, originally released by Pumpkin
@@ -43,12 +43,15 @@ Double-click !Warzone2100. The game opens a 1024x768 desktop window
   change takes effect the next time the game starts.
 - Settings, saved games and screenshots are kept in
   <Choices$Write>.Warzone2100.
-- Logging is off. To report a problem, turn it on in !Run (remove the |
-  from "| Set Warzone2100$Log 1", or *Set Warzone2100$Log 1 before
-  running the game), repeat the problem, and include
-  <Wimp$ScrapDir>.Warzone2100log and <Choices$Write>.Warzone2100.WZlog
-  with the report. With logging on, a line of thread-switcher counters
-  also goes into <Wimp$ScrapDir>.WZTickerStats when the game quits.
+- Errors always go to <Wimp$ScrapDir>.Warzone2100log, which is empty
+  after a normal run. If the game doesn't start or stops unexpectedly,
+  send that file with your report.
+- For a full log, turn logging on in !Run (remove the | from
+  "| Set Warzone2100$Log 1", or *Set Warzone2100$Log 1 before running
+  the game) and repeat the problem. The game's own log then also goes to
+  <Choices$Write>.Warzone2100.WZlog, and a line of thread-switcher
+  counters to <Wimp$ScrapDir>.WZTickerStats when the game quits. Send
+  those too.
 
 
 Things to know

@@ -61,13 +61,14 @@ See `app/!Warzone2100/!Help,fff`. In short:
 - A new config starts with shadows off (Alt+S turns them on), vsync off,
   and fog set to "Fog Of War", not "Mist": each costs software OpenGL
   about 10%.
-- Logging is off unless `Warzone2100$Log` is set (a line in `!Run`): then
-  the game's output goes to `<Wimp$ScrapDir>.Warzone2100log` and its log,
-  with any crash backtrace, to `<Choices$Write>.Warzone2100.WZlog`.
+- Errors, and any crash backtrace, always go to
+  `<Wimp$ScrapDir>.Warzone2100log` (empty after a normal run). Setting
+  `Warzone2100$Log` (a line in `!Run`) adds the game's full log in
+  `<Choices$Write>.Warzone2100.WZlog`.
 
 ## Status
 
-- **Release 2.3.9-3 (2026-09-28):** playable on a Raspberry Pi 4 in a
+- **Release 2.3.9-4 (2026-09-28):** playable on a Raspberry Pi 4 in a
   1024x768 desktop window, with sound and music: menus, campaign,
   skirmish, settings, quitting. Other desktop tasks are safe while it runs
   (UnixLib 5.0.1 and PThreadTicker), and it's built for VFPv3, so it

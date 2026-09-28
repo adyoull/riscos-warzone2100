@@ -9,7 +9,9 @@
  *   Set App$Output /|<App$Dir>/Output
  *
  * From riscos-mesa (MIT licence, see LICENCES.txt); changed for Warzone
- * 2100 to discard the output when the variable isn't set.
+ * 2100: without the variable the output goes to OUTPUT_DEFAULT (if
+ * defined), and if a file can't be opened, it's discarded (/dev/null)
+ * rather than left to open a command window.
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,11 +26,17 @@ static void riscos_redirect_output(void)
     const char *o = getenv(OUTPUT_VAR);
     FILE *f;
     if (!o || !*o)
+#ifdef OUTPUT_DEFAULT
+        o = OUTPUT_DEFAULT;
+#else
         o = "/dev/null";
+#endif
     /* Empty the file, then append from both streams: with stdout opened
        "w", its writes went over what stderr had already written. */
     if ((f = fopen(o, "w")) != NULL)
         fclose(f);
+    else
+        o = "/dev/null";
     if (freopen(o, "a", stdout) != NULL) {
         setvbuf(stdout, NULL, _IOLBF, 0);
         if (freopen(o, "a", stderr) != NULL)

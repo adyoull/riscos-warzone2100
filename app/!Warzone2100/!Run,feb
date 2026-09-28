@@ -63,14 +63,14 @@ Unset Warzone2100$FilterArg
 If "<Warzone2100$Filter>"<>"" Then Set Warzone2100$FilterArg --texfilter=<Warzone2100$Filter>
 
 | --- Logging --------------------------------------------------------
-| Off by default. To report a problem, set Warzone2100$Log (remove the |
-| from the next line, or *Set Warzone2100$Log 1 before running the game):
-| the game's output then goes to <Wimp$ScrapDir>.Warzone2100log, and its
-| log (with any crash backtrace) to <Choices$Write>.Warzone2100.WZlog.
+| Errors always go to <Wimp$ScrapDir>.Warzone2100log (empty after a normal
+| run), so a game that fails to start leaves a message and any crash
+| backtrace there. For a full log, set Warzone2100$Log (remove the | from
+| the next line, or *Set Warzone2100$Log 1 before running the game): the
+| game's own log then goes to <Choices$Write>.Warzone2100.WZlog as well.
 | Set Warzone2100$Log 1
-Unset Warzone2100$Output
+Set Warzone2100$Output /|<Wimp$ScrapDir>/Warzone2100log
 Unset Warzone2100$LogArg
-If "<Warzone2100$Log>"<>"" Then Set Warzone2100$Output /|<Wimp$ScrapDir>/Warzone2100log
 If "<Warzone2100$Log>"<>"" Then Set Warzone2100$LogArg --debugfile=/|<Choices$Write>/Warzone2100/WZlog
 | With logging on, UnixLib also adds a line of thread switcher counters to
 | <Wimp$ScrapDir>.WZTickerStats when the game quits. (The variable is
