@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.3.9-8 (2026-09-29)
+
+- **Fixed a crash at start-up on some machines** ("Fatal signal received:
+  EMT trap" just after fontconfig wrote its cache; reported by Chris
+  Gransden). fontconfig reads its config file and cache headers with
+  `read()` into buffers on the stack. ARMEABISupport maps the stack a page
+  at a time when the program touches it, but `read()` fills the buffer
+  with a SWI, and a SWI writing to an untouched stack page aborts. Whether
+  that happens depends on how deep the stack has been used before, so it
+  showed up on some machines and not others. `patches/fontconfig` touches
+  the buffers first, as GCCSDK's own fontconfig port does. Reported to
+  riscos-unixlib, where `read()` itself could do this for every program.
+
 ## 2.3.9-7 (2026-09-29)
 
 - **Fonts: back to the game's own fontconfig setup.** 2.3.9-6 used

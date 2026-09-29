@@ -53,4 +53,5 @@ pat() {  # dir -pN patch...
 }
 pat physfs-release-2.0.3 -p1 "$REPO_DIR"/patches/physfs/*.diff
 pat quesoglc-0.7.2       -p1 "$REPO_DIR"/patches/quesoglc/*.diff
+pat fontconfig-2.12.6    -p1 "$REPO_DIR"/patches/fontconfig/*.diff
 pat warzone2100-2.3.9    -p1 "$REPO_DIR"/patches/warzone2100/*.patch

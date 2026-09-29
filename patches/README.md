@@ -40,6 +40,15 @@ them in order with `patch -p1`. To edit them, use `tools/wz-patches.sh`
   EBADF, which used to stop the file being closed); for files being
   written its result is ignored.
 
+## fontconfig/ (fontconfig 2.12.6)
+
+`fontconfig-2.12.6-riscos.diff`: touch the stack buffers that `read()`
+fills (the config file in `fcxml.c`, the cache header in `fccache.c`)
+before the call. `read()` fills them with a SWI, and a SWI writing to a
+stack page that hasn't been touched yet aborts ("EMT trap"), because
+ARMEABISupport only maps stack pages when USR mode touches them. GCCSDK's
+fontconfig port has the same change in `fcxml.c`.
+
 ## quesoglc/ (QuesoGLC 0.7.2)
 
 - A hand-written makefile and `qglc_config.h` for RISC OS (in `riscos/`).
