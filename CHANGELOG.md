@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.3.9-7 (2026-09-29)
+
+- **Fonts: back to the game's own fontconfig setup.** 2.3.9-6 used
+  PackMan's fontconfig setup (UnixFC) when it was installed, but its
+  `fonts.conf` is for fontconfig 2.14 and the 2.12.6 linked into the game
+  can't load it: "Fontconfig error: Cannot load default config file"
+  (reported by Chris Gransden). The game now always uses its own
+  `fonts.conf`, set for itself only and before the text library starts
+  (the 2.3.9-6 fixes stay). It doesn't read or write UnixFC's files.
+
 ## 2.3.9-6 (2026-09-28)
 
 - **Fonts: fixed "Cannot load default config file" in 2.3.9-5.**

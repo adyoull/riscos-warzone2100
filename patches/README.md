@@ -46,8 +46,9 @@ them in order with `patch -p1`. To edit them, use `tools/wz-patches.sh`
 - `glew.c` loads GL functions with `OSMesaGetProcAddress`, and uses no
   thread-local storage.
 - `ocontext.c`: on RISC OS, the folder named by `RISCOS_APPFONTS` is added
-  to fontconfig as application fonts (the game's DejaVu, on top of
-  PackMan's fontconfig setup; `riscos/riscos_fontconfig.c` sets it).
+  to fontconfig as application fonts. Unused since 2.3.9-7 (the game
+  uses its own fonts.conf); kept as it does nothing when the variable
+  isn't set.
 
 ## unixlib/
 
