@@ -6,9 +6,11 @@
  *   that size and the picture is stretched to the window or the screen.
  *   Software OpenGL costs about the same per pixel, so fewer pixels means
  *   a faster game. Sizes under 640x480 (the game's minimum) are ignored.
- * - Warzone2100$Overlay 1: show frames through the hardware overlay
- *   (VideoOverlay, on the Raspberry Pi) instead of plotting them; 0 refuses
- *   one.
+ * - The hardware overlay (VideoOverlay, on the Raspberry Pi) shows the
+ *   frames instead of plotting them whenever the module is loaded (!Run
+ *   loads it from !System if it's there). Warzone2100$Overlay 0 turns it
+ *   off, 1 asks for it even if the module isn't loaded yet. Without the
+ *   module SDL keeps its usual path, so other machines are unaffected.
  *
  * riscos-mesa's SDL (20.3.5-10) reads its hints SDL_RISCOS_GL_RENDER_SIZE
  * and SDL_RISCOS_GL_OVERLAY from the environment when they aren't set by
@@ -21,6 +23,14 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
+#include <kernel.h>
+#include <swis.h>
+
+/* Is the VideoOverlay module loaded? */
+static int have_videooverlay(void)
+{
+    return _swix(OS_Module, _INR(0,1), 18, "VideoOverlay") == NULL;
+}
 
 __attribute__((constructor(103)))
 static void riscos_display_env(void)
@@ -46,4 +56,6 @@ static void riscos_display_env(void)
     }
     if (overlay && (*overlay == '1' || *overlay == '0') && overlay[1] == '\0')
         setenv("SDL_RISCOS_GL_OVERLAY", overlay, 1);
+    else if (have_videooverlay())
+        setenv("SDL_RISCOS_GL_OVERLAY", "1", 1);
 }

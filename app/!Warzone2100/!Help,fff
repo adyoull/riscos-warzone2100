@@ -67,10 +67,11 @@ Things to know
 - Or render smaller than the window: set Warzone2100$RenderSize (e.g.
   640x480 or 800x600; see "Render size" in !Run) and the picture is
   stretched to the window or the full screen, so a big window or full
-  screen costs no more than the render size. On a Raspberry Pi,
-  Warzone2100$Overlay 1 shows the frames with the hardware overlay
-  (VideoOverlay) instead of plotting them: quicker, and no tearing. It
-  goes back to plotting while a menu or window is over the game.
+  screen costs no more than the render size.
+- On a Raspberry Pi with the VideoOverlay module, the game shows its
+  frames with the hardware overlay instead of plotting them: quicker, and
+  no tearing. It goes back to plotting while a menu or window is over the
+  game. Warzone2100$Overlay 0 (in !Run) turns it off.
 - Texture filtering is cheaper than on other systems (bilinear, no
   anisotropic filtering). For more speed use unfiltered textures, for
   better quality the usual ones: see "Texture filtering" in !Run

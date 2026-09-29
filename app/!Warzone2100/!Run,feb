@@ -61,11 +61,13 @@ If "<Warzone2100$Mode>"="" Then Set Warzone2100$Mode --window
 | The game can render at a smaller size than its window: the picture is
 | stretched to the window (or the screen), and software OpenGL has fewer
 | pixels to draw, so it runs faster (a little softer). At least 640x480.
-| On a Raspberry Pi the hardware overlay (VideoOverlay) can show the frames
-| instead of plotting them: quicker, and no tearing. While a menu or window
-| is over the game it goes back to plotting. Remove the | to use them:
+| On a Raspberry Pi the hardware overlay (VideoOverlay, loaded below if it's
+| in !System) shows the frames instead of plotting them: quicker, and no
+| tearing. It's used whenever the module is loaded; while a menu or window
+| is over the game it goes back to plotting. Remove the | to set a render
+| size, or to turn the overlay off:
 | Set Warzone2100$RenderSize 640x480
-| Set Warzone2100$Overlay 1
+| Set Warzone2100$Overlay 0
 RMEnsure VideoOverlay 0.00 IfThere System:Modules.VideoOverlay Then RMLoad System:Modules.VideoOverlay
 
 | --- Texture filtering ----------------------------------------------

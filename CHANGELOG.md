@@ -8,10 +8,11 @@
   1024x768 window rendering 640x480 draws 2.5 times fewer. The game lays
   out its screens at the render size, the mouse is scaled to match, and
   the config keeps the window's size. At least 640x480.
-- **Hardware overlay** on the Raspberry Pi: `Warzone2100$Overlay 1` shows
-  the frames with VideoOverlay instead of plotting them (quicker, no
-  tearing). It goes back to plotting while a menu or window covers the
-  game, and on machines without VideoOverlay. Off unless set.
+- **Hardware overlay** on the Raspberry Pi: whenever the VideoOverlay module
+  is loaded (`!Run` loads it from `!System`), the frames are shown with it
+  instead of being plotted (quicker, no tearing). It goes back to plotting
+  while a menu or window covers the game. `Warzone2100$Overlay 0` turns it
+  off. Machines without the module keep the usual path.
 - Both come from riscos-mesa's SDL (devkit 10a, the pre-release of
   20.3.5-10), which now links libEGL. The settings are passed to SDL for
   this program only (`riscos/riscos_display.c`).
