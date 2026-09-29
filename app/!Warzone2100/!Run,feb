@@ -57,6 +57,17 @@ WimpSlot -min 32768K -max 32768K
 | Set Warzone2100$Mode --fullscreen --resolution 640x480
 If "<Warzone2100$Mode>"="" Then Set Warzone2100$Mode --window
 
+| --- Render size and hardware overlay ----------------------------------
+| The game can render at a smaller size than its window: the picture is
+| stretched to the window (or the screen), and software OpenGL has fewer
+| pixels to draw, so it runs faster (a little softer). At least 640x480.
+| On a Raspberry Pi the hardware overlay (VideoOverlay) can show the frames
+| instead of plotting them: quicker, and no tearing. While a menu or window
+| is over the game it goes back to plotting. Remove the | to use them:
+| Set Warzone2100$RenderSize 640x480
+| Set Warzone2100$Overlay 1
+RMEnsure VideoOverlay 0.00 IfThere System:Modules.VideoOverlay Then RMLoad System:Modules.VideoOverlay
+
 | --- Texture filtering ----------------------------------------------
 | Software OpenGL: filtering is most of the cost of drawing the ground.
 | fast (the default): bilinear; nearest: fastest, blocky close up;

@@ -1,0 +1,98 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Andrew Youll <adyoull@users.noreply.github.com>
+Date: Tue, 29 Sep 2026 17:54:44 +0100
+Subject: [PATCH] RISC OS: render at SDL's render size, keep the window size in
+ the config
+
+With riscos-mesa 20.3.5-10's SDL_RISCOS_GL_RENDER_SIZE the window keeps the
+size asked for, but SDL reports the render size: draw and lay out at that
+size (video buffer, viewport), and save the window's size in the config.
+---
+ lib/ivis_opengl/screen.c | 31 +++++++++++++++++++++++++++++++
+ lib/ivis_opengl/screen.h |  4 ++++
+ src/main.c               |  6 ++++++
+ 3 files changed, 41 insertions(+)
+
+diff --git a/lib/ivis_opengl/screen.c b/lib/ivis_opengl/screen.c
+index 242c289..9dd05e8 100644
+--- a/lib/ivis_opengl/screen.c
++++ b/lib/ivis_opengl/screen.c
+@@ -66,6 +66,14 @@ static char		screendump_filename[PATH_MAX];
+ static BOOL		screendump_required = false;
+ static GLuint		backDropTexture = ~0;
+ 
++#if defined(WZ_OS_RISCOS)
++// The desktop window's (or the full screen request's) size, which the
++// config keeps; the game itself may render at another size (below).
++static UDWORD	windowWidth = 0, windowHeight = 0;
++UDWORD screenGetWindowWidth(void) { return windowWidth; }
++UDWORD screenGetWindowHeight(void) { return windowHeight; }
++#endif
++
+ static int preview_width = 0, preview_height = 0;
+ static Vector2i player_pos[MAX_PLAYERS];
+ static BOOL mappreview = false;
+@@ -173,6 +181,29 @@ bool screenInitialise(
+ 	}
+ 	SDL_GL_MakeCurrent(screen, glContext);
+ 
++#if defined(WZ_OS_RISCOS)
++	// Render size (riscos-mesa 20.3.5-10; !Run's Warzone2100$RenderSize
++	// sets SDL_RISCOS_GL_RENDER_SIZE for this program): the window keeps the
++	// size asked for, but SDL reports the render size everywhere, the game
++	// draws and lays out its screens at that size, and the display stretches
++	// it (the hardware overlay, or a scaled sprite plot). Mouse positions
++	// come from SDL already scaled.
++	windowWidth = width;
++	windowHeight = height;
++	{
++		int drawW = 0, drawH = 0;
++		SDL_GL_GetDrawableSize(screen, &drawW, &drawH);
++		if (drawW >= 640 && drawH >= 480 && (drawW != (int)width || drawH != (int)height))
++		{
++			info("Rendering at %dx%d, shown in %ux%u", drawW, drawH, width, height);
++			screenWidth = width = drawW;
++			screenHeight = height = drawH;
++			pie_SetVideoBufferWidth(width);
++			pie_SetVideoBufferHeight(height);
++		}
++	}
++#endif
++
+ 	// Enable vsync if requested by the user
+ 	SDL_GL_SetSwapInterval(vsync ? 1 : 0);
+ 
+diff --git a/lib/ivis_opengl/screen.h b/lib/ivis_opengl/screen.h
+index a04cf26..6bdf368 100644
+--- a/lib/ivis_opengl/screen.h
++++ b/lib/ivis_opengl/screen.h
+@@ -55,6 +55,10 @@ extern void screen_Upload(const char *newBackDropBmp, BOOL preview);
+ extern void screenDumpToDisk(const char* path);
+ 
+ /* SDL2 replacements for SDL 1.2 window-manager calls */
++#if defined(WZ_OS_RISCOS)
++extern UDWORD screenGetWindowWidth(void);   ///< the window's size (the game may render at another size)
++extern UDWORD screenGetWindowHeight(void);
++#endif
+ extern void wzGrabMouse(bool grab);          ///< was SDL_WM_GrabInput
+ extern void wzIconifyWindow(void);           ///< was SDL_WM_IconifyWindow
+ extern void wzSetWindowTitle(const char *title); ///< was SDL_WM_SetCaption (may be called before the window exists)
+diff --git a/src/main.c b/src/main.c
+index 04f9ba9..be5af77 100644
+--- a/src/main.c
++++ b/src/main.c
+@@ -1255,8 +1255,14 @@ int main(int argc, char *argv[])
+ 	{
+ 		return -1;
+ 	}
++#if defined(WZ_OS_RISCOS)
++	// Keep the window's size in the config, not the render size.
++	war_SetWidth(screenGetWindowWidth());
++	war_SetHeight(screenGetWindowHeight());
++#else
+ 	war_SetWidth(pie_GetVideoBufferWidth());
+ 	war_SetHeight(pie_GetVideoBufferHeight());
++#endif
+ 
+ 	pie_SetFogStatus(false);
+ 	pie_ScreenFlip(CLEAR_BLACK);

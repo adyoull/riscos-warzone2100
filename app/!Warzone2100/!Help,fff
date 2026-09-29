@@ -1,4 +1,4 @@
-Warzone 2100 2.3.9 for RISC OS (release 2.3.9-10)
+Warzone 2100 2.3.9 for RISC OS (release 2.3.9-11)
 =================================================
 
 Warzone 2100 is a real-time strategy game, originally released by Pumpkin
@@ -64,6 +64,13 @@ Things to know
 - Everything is drawn in software (riscos-mesa, a build of Mesa 3D for
   RISC OS). Keep the window small for a good frame rate; 640x480 is the
   game's smallest size and the quickest.
+- Or render smaller than the window: set Warzone2100$RenderSize (e.g.
+  640x480 or 800x600; see "Render size" in !Run) and the picture is
+  stretched to the window or the full screen, so a big window or full
+  screen costs no more than the render size. On a Raspberry Pi,
+  Warzone2100$Overlay 1 shows the frames with the hardware overlay
+  (VideoOverlay) instead of plotting them: quicker, and no tearing. It
+  goes back to plotting while a menu or window is over the game.
 - Texture filtering is cheaper than on other systems (bilinear, no
   anisotropic filtering). For more speed use unfiltered textures, for
   better quality the usual ones: see "Texture filtering" in !Run

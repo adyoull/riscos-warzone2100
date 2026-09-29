@@ -12,7 +12,7 @@ have() { [ -f "$STAGE/lib/$1" ] && echo "    (already built)"; }
 
 step "riscos-mesa devkit -> stage"
 cp -r "$DEVKIT"/include/* "$STAGE/include/"
-cp "$DEVKIT"/lib/libOSMesa.a "$DEVKIT"/lib/libGLU.a "$DEVKIT"/lib/libSDL2.a \
+cp "$DEVKIT"/lib/libOSMesa.a "$DEVKIT"/lib/libGLU.a "$DEVKIT"/lib/libSDL2.a "$DEVKIT"/lib/libEGL.a \
    "$DEVKIT"/lib/libSDL2main.a "$DEVKIT"/lib/libz.a "$DEVKIT"/lib/libopenal.a "$STAGE/lib/"
 # OpenAL Soft (sound: plays through the devkit SDL2's audio, which goes to
 # SharedSoundBuffer). The devkit has no .pc for it; Warzone's configure
@@ -32,7 +32,9 @@ includedir=\${prefix}/include
 Name: sdl2
 Description: SDL 2.26 with the RISC OS Wimp driver and OSMesa GL (riscos-mesa devkit)
 Version: 2.26.0
-Libs: -L\${libdir} -lSDL2 -lOSMesa -lstdc++ -lz -lm
+# libSDL2 shows GL windows through libEGL when a render size or the overlay
+# is asked for (riscos-mesa 20.3.5-10: SDL_RISCOS_GL_RENDER_SIZE/_OVERLAY).
+Libs: -L\${libdir} -lSDL2 -lGLU -lEGL -lOSMesa -lstdc++ -lz -lm
 Cflags: -I\${includedir}/SDL2 -D_REENTRANT
 EOT
 cat > "$STAGE/lib/pkgconfig/zlib.pc" <<EOT

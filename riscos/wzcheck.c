@@ -8,7 +8,7 @@
  * closes.
  *
  * Steps:
- *   1. RISC OS version, and the modules the game needs (versions from
+ *   1. RISC OS version, and the modules the game uses (versions from
  *      their help strings).
  *   2. The variables the game and its libraries read (the FONTCONFIG ones
  *      as the game sets them for itself, riscos_fontconfig.c).
@@ -146,6 +146,7 @@ int main(int argc, char **argv)
     module("SharedSound");
     module("StreamManager");
     module("SharedSoundBuffer");
+    module("VideoOverlay");
 
     step("2. Variables");
     var("Warzone2100$Dir");
@@ -157,6 +158,10 @@ int main(int argc, char **argv)
     var("RISCOS_APPFONTS");
     var("FC_DEBUG");
     var("UnixFC$Dir");
+    var("Warzone2100$RenderSize");
+    var("Warzone2100$Overlay");
+    var("SDL_RISCOS_GL_RENDER_SIZE");
+    var("SDL_RISCOS_GL_OVERLAY");
     var("HOME");
     var("LANG");
     var("UnixEnv$wzcheck$sfix");

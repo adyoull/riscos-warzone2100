@@ -8,7 +8,7 @@ Raspberry Pi 2 onwards, and Cortex-A8/A9 boards); developed and tested on a
 Raspberry Pi 4.
 
 **Download:** the zip on the [releases page](https://github.com/adyoull/riscos-warzone2100/releases)
-(latest: 2.3.9-10).
+(latest: 2.3.9-11).
 
 How to build it: [BUILDING.md](BUILDING.md). What the patches change:
 [patches/README.md](patches/README.md).
@@ -49,6 +49,7 @@ so PackMan's fontconfig isn't required. Nothing global is set.
 | `patches/unixlib/` | UnixLib changes (from the RISC OS OpenTTD port), applied when the toolchain is built. |
 | `app/!Warzone2100/` | `!Run`, `!Boot`, `!Help`, `!Sprites` and the fontconfig setup. `package.sh` adds the program, the game data and the fonts. |
 | `riscos/riscos_output.c` | Sends stdout/stderr to the file named by `Warzone2100$Output` (from riscos-mesa, MIT). |
+| `riscos/riscos_display.c` | `Warzone2100$RenderSize` / `$Overlay` to SDL's render size and overlay hints, for this program only. |
 | `riscos/riscos_fontconfig.c` | Chooses the fontconfig setup (UnixFC's or the game's own), for this program only. |
 | `riscos/wzcheck.c` | The start-up checker, run by `!Warzone2100.Check`. |
 | `tools/wz-patches.sh` | Edit the patch series with git (see BUILDING.md). |
@@ -78,6 +79,11 @@ See `app/!Warzone2100/!Help,fff`. In short:
   `<Wimp$ScrapDir>.Warzone2100log` (empty after a normal run). Setting
   `Warzone2100$Log` (a line in `!Run`) adds the game's full log in
   `<Choices$Write>.Warzone2100.WZlog`.
+- Render size and overlay: `Warzone2100$RenderSize` (e.g. `640x480`) makes
+  the game render at that size, stretched to the window or the screen
+  (riscos-mesa's SDL hint `SDL_RISCOS_GL_RENDER_SIZE`, set for this program
+  only by `riscos/riscos_display.c`); `Warzone2100$Overlay 1` shows frames
+  with the Pi's hardware overlay (VideoOverlay). Both are lines in `!Run`.
 - If the game doesn't start, `!Warzone2100.Check` runs a start-up checker
   (`riscos/wzcheck.c`): the modules and variables, the heap dynamic area,
   fontconfig, FreeType, PhysicsFS and the game's data, and a stack test,
@@ -86,12 +92,12 @@ See `app/!Warzone2100/!Help,fff`. In short:
 
 ## Status
 
-- **Release 2.3.9-10 (2026-09-29):** playable on a Raspberry Pi 4 in a
+- **Release 2.3.9-11 (2026-09-29):** playable on a Raspberry Pi 4 in a
   1024x768 desktop window, with sound and music: menus, campaign,
   skirmish, settings, quitting. Other desktop tasks are safe while it runs
   (UnixLib 5.0.1 and PThreadTicker), and it's built for VFPv3, so it
   should also run on Cortex-A8/A9 boards (untested). Built with
-  riscos-mesa 20.3.5-8. See [CHANGELOG.md](CHANGELOG.md).
+  riscos-mesa devkit 10a (20.3.5-10). See [CHANGELOG.md](CHANGELOG.md).
 - **Fonts:** fontconfig 2.14.1; checked on a Pi 4 with UnixFC's setup
   (61 system fonts, DejaVu Sans from the system, UnixFC's cache).
 - **Sound:** OpenAL Soft 1.19.1 (from the riscos-mesa devkit) plays

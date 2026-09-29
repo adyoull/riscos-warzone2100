@@ -1,5 +1,22 @@
 # Changelog
 
+## 2.3.9-11 (2026-09-29)
+
+- **Render size.** `Warzone2100$RenderSize` (in `!Run`; e.g. `640x480` or
+  `800x600`) makes the game render at that size, stretched to its window
+  or the full screen. Software OpenGL has fewer pixels to draw, so a
+  1024x768 window rendering 640x480 draws 2.5 times fewer. The game lays
+  out its screens at the render size, the mouse is scaled to match, and
+  the config keeps the window's size. At least 640x480.
+- **Hardware overlay** on the Raspberry Pi: `Warzone2100$Overlay 1` shows
+  the frames with VideoOverlay instead of plotting them (quicker, no
+  tearing). It goes back to plotting while a menu or window covers the
+  game, and on machines without VideoOverlay. Off unless set.
+- Both come from riscos-mesa's SDL (devkit 10a, the pre-release of
+  20.3.5-10), which now links libEGL. The settings are passed to SDL for
+  this program only (`riscos/riscos_display.c`).
+- `Check` lists VideoOverlay and the two settings.
+
 ## 2.3.9-10 (2026-09-29)
 
 - **fontconfig 2.14.1, the version in PackMan, and PackMan's fontconfig
