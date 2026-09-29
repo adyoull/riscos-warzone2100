@@ -20,7 +20,8 @@ get libvorbis_1.3.7.orig.tar.gz         $U/main/libv/libvorbis/libvorbis_1.3.7.o
 get libtheora_1.1.1+dfsg.1.orig.tar.gz  $U/main/libt/libtheora/libtheora_1.1.1+dfsg.1.orig.tar.gz
 get freetype_2.10.1.orig.tar.gz         $U/main/f/freetype/freetype_2.10.1.orig.tar.gz
 get expat_2.2.9.orig.tar.gz             $U/main/e/expat/expat_2.2.9.orig.tar.gz
-get fontconfig_2.12.6.orig.tar.bz2      $U/main/f/fontconfig/fontconfig_2.12.6.orig.tar.bz2
+# fontconfig 2.14.1 is the version in PackMan; Ubuntu no longer has it, Debian bookworm does.
+get fontconfig_2.14.1.orig.tar.xz       https://deb.debian.org/debian/pool/main/f/fontconfig/fontconfig_2.14.1.orig.tar.xz
 get popt_1.16.orig.tar.gz               $U/main/p/popt/popt_1.16.orig.tar.gz
 get quesoglc_0.7.2.orig.tar.gz          $U/universe/q/quesoglc/quesoglc_0.7.2.orig.tar.gz
 # Toolchain sources (build/build-toolchain.sh)
@@ -53,5 +54,5 @@ pat() {  # dir -pN patch...
 }
 pat physfs-release-2.0.3 -p1 "$REPO_DIR"/patches/physfs/*.diff
 pat quesoglc-0.7.2       -p1 "$REPO_DIR"/patches/quesoglc/*.diff
-pat fontconfig-2.12.6    -p1 "$REPO_DIR"/patches/fontconfig/*.diff
+pat fontconfig-2.14.1    -p1 "$REPO_DIR"/patches/fontconfig/*.diff
 pat warzone2100-2.3.9    -p1 "$REPO_DIR"/patches/warzone2100/*.patch

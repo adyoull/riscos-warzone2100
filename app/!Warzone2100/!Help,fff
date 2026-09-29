@@ -1,4 +1,4 @@
-Warzone 2100 2.3.9 for RISC OS (release 2.3.9-9)
+Warzone 2100 2.3.9 for RISC OS (release 2.3.9-10)
 =================================================
 
 Warzone 2100 is a real-time strategy game, originally released by Pumpkin
@@ -95,14 +95,17 @@ This build contains, statically linked:
 - riscos-mesa: Mesa 3D 20.3.5 (MIT), GLU and SDL 2.26 (zlib licence) with
   their RISC OS drivers; see docs.riscos-mesa-LICENCES.
 - QuesoGLC 0.7.2 (LGPL 2.1), FreeType 2.10.1 (FreeType licence),
-  fontconfig 2.12.6 and expat 2.2.9 (MIT), PhysicsFS 2.0.3 and zlib
+  fontconfig 2.14.1 and expat 2.2.9 (MIT), PhysicsFS 2.0.3 and zlib
   (zlib licence), libpng 1.6.37 (libpng licence), popt 1.16 (MIT),
   libogg 1.3.5, libvorbis 1.3.7 and libtheora 1.1.1 (BSD).
 - UnixLib 5.0.1 (riscos-unixlib: GCCSDK's UnixLib with the ports' fixes)
   and the GCC runtime from GCCSDK.
 
-Fonts: DejaVu Sans 2.37 (see docs.DejaVu-LICENSE), with the game's own
-fontconfig setup. It doesn't use or change PackMan's fontconfig (UnixFC).
+Fonts: with PackMan's fontconfig installed (UnixFC), the game uses its
+setup - the system's fonts and font cache - like other fontconfig
+programs, and adds its own DejaVu Sans 2.37 (see docs.DejaVu-LICENSE).
+Without it, the game uses only its own fonts and fontconfig setup, so
+PackMan's fontconfig isn't needed.
 
 The RISC OS changes are in docs.patches: they apply to the upstream
 Warzone 2100 2.3.9, QuesoGLC 0.7.2 and PhysicsFS 2.0.3 sources.

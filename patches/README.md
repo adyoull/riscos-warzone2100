@@ -40,14 +40,22 @@ them in order with `patch -p1`. To edit them, use `tools/wz-patches.sh`
   EBADF, which used to stop the file being closed); for files being
   written its result is ignored.
 
-## fontconfig/ (fontconfig 2.12.6)
+## fontconfig/ (fontconfig 2.14.1)
 
-`fontconfig-2.12.6-riscos.diff`: touch the stack buffers that `read()`
-fills (the config file in `fcxml.c`, the cache header in `fccache.c`)
-before the call. `read()` fills them with a SWI, and a SWI writing to a
-stack page that hasn't been touched yet aborts ("EMT trap"), because
-ARMEABISupport only maps stack pages when USR mode touches them. GCCSDK's
-fontconfig port has the same change in `fcxml.c`.
+`fontconfig-2.14.1-riscos.diff`:
+
+- Touch the stack buffers that `read()` fills (the config file in
+  `fcxml.c`, the cache header in `fccache.c`) before the call. `read()`
+  fills them with a SWI, and a SWI writing to a stack page that hasn't been
+  touched yet aborts ("EMT trap"), because ARMEABISupport only maps stack
+  pages when USR mode touches them. GCCSDK's fontconfig port has the same
+  change in `fcxml.c` (`src.fcxml.c.p`).
+- `fcint.h`: lists of folders (`FONTCONFIG_PATH`) are separated by `;`, not
+  `:`, because RISC OS paths can contain `:` (`UnixFont:truetype`). The
+  same as GCCSDK's port (`fcint.p`).
+
+The other files in GCCSDK's recipe (`autobuilder/libraries/fontconfig`)
+only change what PackMan's packages install.
 
 ## quesoglc/ (QuesoGLC 0.7.2)
 
@@ -55,9 +63,8 @@ fontconfig port has the same change in `fcxml.c`.
 - `glew.c` loads GL functions with `OSMesaGetProcAddress`, and uses no
   thread-local storage.
 - `ocontext.c`: on RISC OS, the folder named by `RISCOS_APPFONTS` is added
-  to fontconfig as application fonts. Unused since 2.3.9-7 (the game
-  uses its own fonts.conf); kept as it does nothing when the variable
-  isn't set.
+  to fontconfig as application fonts. With PackMan's fontconfig setup,
+  the game's own DejaVu fonts are added this way (`riscos_fontconfig.c`).
 
 ## unixlib/
 

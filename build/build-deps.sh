@@ -93,13 +93,18 @@ cmake ../libexpat-R_2_2_9/expat -DCMAKE_TOOLCHAIN_FILE="$REPO_DIR/build/riscos.c
 make -j$JOBS >> ../expat.log && make install >> ../expat.log; cd ..
 }
 
-step "fontconfig 2.12.6 (needs gperf on the host)"
+step "fontconfig 2.14.1 (patches/fontconfig)"
+# The version in PackMan (FontConfig 2.14.1, Debian bookworm's source, as
+# GCCSDK's autobuilder builds it), so the game reads the same fonts.conf
+# and cache format (cache-8) as other fontconfig programs.
 have libfontconfig.a || {
-cd fontconfig-2.12.6; fresh_config_sub .
+cd fontconfig-2.14.1; fresh_config_sub .
 # UnixLib has no <sys/statfs.h>-style fs type probing; fontconfig copes.
-./configure $HOSTARGS --disable-docs --with-expat="$STAGE" \
-  --sysconfdir=/FontConfig --localstatedir=/FontConfig/var \
-  --with-default-fonts=/Warzone2100/fonts > ../fontconfig.log
+./configure $HOSTARGS --disable-docs --disable-nls --disable-cache-build \
+  --with-expat="$STAGE" --sysconfdir=/FontConfig --localstatedir=/FontConfig/var \
+  --with-default-fonts=/Warzone2100/fonts \
+  FREETYPE_CFLAGS="-I$STAGE/include/freetype2" FREETYPE_LIBS="-L$STAGE/lib -lfreetype -lpng -lz" \
+  > ../fontconfig.log
 make -j$JOBS -C src >> ../fontconfig.log && make -C src install >> ../fontconfig.log
 make -C fontconfig install >> ../fontconfig.log
 install -m644 fontconfig.pc "$STAGE/lib/pkgconfig/"; cd ..

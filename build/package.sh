@@ -8,7 +8,7 @@
 : "${ELF2AIF:=$REPO_DIR/toolchain/elf2aif}"
 [ -x "$ELF2AIF" ] || { echo "no $ELF2AIF: run build/build-toolchain.sh elf2aif" >&2; exit 1; }
 : "${DEJAVU:=$SRC/dejavu-fonts-ttf-2.37}"
-VERSION=${VERSION:-2.3.9-9}
+VERSION=${VERSION:-2.3.9-10}
 OUT="$REPO_DIR/dist"; APP="$OUT/!Warzone2100"
 rm -rf "$OUT"; mkdir -p "$OUT"
 cp -a "$REPO_DIR/app/!Warzone2100" "$APP"
@@ -48,7 +48,7 @@ mkdir -p "$APP/docs/licences"
 lic() { cp "$SRC/$2" "$APP/docs/licences/$1,fff"; }
 lic libpng       libpng-1.6.37/LICENSE
 lic FreeType     freetype-2.10.1/docs/FTL.TXT
-lic fontconfig   fontconfig-2.12.6/COPYING
+lic fontconfig   fontconfig-2.14.1/COPYING
 lic expat        libexpat-R_2_2_9/expat/COPYING
 lic PhysicsFS    physfs-release-2.0.3/LICENSE.txt
 lic popt         popt-1.16/COPYING

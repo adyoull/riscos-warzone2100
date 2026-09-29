@@ -1,5 +1,24 @@
 # Changelog
 
+## 2.3.9-10 (2026-09-29)
+
+- **fontconfig 2.14.1, the version in PackMan, and PackMan's fontconfig
+  setup when it's installed.** Suggested by Chris Gransden. The game had
+  fontconfig 2.12.6 built in, which can't read PackMan's 2.14 `fonts.conf`
+  (why 2.3.9-6's attempt failed). It's now built from the same 2.14.1
+  source (Debian bookworm's, as GCCSDK's autobuilder uses), so with UnixFC
+  installed the game uses its `fonts.conf`, the system's fonts and the
+  font cache like other fontconfig programs, and adds its own DejaVu fonts
+  on top. Without UnixFC it uses its own fonts and `fonts.conf` as before,
+  so PackMan's fontconfig isn't required. The choice is made inside the
+  program; nothing global is set.
+- The RISC OS changes from GCCSDK's fontconfig recipe are included: the
+  stack-buffer fix from 2.3.9-8 (carried over to 2.14.1), and `;` rather
+  than `:` between folders in `FONTCONFIG_PATH`, as RISC OS paths can
+  contain `:`.
+- The checker (`Check`) shows the fontconfig version, which setup was
+  chosen, the cache folders and the game's added fonts.
+
 ## 2.3.9-9 (2026-09-29)
 
 - **A start-up checker, `!Warzone2100.Check`,** for machines where the game

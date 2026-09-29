@@ -10,7 +10,8 @@
  * Steps:
  *   1. RISC OS version, and the modules the game needs (versions from
  *      their help strings).
- *   2. The variables the game and its libraries read.
+ *   2. The variables the game and its libraries read (the FONTCONFIG ones
+ *      as the game sets them for itself, riscos_fontconfig.c).
  *   3. Reserve (and remove) a dynamic area the size of the game's heap.
  *   4. fontconfig, set up exactly as the game does (riscos_fontconfig.c,
  *      the same patched fontconfig and FreeType): load the config, list
@@ -153,6 +154,7 @@ int main(int argc, char **argv)
     var("FONTCONFIG_FILE");
     var("FONTCONFIG_PATH");
     var("FONTCONFIG_SYSROOT");
+    var("RISCOS_APPFONTS");
     var("FC_DEBUG");
     var("UnixFC$Dir");
     var("HOME");
@@ -174,6 +176,10 @@ int main(int argc, char **argv)
     }
 
     step("4. fontconfig, set up as the game does");
+    say("  fontconfig %d (linked in)\n", FcGetVersion());
+    say("  setup: %s\n", getenv("RISCOS_APPFONTS")
+        ? "PackMan's (UnixFC), plus the game's fonts"
+        : "the game's own fonts.conf");
     say("  FONTCONFIG_FILE for this program: %s\n",
         getenv("FONTCONFIG_FILE") ? getenv("FONTCONFIG_FILE") : "(not set)");
     say("  loading the config and scanning the fonts...\n");
@@ -190,6 +196,24 @@ int main(int argc, char **argv)
         }
         set = FcConfigGetFonts(config, FcSetSystem);
         say("  config loaded; %d font(s) found\n", set ? set->nfont : 0);
+        {
+            FcStrList *l = FcConfigGetCacheDirs(config);
+            FcChar8 *d;
+            while (l && (d = FcStrListNext(l)))
+                say("  cache folder: %s\n", d);
+            if (l)
+                FcStrListDone(l);
+        }
+        if (getenv("RISCOS_APPFONTS")) {
+            /* As the game's QuesoGLC does. */
+            const char *app = getenv("RISCOS_APPFONTS");
+            say("  adding the game's fonts (%s)...\n", app);
+            say("  %s\n", FcConfigAppFontAddDir(config, (const FcChar8 *) app)
+                               ? "OK" : "FAILED");
+            set = FcConfigGetFonts(config, FcSetApplication);
+            say("  %d application font(s)\n", set ? set->nfont : 0);
+            set = FcConfigGetFonts(config, FcSetSystem);
+        }
         if (set)
             for (int i = 0; i < set->nfont && i < 10; i++) {
                 FcChar8 *f;
