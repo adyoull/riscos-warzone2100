@@ -1,4 +1,4 @@
-Warzone 2100 2.3.9 for RISC OS (release 2.3.9-8)
+Warzone 2100 2.3.9 for RISC OS (release 2.3.9-9)
 =================================================
 
 Warzone 2100 is a real-time strategy game, originally released by Pumpkin
@@ -52,6 +52,11 @@ Double-click !Warzone2100. The game opens a 1024x768 desktop window
   <Choices$Write>.Warzone2100.WZlog, and a line of thread-switcher
   counters to <Wimp$ScrapDir>.WZTickerStats when the game quits. Send
   those too.
+- If the game doesn't start at all, run the checker: open !Warzone2100
+  (Shift+double-click) and double-click Check. It goes through what the
+  game does before its window opens, one step at a time, in a window,
+  and writes the same report to <Wimp$ScrapDir>.WZCheck. If it stops
+  part way, the last line shows where. Send WZCheck with your report.
 
 
 Things to know

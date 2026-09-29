@@ -1,0 +1,27 @@
+| Check for !Warzone2100: runs the start-up checker (wzcheck).
+| If the game doesn't start, double-click this (open the application with
+| Shift+double-click to see it). It goes through what the game does before
+| its window opens, one step at a time, in a window, and writes the same
+| report to <Wimp$ScrapDir>.WZCheck. If it stops part way, the last line
+| shows where. Please send WZCheck with any problem report.
+
+Set Warzone2100$Dir <Obey$Dir>
+
+| The same modules as !Run.
+RMEnsure SharedUnixLibrary 1.16 IfThere System:Modules.SharedULib Then RMLoad System:Modules.SharedULib
+RMEnsure SharedUnixLibrary 1.16 Error Warzone 2100 needs SharedUnixLibrary 1.16 or later. Install it with PackMan.
+RMEnsure ARMEABISupport 0 IfThere System:Modules.ARMEABISupport Then RMLoad System:Modules.ARMEABISupport
+RMEnsure ARMEABISupport 0 Error Warzone 2100 needs the ARMEABISupport module. Install it with PackMan.
+RMEnsure PThreadTicker 0.01 IfThere System:Modules.PThrTicker Then RMLoad System:Modules.PThrTicker
+RMEnsure PThreadTicker 0.01 RMLoad <Warzone2100$Dir>.PThrTicker
+RMEnsure SharedSound 1.07 IfThere System:Modules.SSound Then RMLoad System:Modules.SSound
+RMEnsure StreamManager 0.03 IfThere System:Modules.StreamMan Then RMLoad System:Modules.StreamMan
+RMEnsure SharedSoundBuffer 0.07 IfThere System:Modules.SSBuffer Then RMLoad System:Modules.SSBuffer
+
+| As !Run: remove a FONTCONFIG_FILE left by releases up to 2.3.9-4, and
+| make the font cache directory.
+If "<FONTCONFIG_FILE>"="/|<Warzone2100$Dir>/fonts/fonts.conf" Then Unset FONTCONFIG_FILE
+CDir <Wimp$ScrapDir>.WZ2100fc
+
+WimpSlot -min 8192K -max 8192K
+Run <Warzone2100$Dir>.wzcheck

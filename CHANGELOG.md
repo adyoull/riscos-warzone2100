@@ -1,5 +1,23 @@
 # Changelog
 
+## 2.3.9-9 (2026-09-29)
+
+- **A start-up checker, `!Warzone2100.Check`,** for machines where the game
+  doesn't start. It runs `wzcheck` (`riscos/wzcheck.c`), built with the same
+  fontconfig, FreeType and PhysicsFS as the game and set up the same way.
+  It prints each step before doing it and writes the same lines to
+  `<Wimp$ScrapDir>.WZCheck`, so if it stops, the last line shows where:
+  1. RISC OS version and the modules the game uses (with versions);
+  2. the variables the game and its libraries read;
+  3. reserving a 512MB dynamic area, as the game's heap does;
+  4. fontconfig: loading `fonts.conf`, the fonts found, a match for
+     "DejaVu Sans";
+  5. FreeType opening that font;
+  6. PhysicsFS opening `base.wz` and `mp.wz`;
+  7. `read()` into untouched stack pages at increasing depths (the problem
+     2.3.9-8 works around in fontconfig).
+- The game itself is unchanged from 2.3.9-8.
+
 ## 2.3.9-8 (2026-09-29)
 
 - **Fixed a crash at start-up on some machines** ("Fatal signal received:

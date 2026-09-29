@@ -65,10 +65,15 @@ See `app/!Warzone2100/!Help,fff`. In short:
   `<Wimp$ScrapDir>.Warzone2100log` (empty after a normal run). Setting
   `Warzone2100$Log` (a line in `!Run`) adds the game's full log in
   `<Choices$Write>.Warzone2100.WZlog`.
+- If the game doesn't start, `!Warzone2100.Check` runs a start-up checker
+  (`riscos/wzcheck.c`): the modules and variables, the heap dynamic area,
+  fontconfig, FreeType, PhysicsFS and the game's data, and a stack test,
+  each step printed before it runs. The report is also written to
+  `<Wimp$ScrapDir>.WZCheck`.
 
 ## Status
 
-- **Release 2.3.9-8 (2026-09-29):** playable on a Raspberry Pi 4 in a
+- **Release 2.3.9-9 (2026-09-29):** playable on a Raspberry Pi 4 in a
   1024x768 desktop window, with sound and music: menus, campaign,
   skirmish, settings, quitting. Other desktop tasks are safe while it runs
   (UnixLib 5.0.1 and PThreadTicker), and it's built for VFPv3, so it

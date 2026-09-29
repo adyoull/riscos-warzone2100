@@ -11,6 +11,12 @@ $CC $CFLAGS -DOUTPUT_VAR='"Warzone2100$Output"' \
     -o "$STAGE/lib/riscos_output.o"
 # fontconfig's FONTCONFIG_FILE, set for this program only (riscos_fontconfig.c).
 $CC $CFLAGS -c "$REPO_DIR/riscos/riscos_fontconfig.c" -o "$STAGE/lib/riscos_fontconfig.o"
+# The start-up checker (riscos/wzcheck.c, run by !Warzone2100.Check): the
+# same fontconfig, FreeType and PhysicsFS as the game, and the same set-up.
+mkdir -p "$STAGE/bin"
+$CC $CFLAGS -static -I"$STAGE/include" -I"$STAGE/include/freetype2" \
+    "$REPO_DIR/riscos/wzcheck.c" "$STAGE/lib/riscos_fontconfig.o" -L"$STAGE/lib" \
+    -lphysfs -lfontconfig -lexpat -lfreetype -lpng -lz -lm -o "$STAGE/bin/wzcheck"
 cd "$WZ_SRC"
 [ -f configure ] || ./autogen.sh
 # Static libraries don't carry their own dependencies: PhysicsFS needs zlib,

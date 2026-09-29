@@ -8,7 +8,7 @@
 : "${ELF2AIF:=$REPO_DIR/toolchain/elf2aif}"
 [ -x "$ELF2AIF" ] || { echo "no $ELF2AIF: run build/build-toolchain.sh elf2aif" >&2; exit 1; }
 : "${DEJAVU:=$SRC/dejavu-fonts-ttf-2.37}"
-VERSION=${VERSION:-2.3.9-8}
+VERSION=${VERSION:-2.3.9-9}
 OUT="$REPO_DIR/dist"; APP="$OUT/!Warzone2100"
 rm -rf "$OUT"; mkdir -p "$OUT"
 cp -a "$REPO_DIR/app/!Warzone2100" "$APP"
@@ -17,6 +17,10 @@ cp -a "$REPO_DIR/app/!Warzone2100" "$APP"
 $STRIP -o "$OUT/warzone2100.elf" "$WZ_SRC/src/warzone2100"
 "$ELF2AIF" -e "$OUT/warzone2100.elf" "$APP/warzone2100,ff8"
 rm "$OUT/warzone2100.elf"
+# The start-up checker (built by build-wz.sh), run by the Check Obey file.
+$STRIP -o "$OUT/wzcheck.elf" "$STAGE/bin/wzcheck"
+"$ELF2AIF" -e "$OUT/wzcheck.elf" "$APP/wzcheck,ff8"
+rm "$OUT/wzcheck.elf"
 
 # PThreadTicker module (riscos-unixlib, built with UnixLib by
 # build-toolchain.sh; BSD licence), loaded by !Run.
