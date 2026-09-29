@@ -3,7 +3,12 @@
 The build scripts, patches and application files for a RISC OS port of
 [Warzone 2100](https://wz2100.net) 2.3.9 (2012). This is the last version
 that draws everything with fixed-function OpenGL, so it runs on software
-OpenGL. Target: a Raspberry Pi 4 running RISC OS 5.
+OpenGL. Target: RISC OS 5 on ARMv7 machines with VFPv3 or later (the
+Raspberry Pi 2 onwards, and Cortex-A8/A9 boards); developed and tested on a
+Raspberry Pi 4.
+
+**Download:** the zip on the [releases page](https://github.com/adyoull/riscos-warzone2100/releases)
+(latest: 2.3.9-10).
 
 How to build it: [BUILDING.md](BUILDING.md). What the patches change:
 [patches/README.md](patches/README.md).
@@ -28,16 +33,24 @@ download on [Andrew Sellors' RDPClient page](https://orac.co.uk/software/rdpclie
 (merge its `!System` into yours). John Duffell's own site is on the Internet
 Archive: <https://web.archive.org/web/20110920080106/http://www.duffell.riscos.me.uk/>.
 
+Fonts: the game links fontconfig 2.14.1, the version in PackMan. With
+PackMan's fontconfig (UnixFC) installed, it uses that setup like other
+fontconfig programs: the system fonts, `fonts.conf` and font cache, plus
+its own DejaVu fonts as a fallback. Without it, it uses only its own fonts,
+so PackMan's fontconfig isn't required. Nothing global is set.
+
 ## What's in this repository
 
 | Path | What |
 |---|---|
 | `build/` | `env.sh` (settings) and the build steps, in order: `fetch-sources.sh`, `build-toolchain.sh`, `build-deps.sh`, `build-wz.sh`, `package.sh`. `SHA256SUMS.txt` pins every source. |
 | `patches/warzone2100/` | The changes to Warzone 2100, as a git patch series against upstream v2.3.9. |
-| `patches/physfs`, `patches/quesoglc` | Changes to two libraries. |
+| `patches/fontconfig`, `patches/physfs`, `patches/quesoglc` | Changes to three libraries (fontconfig's are the RISC OS changes from GCCSDK's recipe). |
 | `patches/unixlib/` | UnixLib changes (from the RISC OS OpenTTD port), applied when the toolchain is built. |
 | `app/!Warzone2100/` | `!Run`, `!Boot`, `!Help`, `!Sprites` and the fontconfig setup. `package.sh` adds the program, the game data and the fonts. |
 | `riscos/riscos_output.c` | Sends stdout/stderr to the file named by `Warzone2100$Output` (from riscos-mesa, MIT). |
+| `riscos/riscos_fontconfig.c` | Chooses the fontconfig setup (UnixFC's or the game's own), for this program only. |
+| `riscos/wzcheck.c` | The start-up checker, run by `!Warzone2100.Check`. |
 | `tools/wz-patches.sh` | Edit the patch series with git (see BUILDING.md). |
 | `tools/check-unaligned.sh` | Finds code that can do unaligned loads and stores, which RISC OS traps. |
 | `tools/check-unixlib.sh` | Checks the program's UnixLib claims the full 472-byte pthread ticker block and agrees with the C side (a stale build hung the machine). |
@@ -77,8 +90,10 @@ See `app/!Warzone2100/!Help,fff`. In short:
   1024x768 desktop window, with sound and music: menus, campaign,
   skirmish, settings, quitting. Other desktop tasks are safe while it runs
   (UnixLib 5.0.1 and PThreadTicker), and it's built for VFPv3, so it
-  should also run on Cortex-A8/A9 boards (untested). Built with riscos-mesa 20.3.5-8. See
-  [CHANGELOG.md](CHANGELOG.md).
+  should also run on Cortex-A8/A9 boards (untested). Built with
+  riscos-mesa 20.3.5-8. See [CHANGELOG.md](CHANGELOG.md).
+- **Fonts:** fontconfig 2.14.1; checked on a Pi 4 with UnixFC's setup
+  (61 system fonts, DejaVu Sans from the system, UnixFC's cache).
 - **Sound:** OpenAL Soft 1.19.1 (from the riscos-mesa devkit) plays
   through the devkit SDL2's audio, which goes to SharedSoundBuffer.
   Music is included; `WZ_SOUND=0 build/build-wz.sh` builds without sound.
