@@ -71,7 +71,10 @@ Things to know
 - On a Raspberry Pi with the VideoOverlay module, the game shows its
   frames with the hardware overlay instead of plotting them: quicker, and
   no tearing. It goes back to plotting while a menu or window is over the
-  game. Warzone2100$Overlay 0 (in !Run) turns it off.
+  game. With the overlay the game renders at 800x600 (640x480 on screens
+  up to 1024x768), stretched to the window or screen for free.
+  Warzone2100$RenderSize (in !Run) picks another size, or "off" for the
+  window's own size; Warzone2100$Overlay 0 turns the overlay off.
 - Texture filtering is cheaper than on other systems (bilinear, no
   anisotropic filtering). For more speed use unfiltered textures, for
   better quality the usual ones: see "Texture filtering" in !Run

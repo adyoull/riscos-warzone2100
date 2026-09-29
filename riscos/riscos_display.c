@@ -6,6 +6,10 @@
  *   that size and the picture is stretched to the window or the screen.
  *   Software OpenGL costs about the same per pixel, so fewer pixels means
  *   a faster game. Sizes under 640x480 (the game's minimum) are ignored.
+ *   When the overlay is used and this isn't set, the game renders at
+ *   800x600 on screens bigger than 1024x768 (where its window starts at
+ *   1024x768), else 640x480: the overlay stretches it for free. "off" (or
+ *   0) renders at the window's own size.
  * - The hardware overlay (VideoOverlay, on the Raspberry Pi) shows the
  *   frames instead of plotting them whenever the module is loaded (!Run
  *   loads it from !System if it's there). Warzone2100$Overlay 0 turns it
@@ -23,8 +27,20 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <kernel.h>
 #include <swis.h>
+
+/* The screen's size in pixels (current mode), or 0. */
+static void screen_size(int *w, int *h)
+{
+    int x = -1, y = -1;
+    if (_swix(OS_ReadModeVariable, _INR(0,1) | _OUT(2), -1, 11, &x)
+        || _swix(OS_ReadModeVariable, _INR(0,1) | _OUT(2), -1, 12, &y))
+        x = y = -1;
+    *w = x + 1;
+    *h = y + 1;
+}
 
 /* Is the VideoOverlay module loaded? */
 static int have_videooverlay(void)
@@ -40,22 +56,37 @@ static void riscos_display_env(void)
     const char *overlay = getenv("Warzone2100$Overlay");
     int w, h;
     char c;
+    int use_overlay;
 
     unsetenv("SDL_RISCOS_GL_RENDER_SIZE");
     unsetenv("SDL_RISCOS_GL_OVERLAY");
+
+    if (overlay && (*overlay == '1' || *overlay == '0') && overlay[1] == '\0')
+        use_overlay = *overlay == '1';
+    else
+        use_overlay = have_videooverlay();
+    if (use_overlay)
+        setenv("SDL_RISCOS_GL_OVERLAY", "1", 1);
+    else if (overlay && *overlay == '0')
+        setenv("SDL_RISCOS_GL_OVERLAY", "0", 1);
+
+    if (size && (strcmp(size, "off") == 0 || strcmp(size, "0") == 0))
+        return;                     /* render at the window's size */
     if (size && *size) {
         if (sscanf(size, "%dx%d%c", &w, &h, &c) == 2 && w >= 640 && h >= 480
             && w <= 4096 && h <= 4096) {
             char buf[32];
             snprintf(buf, sizeof buf, "%dx%d", w, h);
             setenv("SDL_RISCOS_GL_RENDER_SIZE", buf, 1);
-        } else {
-            fprintf(stderr, "Warzone2100$RenderSize \"%s\" ignored: "
-                    "use WxH, at least 640x480\n", size);
+            return;
         }
+        fprintf(stderr, "Warzone2100$RenderSize \"%s\" ignored: "
+                "use WxH, at least 640x480, or off\n", size);
     }
-    if (overlay && (*overlay == '1' || *overlay == '0') && overlay[1] == '\0')
-        setenv("SDL_RISCOS_GL_OVERLAY", overlay, 1);
-    else if (have_videooverlay())
-        setenv("SDL_RISCOS_GL_OVERLAY", "1", 1);
+    if (use_overlay) {
+        int sw, sh;
+        screen_size(&sw, &sh);
+        setenv("SDL_RISCOS_GL_RENDER_SIZE",
+               sw > 1024 && sh > 768 ? "800x600" : "640x480", 1);
+    }
 }

@@ -13,6 +13,10 @@
   instead of being plotted (quicker, no tearing). It goes back to plotting
   while a menu or window covers the game. `Warzone2100$Overlay 0` turns it
   off. Machines without the module keep the usual path.
+- **With the overlay, a render size by default:** 800x600 on screens bigger
+  than 1024x768 (where the window starts at 1024x768), else 640x480,
+  stretched by the overlay at no cost. `Warzone2100$RenderSize` picks
+  another size, or `off` for the window's own size.
 - Both come from riscos-mesa's SDL (devkit 10a, the pre-release of
   20.3.5-10), which now links libEGL. The settings are passed to SDL for
   this program only (`riscos/riscos_display.c`).

@@ -84,7 +84,9 @@ See `app/!Warzone2100/!Help,fff`. In short:
   (riscos-mesa's SDL hint `SDL_RISCOS_GL_RENDER_SIZE`, set for this program
   only by `riscos/riscos_display.c`). Frames go through the Pi's hardware
   overlay whenever the VideoOverlay module is loaded (`Warzone2100$Overlay 0`
-  turns it off). Both are lines in `!Run`.
+  turns it off), and then the render size defaults to 800x600 (640x480 on
+  screens up to 1024x768; `Warzone2100$RenderSize off` turns that off).
+  Both are lines in `!Run`.
 - If the game doesn't start, `!Warzone2100.Check` runs a start-up checker
   (`riscos/wzcheck.c`): the modules and variables, the heap dynamic area,
   fontconfig, FreeType, PhysicsFS and the game's data, and a stack test,

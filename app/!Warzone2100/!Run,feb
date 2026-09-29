@@ -58,15 +58,18 @@ WimpSlot -min 32768K -max 32768K
 If "<Warzone2100$Mode>"="" Then Set Warzone2100$Mode --window
 
 | --- Render size and hardware overlay ----------------------------------
-| The game can render at a smaller size than its window: the picture is
-| stretched to the window (or the screen), and software OpenGL has fewer
-| pixels to draw, so it runs faster (a little softer). At least 640x480.
 | On a Raspberry Pi the hardware overlay (VideoOverlay, loaded below if it's
 | in !System) shows the frames instead of plotting them: quicker, and no
 | tearing. It's used whenever the module is loaded; while a menu or window
-| is over the game it goes back to plotting. Remove the | to set a render
-| size, or to turn the overlay off:
-| Set Warzone2100$RenderSize 640x480
+| is over the game it goes back to plotting.
+| With the overlay the game also renders smaller than its window, and the
+| overlay stretches the picture for free: software OpenGL has fewer pixels
+| to draw, so it runs faster (a little softer). 800x600 on screens bigger
+| than 1024x768, else 640x480. Warzone2100$RenderSize chooses the size (at
+| least 640x480; it works without the overlay too, stretched by a slower
+| sprite plot), or "off" for the window's own size. Remove the | to use:
+| Set Warzone2100$RenderSize 1024x768
+| Set Warzone2100$RenderSize off
 | Set Warzone2100$Overlay 0
 RMEnsure VideoOverlay 0.00 IfThere System:Modules.VideoOverlay Then RMLoad System:Modules.VideoOverlay
 
