@@ -2,6 +2,15 @@
 
 ## 2.3.9-11 (2026-09-29)
 
+- **Fixed a crash at start-up on some machines** (Chris Gransden's
+  ZeroPain log: an abort in `strlen` at address &27). The game writes the
+  start time into its crash-report header with `ctime()`. UnixLib's
+  `ctime()`/`asctime()` call Territory_ConvertDateAndTime, which changes R2
+  (the bytes left in the buffer), and the compiled library then returns R2
+  as the string's address: 39 (&27). Whether reading there aborts depends
+  on the machine. The game now formats times with `strftime()` (patch
+  0020); reported to riscos-unixlib for a fix in the library.
+
 - **Render size.** `Warzone2100$RenderSize` (in `!Run`; e.g. `640x480` or
   `800x600`) makes the game render at that size, stretched to its window
   or the full screen. Software OpenGL has fewer pixels to draw, so a

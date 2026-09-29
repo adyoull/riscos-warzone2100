@@ -1,0 +1,65 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Andrew Youll <adyoull@users.noreply.github.com>
+Date: Tue, 29 Sep 2026 18:35:00 +0100
+Subject: [PATCH] RISC OS: don't use ctime()/asctime() (UnixLib returns a bad
+ pointer)
+
+UnixLib's __standard_time returns the buffer address from R2, which
+Territory_ConvertDateAndTime changes (bytes left in the buffer): ctime()
+returned 0x27 and the game died in strlen at start-up (createHeader ->
+getCurTime) on Chris Gransden's machine. Use localtime() + strftime().
+---
+ lib/exceptionhandler/dumpinfo.cpp | 12 ++++++++++++
+ lib/netplay/netlog.c              | 14 ++++++++++++++
+ 2 files changed, 26 insertions(+)
+
+diff --git a/lib/exceptionhandler/dumpinfo.cpp b/lib/exceptionhandler/dumpinfo.cpp
+index 3cafd18..590c0ad 100644
+--- a/lib/exceptionhandler/dumpinfo.cpp
++++ b/lib/exceptionhandler/dumpinfo.cpp
+@@ -252,8 +252,20 @@ static std::string getCurTime()
+ 	// Get the current time
+ 	const time_t currentTime = time(NULL);
+ 
++#if defined(WZ_OS_RISCOS)
++	// UnixLib's ctime()/asctime() can return a bad pointer: the SWI they
++	// call (Territory_ConvertDateAndTime) changes R2, which the compiled
++	// code then returns as the buffer address. On some machines that
++	// crashed the game at start-up. strftime() calls the SWI safely.
++	char buf[64] = "";
++	const struct tm *tm = localtime(&currentTime);
++	if (tm)
++		strftime(buf, sizeof(buf), "%a %b %d %H:%M:%S %Y", tm);
++	string time(buf);
++#else
+ 	// Convert it to a string
+ 	string time(ctime(&currentTime));
++#endif
+ 
+ 	// Mark finishing newlines as NUL characters
+ 	for (string::reverse_iterator
+diff --git a/lib/netplay/netlog.c b/lib/netplay/netlog.c
+index 98ca8d6..948610f 100644
+--- a/lib/netplay/netlog.c
++++ b/lib/netplay/netlog.c
+@@ -24,6 +24,20 @@
+ #include <time.h>
+ #include <physfs.h>
+ 
++#if defined(WZ_OS_RISCOS)
++// UnixLib's asctime() can return a bad pointer (see
++// lib/exceptionhandler/dumpinfo.cpp): format the time with strftime().
++static const char *riscos_asctime(const struct tm *tm)
++{
++	static char buf[32];
++	buf[0] = '\0';
++	if (tm)
++		strftime(buf, sizeof(buf), "%a %b %d %H:%M:%S %Y\n", tm);
++	return buf;
++}
++#define asctime riscos_asctime
++#endif
++
+ #include "netlog.h"
+ #include "netplay.h"
+ 
