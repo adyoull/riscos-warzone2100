@@ -1,5 +1,5 @@
 diff --git a/gcc4/recipe/files/gcc/libunixlib/Makefile.am b/gcc4/recipe/files/gcc/libunixlib/Makefile.am
-index e887b17..742b85e 100644
+index e887b17..173cb04 100644
 --- a/gcc4/recipe/files/gcc/libunixlib/Makefile.am
 +++ b/gcc4/recipe/files/gcc/libunixlib/Makefile.am
 @@ -676,6 +676,7 @@ pthread_src = \
@@ -26,7 +26,24 @@ index e887b17..742b85e 100644
  	sound/DRender.s
  endif
  
-@@ -1469,6 +1472,7 @@ nobase_noinst_HEADERS = \
+@@ -1070,6 +1073,8 @@ else
+ sys_src += \
+ 	sys/mman.c
+ endif
++sys_src += \
++	sys/mmap64.c
+ endif
+ sys_src += \
+ 	sys/errlist.c
+@@ -1220,6 +1225,7 @@ unix_src = \
+ 	unix/ul_select.c \
+ 	unix/ul_setenv.c \
+ 	unix/stat.c \
++	unix/stat64.c \
+ 	unix/statfs.c \
+ 	unix/sync.c \
+ 	unix/sysconf.c \
+@@ -1469,6 +1475,7 @@ nobase_noinst_HEADERS = \
  	incl-local/internal/sigstate.h \
  	incl-local/internal/swiparams.h \
  	incl-local/internal/symlinks.h \
@@ -34,7 +51,7 @@ index e887b17..742b85e 100644
  	incl-local/internal/tty.h \
  	incl-local/internal/unix.h \
  	incl-local/locale.h \
-@@ -1499,6 +1503,19 @@ libunixlib_la_SOURCES = $(assert_src) $(common_src) $(crypt_src) $(ctype_src) \
+@@ -1499,6 +1506,19 @@ libunixlib_la_SOURCES = $(assert_src) $(common_src) $(crypt_src) $(ctype_src) \
  	$(stdio_src) $(stdlib_src) $(string_src) $(sys_src) \
  	$(termios_src) $(time_src) $(unistd_src) $(unix_src) $(wchar_src)
  
@@ -54,7 +71,7 @@ index e887b17..742b85e 100644
  libunixlib_la_LDFLAGS = -Wc,-lgcc_s -Wc,-nostdlib -version-info 5:0:0 -Wl,--version-script -Wl,$(top_srcdir)/vscript
  
  libm_la_SOURCES = libm-support/libm.c
-@@ -1553,7 +1570,7 @@ gcrt0.o: crt/gcrt0.s
+@@ -1553,7 +1573,7 @@ gcrt0.o: crt/gcrt0.s
  # SUL module ----------------
  
  # Build the SharedUnixLibrary module
@@ -63,7 +80,7 @@ index e887b17..742b85e 100644
  
  sul.o: module/sul.s
  	$(CCASCOMPILE) -o sul.o -c `test -f 'module/sul.s' || echo '$(srcdir)/'`module/sul.s
-@@ -1564,6 +1581,14 @@ sul.o: module/sul.s
+@@ -1564,6 +1584,14 @@ sul.o: module/sul.s
  sul$(EXEEXT): sul.o
  	$(STRIP) -O binary -o sul$(EXEEXT) sul.o
  
@@ -90,8 +107,39 @@ index d7a6a30..da15f81 100644
  	/* Terminal type device file.  */
  	mode |= S_IFCHR;
  	break;
+diff --git a/gcc4/recipe/files/gcc/libunixlib/common/env.c b/gcc4/recipe/files/gcc/libunixlib/common/env.c
+index c9673b7..f2adb9a 100644
+--- a/gcc4/recipe/files/gcc/libunixlib/common/env.c
++++ b/gcc4/recipe/files/gcc/libunixlib/common/env.c
+@@ -25,7 +25,7 @@ get_var_len (const char *name)
+ 		    : "=r" (len)
+ 		    : "r" (r0in),
+ 		      [SWI_XOS_ReadVarVal] "i" (OS_ReadVarVal | (1<<17))
+-		    : "r1", "r3", "r4", "r14", "cc");
++		    : "r1", "r3", "r4", "r14", "cc", "memory");
+   return len;
+ }
+ 
+@@ -43,7 +43,7 @@ set_var (const char *name, const char *value, size_t value_len)
+ 		    : "=r" (err)
+ 		    : "r" (r0in), "r" (r1in), "r" (r2in),
+ 		      [SWI_XOS_SetVarVal] "i" (OS_SetVarVal | (1<<17))
+-		    : "r3", "r4", "r14", "cc");
++		    : "r3", "r4", "r14", "cc", "memory");
+   return err;
+ }
+ 
+@@ -81,7 +81,7 @@ __remenv_from_os (const char *name)
+ 		    :
+ 		    : "r" (r0in),
+ 		      [SWI_XOS_SetVarVal] "i" (OS_SetVarVal | (1<<17))
+-		    : "r1", "r2", "r3", "r4", "r14", "cc");
++		    : "r1", "r2", "r3", "r4", "r14", "cc", "memory");
+ 
+   return 0;
+ }
 diff --git a/gcc4/recipe/files/gcc/libunixlib/configure.ac b/gcc4/recipe/files/gcc/libunixlib/configure.ac
-index 53fe31c..8f34d51 100644
+index 53fe31c..5923385 100644
 --- a/gcc4/recipe/files/gcc/libunixlib/configure.ac
 +++ b/gcc4/recipe/files/gcc/libunixlib/configure.ac
 @@ -5,7 +5,7 @@ dnl Process this file with autoconf to produce a configure script
@@ -99,17 +147,17 @@ index 53fe31c..8f34d51 100644
  
  AC_PREREQ(2.64)
 -AC_INIT([RISC OS UnixLib C Runtime Library], 5.0, [http://gccsdk.riscos.info/], [libunixlib])
-+AC_INIT([RISC OS UnixLib C Runtime Library], 5.0.1, [http://gccsdk.riscos.info/], [libunixlib])
++AC_INIT([RISC OS UnixLib C Runtime Library], 5.0.3, [http://gccsdk.riscos.info/], [libunixlib])
  AC_CONFIG_SRCDIR([assert/assert.c])
  AC_CONFIG_HEADER(config.h)
  
 diff --git a/gcc4/recipe/files/gcc/libunixlib/doc/UnixLib/Help b/gcc4/recipe/files/gcc/libunixlib/doc/UnixLib/Help
-index 7775d56..6045913 100644
+index 7775d56..d304465 100644
 --- a/gcc4/recipe/files/gcc/libunixlib/doc/UnixLib/Help
 +++ b/gcc4/recipe/files/gcc/libunixlib/doc/UnixLib/Help
 @@ -1,4 +1,4 @@
 -                                UnixLib 5.0
-+                                UnixLib 5.0.1
++                                UnixLib 5.0.3
                                  ~~~~~~~~~~~
  
  This document provides a VERY short introduction to UnixLib, and only covers
@@ -141,7 +189,7 @@ index 7f01c57..4aff7fc 100644
  
  	.text
 diff --git a/gcc4/recipe/files/gcc/libunixlib/incl-local/internal/dev.h b/gcc4/recipe/files/gcc/libunixlib/incl-local/internal/dev.h
-index e45417e..86e7c5a 100644
+index e45417e..fd02f5c 100644
 --- a/gcc4/recipe/files/gcc/libunixlib/incl-local/internal/dev.h
 +++ b/gcc4/recipe/files/gcc/libunixlib/incl-local/internal/dev.h
 @@ -38,8 +38,9 @@ __BEGIN_DECLS
@@ -155,7 +203,17 @@ index e45417e..86e7c5a 100644
  
  /* Call a device function, ensuring we don't refer to an invalid device */
  #define dev_funcall(type, func, args) __funcall ((*(__dev[(type) < NDEV ? (type) : DEV_NULL].func)), args)
-@@ -126,6 +127,12 @@ extern int __dspwrite (struct __unixlib_fd *__fd, const void *__data, int __nbyt
+@@ -74,6 +75,9 @@ extern int __fsclose (struct __unixlib_fd *__fd);
+ extern int __fsread (struct __unixlib_fd *__fd, void *__data, int __nbyte);
+ extern int __fswrite (struct __unixlib_fd *__fd, const void *__data, int __nbyte);
+ extern __off_t __fslseek (struct __unixlib_fd *__fd, __off_t __lpos, int __whence);
++/* 2026: lseek64 for RISC OS files, positions 0 to 4GB-1.  */
++extern __off64_t __fslseek64 (struct __unixlib_fd *__fd, __off64_t __lpos,
++			      int __whence);
+ extern int __fsstat (const char *__filename, struct stat *__buf);
+ extern int __fsfstat (int __fd, struct stat *__buf);
+ extern int __fslstat (const char *__filename, struct stat *__buf);
+@@ -126,6 +130,12 @@ extern int __dspwrite (struct __unixlib_fd *__fd, const void *__data, int __nbyt
  extern __off_t __dsplseek (struct __unixlib_fd *__fd, __off_t __lpos, int __whence);
  extern int __dspioctl (struct __unixlib_fd *__fd, unsigned long __request, void *__arg);
  
@@ -168,6 +226,278 @@ index e45417e..86e7c5a 100644
  /* /dev/custom support */
  extern void *__customopen (struct __unixlib_fd *__fd, const char *file, int __mode);
  extern int __customclose (struct __unixlib_fd *__fd);
+diff --git a/gcc4/recipe/files/gcc/libunixlib/incl-local/internal/os.h b/gcc4/recipe/files/gcc/libunixlib/incl-local/internal/os.h
+index deb5f8d..592552f 100644
+--- a/gcc4/recipe/files/gcc/libunixlib/incl-local/internal/os.h
++++ b/gcc4/recipe/files/gcc/libunixlib/incl-local/internal/os.h
+@@ -22,6 +22,12 @@
+ 
+ __BEGIN_DECLS
+ 
++/* 2026: every inline SWI wrapper must list, as outputs or clobbers, every
++   register the SWI can change (see the PRM for each SWI), and "memory" if
++   the SWI reads or writes memory through a pointer.  GCC assumes anything
++   not listed is unchanged: Territory_ConvertDateAndTime's R2 was missing
++   in time/stdtime.c and ctime() returned a bad pointer.  */
++
+ /* Setup console I/O.  */
+ extern int __os_console (void) __THROW;
+ 
+@@ -76,7 +82,7 @@ SWI_OS_Byte (int __a, int __xin, int __yin, int *__xoutp, int *__youtp)
+ 		    : "=r" (err), "=r" (xout), "=r" (yout)
+ 		    : "r" (a), "r" (xin), "r" (yin),
+ 		      [SWI_XOS_Byte] "i" (OS_Byte | (1<<17))
+-		    : "r14", "cc");
++		    : "r14", "cc", "memory");
+   if (__xoutp && !err)
+     *__xoutp = xout;
+   if (__youtp && !err)
+@@ -93,7 +99,7 @@ SWI_OS_CLI (const char *__cmd)
+ 		    "MOVVC\tr0, #0\n\t"
+ 		    : "=r" (err)
+ 		    : "r" (cmd), [SWI_XOS_CLI] "i" (OS_CLI | (1<<17))
+-		    : "r14", "cc");
++		    : "r14", "cc", "memory");
+ 
+   return err;
+ }
+@@ -111,7 +117,7 @@ SWI_OS_Find_Open (unsigned __reason, const char *__filename, unsigned *__fhandle
+ 		    : "=r" (err), "=r" (fhandle)
+ 		    : "r" (reason), "r" (filename),
+ 		      [SWI_XOS_Find] "i" (OS_Find | (1<<17))
+-		    : "r14", "cc");
++		    : "r14", "cc", "memory");
+   *__fhandle = !err ? fhandle : 0;
+   return err;
+ }
+@@ -126,7 +132,7 @@ SWI_OS_Find_Close (unsigned __fhandle)
+ 		    : "=r" (err)
+ 		    : "r" (fhandle),
+ 		      [SWI_XOS_Find] "i" (OS_Find | (1<<17))
+-		    : "r14", "cc");
++		    : "r14", "cc", "memory");
+   return err;
+ }
+ 
+@@ -147,7 +153,7 @@ SWI_OS_File_SaveBlockLoadExec (const char *__filename, unsigned __loadaddr,
+ 		    : "=r" (err)
+ 		    : "r" (filename), "r" (loadaddr), "r" (execaddr),
+ 		      "r" (start), "r" (end), [SWI_XOS_File] "i" (OS_File | (1<<17))
+-		    : "r14", "cc");
++		    : "r14", "cc", "memory");
+ 
+   return err;
+ }
+@@ -167,7 +173,7 @@ SWI_OS_File_WriteCatLoadExecAttr (const char *__filename, unsigned __loadaddr,
+ 		    : "=r" (err)
+ 		    : "r" (filename), "r" (loadaddr), "r" (execaddr),
+ 		      "r" (attr), [SWI_XOS_File] "i" (OS_File | (1<<17))
+-		    : "r14", "cc");
++		    : "r14", "cc", "memory");
+   return err;
+ }
+ 
+@@ -183,7 +189,7 @@ SWI_OS_File_WriteCatInfoAttr (const char *__filename, unsigned __attr)
+ 		    : "=r" (err)
+ 		    : "r" (filename), "r" (attr),
+ 		      [SWI_XOS_File] "i" (OS_File | (1<<17))
+-		    : "r14", "cc");
++		    : "r14", "cc", "memory");
+   return err;
+ }
+ 
+@@ -197,7 +203,7 @@ SWI_OS_File_DeleteObject (const char *__objectname)
+ 		    "MOVVC\tr0, #0\n\t"
+ 		    : "=r" (err)
+ 		    : "r" (objectname), [SWI_XOS_File] "i" (OS_File | (1<<17))
+-		    : "r2", "r3", "r4", "r5", "r14", "cc");
++		    : "r2", "r3", "r4", "r5", "r14", "cc", "memory");
+   return err;
+ }
+ 
+@@ -213,7 +219,7 @@ SWI_OS_File_CreateDirectory (const char *__dirname)
+ 		    : "=r" (err)
+ 		    : "r" (dirname), "r" (numentries),
+ 		      [SWI_XOS_File] "i" (OS_File | (1<<17))
+-		    : "r14", "cc");
++		    : "r14", "cc", "memory");
+   return err;
+ }
+ 
+@@ -232,7 +238,7 @@ SWI_OS_File_CreateFileWithFileType (const char *__filename,
+ 		    : "=r" (err)
+ 		    : "r" (filename), "r" (filetype), "r" (start), "r" (end),
+ 		      [SWI_XOS_File] "i" (OS_File | (1<<17))
+-		    : "r14", "cc");
++		    : "r14", "cc", "memory");
+   return err;
+ }
+ 
+@@ -255,7 +261,7 @@ SWI_OS_File_ReadCatInfo (const char *__filename, unsigned *__objtype,
+ 		    : "=r" (err), "=r" (objtype), "=r" (loadaddr),
+ 		      "=r" (execaddr), "=r" (objlen), "=r" (attr)
+ 		    : "r" (filename), [SWI_XOS_File] "i" (OS_File | (1<<17))
+-		    : "r14", "cc");
++		    : "r14", "cc", "memory");
+   if (!err)
+     {
+       if (__objtype)
+@@ -288,10 +294,12 @@ SWI_OS_File_WriteCatInfoFileType (const char *__filename, unsigned __filetype)
+ 		    : "=r" (err)
+ 		    : "r" (filename), "r" (filetype),
+ 		      [SWI_XOS_File] "i" (OS_File | (1<<17))
+-		    : "r14", "cc");
++		    : "r14", "cc", "memory");
+   return err;
+ }
+ 
++/* 2026: OS_GBPB 2 and 4 return R2 = address after the last byte
++   transferred (and R4 = the new file pointer), so R2 is an output too.  */
+ static __inline__ const _kernel_oserror * __attribute__ ((always_inline))
+ SWI_OS_GBPB_ReadBytes (unsigned __fhandle, void *__buf, unsigned __to_read,
+ 		       unsigned *__not_read)
+@@ -304,8 +312,8 @@ SWI_OS_GBPB_ReadBytes (unsigned __fhandle, void *__buf, unsigned __to_read,
+   __asm__ volatile ("MOV\tr0, #4\n\t"
+ 		    "SWI\t%[SWI_XOS_GBPB]\n\t"
+ 		    "MOVVC\tr0, #0\n\t"
+-		    : "=r" (err), "=r" (not_read)
+-		    : "r" (fhandle), "r" (buf), "r" (to_read),
++		    : "=r" (err), "=r" (not_read), "+r" (buf)
++		    : "r" (fhandle), "r" (to_read),
+ 		      [SWI_XOS_GBPB] "i" (OS_GBPB | (1<<17))
+ 		    : "r4", "r14", "cc", "memory");
+   if (__not_read && !err)
+@@ -325,10 +333,10 @@ SWI_OS_GBPB_WriteBytes (unsigned __fhandle, const void *__buf, unsigned __to_wri
+   __asm__ volatile ("MOV\tr0, #2\n\t"
+ 		    "SWI\t%[SWI_XOS_GBPB]\n\t"
+ 		    "MOVVC\tr0, #0\n\t"
+-		    : "=r" (err), "=r" (not_written)
+-		    : "r" (fhandle), "r" (buf), "r" (to_write),
++		    : "=r" (err), "=r" (not_written), "+r" (buf)
++		    : "r" (fhandle), "r" (to_write),
+ 		      [SWI_XOS_GBPB] "i" (OS_GBPB | (1<<17))
+-		    : "r4", "r14", "cc");
++		    : "r4", "r14", "cc", "memory");
+   if (__not_written && !err)
+     *__not_written = not_written;
+   return err;
+@@ -349,7 +357,7 @@ SWI_OS_ChangeRedirection (int __fh_in, int __fh_out,
+ 		    : "=r" (prev_fh_in), "=r" (prev_fh_out), [err] "=r" (err)
+ 		    : "r" (fh_in), "r" (fh_out),
+ 		      [SWI_XOS_ChangeRedirection] "i" (OS_ChangeRedirection | (1<<17))
+-		    : "r14", "cc");
++		    : "r14", "cc", "memory");
+   if (__prev_fh_in && !err)
+     *__prev_fh_in = prev_fh_in;
+   if (__prev_fh_out && !err)
+@@ -366,7 +374,7 @@ SWI_DDEUtils_SetCLSize (size_t __len)
+ 		    "MOVVC\tr0, #0\n\t"
+ 		    : "=r" (err)
+ 		    : "r" (len), [SWI_XDDEUtils_SetCLSize] "i" (DDEUtils_SetCLSize | (1<<17))
+-		    : "r14", "cc");
++		    : "r14", "cc", "memory");
+   return err;
+ }
+ 
+@@ -379,7 +387,7 @@ SWI_DDEUtils_SetCL (const char *__cli)
+ 		    "MOVVC\tr0, #0\n\t"
+ 		    : "=r" (err)
+ 		    : "r" (cli), [SWI_XDDEUtils_SetCL] "i" (DDEUtils_SetCL | (1<<17))
+-		    : "r14", "cc");
++		    : "r14", "cc", "memory");
+   return err;
+ }
+ 
+@@ -393,7 +401,7 @@ SWI_DDEUtils_GetCLSize (size_t *__len)
+ 		    "MOVVC\t%[err], #0\n\t"
+ 		    : [err] "=r" (err), "=r" (len)
+ 		    : [SWI_XDDEUtils_GetCLSize] "i" (DDEUtils_GetCLSize | (1<<17))
+-		    : "r14", "cc");
++		    : "r14", "cc", "memory");
+   if (__len && !err)
+     *__len = len;
+   return err;
+@@ -423,7 +431,7 @@ SWI_DDEUtils_Prefix (const char *__dir)
+ 		    : "=r" (err)
+ 		    : "r" (dir),
+ 		      [SWI_XDDEUtils_Prefix] "i" (DDEUtils_Prefix | (1<<17))
+-		    : "r14", "cc");
++		    : "r14", "cc", "memory");
+   return err;
+ }
+ 
+@@ -439,7 +447,7 @@ SWI_DDEUtils_ReadPrefix (int __ao, const char **__prefix)
+ 		    : [err] "=r" (err), "=r" (prefix)
+ 		    : "r" (ao),
+ 		      [SWI_XDDEUtils_ReadPrefix] "i" (DDEUtils_ReadPrefix | (1<<17))
+-		    : "r14", "cc");
++		    : "r14", "cc", "memory");
+   if (__prefix && !err)
+     *__prefix = prefix;
+   return err;
+@@ -457,7 +465,7 @@ SWI_OS_FSControl_Rename (const char *__oldfn, const char *__newfn)
+ 		    : "=r" (err)
+ 		    : "r" (oldfn), "r" (newfn),
+ 		      [SWI_XOS_FSControl] "i" (OS_FSControl | (1<<17))
+-		    : "r14", "cc");
++		    : "r14", "cc", "memory");
+   return err;
+ }
+ 
+@@ -472,7 +480,7 @@ SWI_OS_FSControl_SetCurDir (const char *__dirname)
+ 		    : "=r" (err)
+ 		    : "r" (dirname),
+ 		      [SWI_XOS_FSControl] "i" (OS_FSControl | (1<<17))
+-		    : "r14", "cc");
++		    : "r14", "cc", "memory");
+   return err;
+ }
+ 
+@@ -518,7 +526,7 @@ SWI_OS_Args_GetFilePtr (unsigned __fhandle, __off_t *__fileptr)
+ 		    : "=r" (err), "=r" (fileptr)
+ 		    : "r" (fhandle),
+ 		      [SWI_XOS_Args] "i" (OS_Args | (1<<17))
+-		    : "r14", "cc");
++		    : "r14", "cc", "memory");
+   if (__fileptr && !err)
+     *__fileptr = fileptr;
+   return err;
+@@ -537,7 +545,7 @@ SWI_OS_Args_SetFilePtr (unsigned __fhandle, __off_t __fileptr)
+ 		    : "=r" (err)
+ 		    : "r" (fhandle), "r" (fileptr),
+ 		      [SWI_XOS_Args] "i" (OS_Args | (1<<17))
+-		    : "r14", "cc");
++		    : "r14", "cc", "memory");
+   return err;
+ }  
+ 
+@@ -554,7 +562,7 @@ SWI_OS_Args_GetExtent (unsigned __fhandle, __off_t *__extent)
+ 		    : "=r" (err), "=r" (extent)
+ 		    : "r" (fhandle),
+ 		      [SWI_XOS_Args] "i" (OS_Args | (1<<17))
+-		    : "r14", "cc");
++		    : "r14", "cc", "memory");
+   if (__extent && !err)
+     *__extent = extent;
+   return err;
+@@ -573,7 +581,7 @@ SWI_OS_Args_SetExtent (unsigned __fhandle, __off_t __extent)
+ 		    : "=r" (err)
+ 		    : "r" (fhandle), "r" (extent),
+ 		      [SWI_XOS_Args] "i" (OS_Args | (1<<17))
+-		    : "r14", "cc");
++		    : "r14", "cc", "memory");
+   return err;
+ }  
+ 
+@@ -630,7 +638,7 @@ SWI_OS_Args_Flush (unsigned __fhandle)
+ 		    : "=r" (err)
+ 		    : "r" (fhandle),
+ 		      [SWI_XOS_Args] "i" (OS_Args | (1<<17))
+-		    : "r14", "cc");
++		    : "r14", "cc", "memory");
+   return err;
+ }
+ 
 diff --git a/gcc4/recipe/files/gcc/libunixlib/incl-local/internal/ticker.s b/gcc4/recipe/files/gcc/libunixlib/incl-local/internal/ticker.s
 new file mode 100644
 index 0000000..af20ac3
@@ -339,6 +669,277 @@ index eed3e61..827a1d8 100644
  extern pthread_t __pthread_thread_list; /* Linked list of all threads */
  
  /* Called once early in program initialisation */
+diff --git a/gcc4/recipe/files/gcc/libunixlib/incl-local/sys/socket.h b/gcc4/recipe/files/gcc/libunixlib/incl-local/sys/socket.h
+index b7ed72c..13293d8 100644
+--- a/gcc4/recipe/files/gcc/libunixlib/incl-local/sys/socket.h
++++ b/gcc4/recipe/files/gcc/libunixlib/incl-local/sys/socket.h
+@@ -13,6 +13,9 @@
+ 
+ __BEGIN_DECLS
+ 
++/* 2026: the Socket SWIs read or write memory through their pointer
++   arguments, so every wrapper lists "memory" (see internal/os.h).  */
++
+ extern int __net_error (int rtrn, const _kernel_oserror *err);
+ 
+ static __inline__ int __attribute__ ((always_inline))
+@@ -29,7 +32,7 @@ _accept (int __fd, __SOCKADDR_ARG __addr, socklen_t *__restrict __addrlen)
+ 		    : [err] "=r" (err), "=r" (rtrn)
+                     : "r" (fd), "r" (addr), "r" (addrlen),
+                       [SWI_XSocket_Accept_1] "i" (Socket_Accept_1 | (1<<17))
+-                    : "r14", "cc");
++                    : "r14", "cc", "memory");
+   return __net_error (rtrn, err);
+ }
+ 
+@@ -46,7 +49,7 @@ _bind (int __fd, __CONST_SOCKADDR_ARG __addr, socklen_t __addrlen)
+ 		    : [err] "=r" (err)
+ 		    : "r" (fd), "r" (addr), "r" (addrlen),
+                       [SWI_XSocket_Bind] "i" (Socket_Bind | (1<<17))
+-		    : "r14", "cc");
++		    : "r14", "cc", "memory");
+   return __net_error (0, err);
+ }
+ 
+@@ -63,7 +66,7 @@ _connect (int __fd, __CONST_SOCKADDR_ARG __addr, socklen_t __addrlen)
+ 		    : [err] "=r" (err)
+ 		    : "r" (fd), "r" (addr), "r" (addrlen),
+                       [SWI_XSocket_Connect] "i" (Socket_Connect | (1<<17))
+-		    : "r14", "cc");
++		    : "r14", "cc", "memory");
+   return __net_error (0, err);
+ }
+ 
+@@ -80,7 +83,7 @@ _getpeername (int __fd, __SOCKADDR_ARG __addr, socklen_t *__restrict __addrlen)
+ 		    : [err] "=r" (err)
+                     : "r" (fd), "r" (addr), "r" (addrlen),
+                       [SWI_XSocket_Getpeername_1] "i" (Socket_Getpeername_1 | (1<<17))
+-                    : "r14", "cc");
++                    : "r14", "cc", "memory");
+   return __net_error (0, err);
+ }
+ 
+@@ -97,7 +100,7 @@ _getsockname (int __fd, __SOCKADDR_ARG __addr, socklen_t *__restrict __addrlen)
+ 		    : [err] "=r" (err)
+                     : "r" (fd), "r" (addr), "r" (addrlen),
+                       [SWI_XSocket_Getsockname_1] "i" (Socket_Getsockname_1 | (1<<17))
+-                    : "r14", "cc");
++                    : "r14", "cc", "memory");
+   return __net_error (0, err);
+ }
+ 
+@@ -117,7 +120,7 @@ _getsockopt (int __fd, int __level, int __optname, void *__restrict __optval,
+ 		    : [err] "=r" (err)
+                     : "r" (fd), "r" (level), "r" (optname), "r" (optval), "r" (optlen),
+                       [SWI_XSocket_Getsockopt] "i" (Socket_Getsockopt | (1<<17))
+-                    : "r14", "cc");
++                    : "r14", "cc", "memory");
+   return __net_error (0, err);
+ }
+ 
+@@ -133,7 +136,7 @@ _listen (int __fd, int __backlog)
+ 		    : [err] "=r" (err)
+                     : "r" (fd), "r" (backlog),
+                       [SWI_XSocket_Listen] "i" (Socket_Listen | (1<<17))
+-                    : "r14", "cc");
++                    : "r14", "cc", "memory");
+   return __net_error (0, err);
+ }
+ 
+@@ -152,7 +155,7 @@ _recv (int __fd, void *__buf, size_t __len, int __flags)
+ 		    : [err] "=r" (err), "=r" (rtrn)
+                     : "r" (fd), "r" (buf), "r" (len), "r" (flags),
+                       [SWI_XSocket_Recv] "i" (Socket_Recv | (1<<17))
+-                    : "r14", "cc");
++                    : "r14", "cc", "memory");
+   return __net_error (rtrn, err);
+ }
+ 
+@@ -175,7 +178,7 @@ _recvfrom (int __fd, void *__restrict __buf, size_t __len, int __flags,
+                     : "r" (fd), "r" (buf), "r" (len), "r" (flags),
+ 		      "r" (srcaddr), "r" (srcaddrlen),
+                       [SWI_XSocket_Recvfrom_1] "i" (Socket_Recvfrom_1 | (1<<17))
+-                    : "r14", "cc");
++                    : "r14", "cc", "memory");
+   return __net_error (rtrn, err);
+ }
+ 
+@@ -193,7 +196,7 @@ _recvmsg (int __fd, struct msghdr *__msg, int __flags)
+ 		    : [err] "=r" (err), "=r" (rtrn)
+                     : "r" (fd), "r" (msg), "r" (flags),
+                       [SWI_XSocket_Recvmsg_1] "i" (Socket_Recvmsg_1 | (1<<17))
+-                    : "r14", "cc");
++                    : "r14", "cc", "memory");
+   return __net_error (rtrn, err);
+ }
+ 
+@@ -208,7 +211,7 @@ _sclose (int __sd)
+ 		    : [err] "=r" (err)
+                     : "r" (sd),
+                       [SWI_XSocket_Close] "i" (Socket_Close | (1<<17))
+-                    : "r14", "cc");
++                    : "r14", "cc", "memory");
+   return __net_error (0, err);
+ }
+ 
+@@ -222,7 +225,7 @@ _sclose_no_error (int __sd)
+ 		    :
+                     : "r" (sd),
+                       [SWI_XSocket_Close] "i" (Socket_Close | (1<<17))
+-                    : "r14", "cc");
++                    : "r14", "cc", "memory");
+ }
+ 
+ static __inline__ int __attribute__ ((always_inline))
+@@ -243,7 +246,7 @@ _sselect (int __nfds, fd_set *__readfds, fd_set *__writefds,
+                     : "r" (nfds), "r" (readfds), "r" (writefds),
+ 		      "r" (exceptfds), "r" (timeout),
+                       [SWI_XSocket_Select] "i" (Socket_Select | (1<<17))
+-                    : "r14", "cc");
++                    : "r14", "cc", "memory");
+   return __net_error (rtrn, err);
+ }
+ 
+@@ -262,7 +265,7 @@ _send (int __fd, __const void *__buf, size_t __len, int __flags)
+ 		    : [err] "=r" (err), "=r" (rtrn)
+                     : "r" (fd), "r" (buf), "r" (len), "r" (flags),
+                       [SWI_XSocket_Send] "i" (Socket_Send | (1<<17))
+-                    : "r14", "cc");
++                    : "r14", "cc", "memory");
+   return __net_error (rtrn, err);
+ }
+ 
+@@ -280,7 +283,7 @@ _sendmsg (int __fd, __const struct msghdr *__msg, int __flags)
+ 		    : [err] "=r" (err), "=r" (rtrn)
+                     : "r" (fd), "r" (msg), "r" (flags),
+                       [SWI_XSocket_Sendmsg_1] "i" (Socket_Sendmsg_1 | (1<<17))
+-                    : "r14", "cc");
++                    : "r14", "cc", "memory");
+   return __net_error (rtrn, err);
+ }
+ 
+@@ -303,7 +306,7 @@ _sendto (int __fd, __const void *__buf, size_t __len, int __flags,
+                     : "r" (fd), "r" (buf), "r" (len), "r" (flags),
+ 		      "r" (addr), "r" (addrlen),
+                       [SWI_XSocket_Sendto] "i" (Socket_Sendto | (1<<17))
+-                    : "r14", "cc");
++                    : "r14", "cc", "memory");
+   return __net_error (rtrn, err);
+ }
+ 
+@@ -324,7 +327,7 @@ _setsockopt (int __fd, int __level, int __optname, const void *__optval,
+                     : "r" (fd), "r" (level), "r" (optname), "r" (optval),
+ 		      "r" (optlen),
+                       [SWI_XSocket_Setsockopt] "i" (Socket_Setsockopt | (1<<17))
+-                    : "r14", "cc");
++                    : "r14", "cc", "memory");
+   return __net_error (0, err);
+ }
+ 
+@@ -340,7 +343,7 @@ _shutdown (int __fd, int __how)
+ 		    : [err] "=r" (err)
+                     : "r" (fd), "r" (how),
+                       [SWI_XSocket_Shutdown] "i" (Socket_Shutdown | (1<<17))
+-                    : "r14", "cc");
++                    : "r14", "cc", "memory");
+   return __net_error (0, err);
+ }
+ 
+@@ -357,7 +360,7 @@ _sioctl (int __sd, unsigned long __request, void *__arg)
+ 		    : [err] "=r" (err)
+                     : "r" (sd), "r" (request), "r" (arg),
+                       [SWI_XSocket_Ioctl] "i" (Socket_Ioctl | (1<<17))
+-                    : "r14", "cc");
++                    : "r14", "cc", "memory");
+   return __net_error (0, err);
+ }
+ 
+@@ -375,7 +378,7 @@ _socket (int __domain, int __type, int __protocol)
+ 		    : [err] "=r" (err), "=r" (rtrn)
+                     : "r" (domain), "r" (type), "r" (protocol),
+                       [SWI_XSocket_Creat] "i" (Socket_Creat | (1<<17))
+-                    : "r14", "cc");
++                    : "r14", "cc", "memory");
+   return __net_error (rtrn, err);
+ }
+ 
+@@ -393,7 +396,7 @@ _sread (int __sd, void *__buf, size_t __count)
+ 		    : [err] "=r" (err), "=r" (rtrn)
+                     : "r" (sd), "r" (buf), "r" (count),
+                       [SWI_XSocket_Read] "i" (Socket_Read | (1<<17))
+-                    : "r14", "cc");
++                    : "r14", "cc", "memory");
+   return __net_error (rtrn, err);
+ }
+ 
+@@ -411,7 +414,7 @@ _swrite (int __sd, const void *__buf, size_t __count)
+ 		    : [err] "=r" (err), "=r" (rtrn)
+                     : "r" (sd), "r" (buf), "r" (count),
+                       [SWI_XSocket_Write] "i" (Socket_Write | (1<<17))
+-                    : "r14", "cc");
++                    : "r14", "cc", "memory");
+   return __net_error (rtrn, err);
+ }
+ 
+@@ -429,7 +432,7 @@ _sreadv (int __sd, const struct iovec *__vector, int __count)
+ 		    : [err] "=r" (err), "=r" (rtrn)
+ 		    : "r" (sd), "r" (vector), "r" (count),
+                       [SWI_XSocket_Readv] "i" (Socket_Readv | (1<<17))
+-                    : "r14", "cc");
++                    : "r14", "cc", "memory");
+   return __net_error (rtrn, err);
+ }
+ 
+@@ -447,7 +450,7 @@ _swritev (int __sd, const struct iovec *__vector, int __count)
+ 		    : [err] "=r" (err), "=r" (rtrn)
+ 		    : "r" (sd), "r" (vector), "r" (count),
+                       [SWI_XSocket_Writev] "i" (Socket_Writev | (1<<17))
+-                    : "r14", "cc");
++                    : "r14", "cc", "memory");
+   return __net_error (rtrn, err);
+ }
+ 
+diff --git a/gcc4/recipe/files/gcc/libunixlib/incl-local/sys/stat.h b/gcc4/recipe/files/gcc/libunixlib/incl-local/sys/stat.h
+index 7d5e3e9..7719f89 100644
+--- a/gcc4/recipe/files/gcc/libunixlib/incl-local/sys/stat.h
++++ b/gcc4/recipe/files/gcc/libunixlib/incl-local/sys/stat.h
+@@ -14,6 +14,36 @@ __BEGIN_DECLS
+ int __stat (unsigned __objtype, unsigned __loadaddr, unsigned __execaddr,
+ 	    unsigned __length, unsigned __attr, struct stat *buf);
+ 
++/* 2026: copy a struct stat into a struct stat64.  RISC OS sizes are
++   unsigned 32-bit (files up to 4GB-1), kept as they are in the 32-bit
++   st_size; read them back as unsigned.  */
++static inline void
++__stat_to_stat64 (const struct stat *__st, struct stat64 *__st64)
++{
++  __st64->st_dev = __st->st_dev;
++  __st64->st_ino = __st->st_ino;
++  __st64->st_mode = __st->st_mode;
++  __st64->st_nlink = __st->st_nlink;
++  __st64->st_uid = __st->st_uid;
++  __st64->st_gid = __st->st_gid;
++  __st64->st_rdev = __st->st_rdev;
++  __st64->st_size = (unsigned long) __st->st_size;
++#if defined __USE_MISC || defined __USE_XOPEN2K8
++  __st64->st_atim = __st->st_atim;
++  __st64->st_mtim = __st->st_mtim;
++  __st64->st_ctim = __st->st_ctim;
++#else
++  __st64->st_atime = __st->st_atime;
++  __st64->st_atimensec = __st->st_atimensec;
++  __st64->st_mtime = __st->st_mtime;
++  __st64->st_mtimensec = __st->st_mtimensec;
++  __st64->st_ctime = __st->st_ctime;
++  __st64->st_ctimensec = __st->st_ctimensec;
++#endif
++  __st64->st_blksize = __st->st_blksize;
++  __st64->st_blocks = __st->st_blocks;
++}
++
+ __END_DECLS
+ 
+ #endif
 diff --git a/gcc4/recipe/files/gcc/libunixlib/include/sched.h b/gcc4/recipe/files/gcc/libunixlib/include/sched.h
 index 2e424fb..869176c 100644
 --- a/gcc4/recipe/files/gcc/libunixlib/include/sched.h
@@ -355,11 +956,169 @@ index 2e424fb..869176c 100644
  __END_DECLS
  
  #endif /* __SCHED_H */
+diff --git a/gcc4/recipe/files/gcc/libunixlib/include/sys/mman.h b/gcc4/recipe/files/gcc/libunixlib/include/sys/mman.h
+index b658ff5..b4ea83e 100644
+--- a/gcc4/recipe/files/gcc/libunixlib/include/sys/mman.h
++++ b/gcc4/recipe/files/gcc/libunixlib/include/sys/mman.h
+@@ -75,9 +75,25 @@ __BEGIN_DECLS
+    for errors (in which case `errno' is set).  A successful `mmap' call
+    deallocates any previous mapping for the affected region.  */
+ 
++#ifndef __USE_FILE_OFFSET64
+ extern void *mmap (void * __addr, size_t __len,
+ 		       int __prot, int __flags, int __fd,
+-		       off_t __offset) __THROW;
++		       __off_t __offset) __THROW;
++#else
++/* 2026: with _FILE_OFFSET_BITS=64, off_t is 64-bit but mmap took a 32-bit
++   offset, so the offset was read from the wrong place.  */
++# ifdef __REDIRECT_NTH
++extern void *__REDIRECT_NTH (mmap, (void *__addr, size_t __len, int __prot,
++				    int __flags, int __fd, __off64_t __offset),
++			     mmap64);
++# else
++#  define mmap mmap64
++# endif
++#endif
++#if defined __USE_LARGEFILE64 || defined __USE_FILE_OFFSET64
++extern void *mmap64 (void *__addr, size_t __len, int __prot, int __flags,
++		     int __fd, __off64_t __offset) __THROW;
++#endif
+ 
+ /* Deallocate any mapping for the region starting at ADDR and extending LEN
+    bytes.  Returns 0 if successful, -1 for errors (and sets errno).  */
+diff --git a/gcc4/recipe/files/gcc/libunixlib/include/sys/stat.h b/gcc4/recipe/files/gcc/libunixlib/include/sys/stat.h
+index 95184b4..2ed1933 100644
+--- a/gcc4/recipe/files/gcc/libunixlib/include/sys/stat.h
++++ b/gcc4/recipe/files/gcc/libunixlib/include/sys/stat.h
+@@ -78,7 +78,13 @@ typedef __blksize_t blksize_t;
+ 
+ __BEGIN_DECLS
+ 
+-/* Currently struct stat/stat64 are the same.  */
++/* 2026: struct stat64 has a 64-bit st_size (RISC OS files can be up to
++   4GB-1 bytes).  struct stat is unchanged unless _FILE_OFFSET_BITS=64, when
++   it is the same as struct stat64.  Up to UnixLib 5.0.1 both had a 32-bit
++   st_size; the functions for that layout are still in the library under
++   their old names (stat64, fstat64, lstat64), so objects and libraries
++   compiled with the old headers (libstdc++, for one) keep working.  New
++   code uses __unixlib_stat64 & co. through the declarations below.  */
+ #if defined __USE_MISC || defined __USE_XOPEN2K8
+ # define __UNIXLIB_STAT_TIME \
+     struct timespec st_atim; \
+@@ -96,7 +102,7 @@ __BEGIN_DECLS
+     __time_t	st_ctime;		/* Time of last status change.  */ \
+     unsigned long int st_ctimensec;
+ #endif
+-#define __DEFINE_STAT(stattype) \
++#define __DEFINE_STAT(stattype, offtype) \
+   struct stattype \
+   { \
+     __dev_t 	st_dev;			/* Device containing the file.  */ \
+@@ -106,7 +112,7 @@ __BEGIN_DECLS
+     __uid_t	st_uid;			/* User ID of the file's owner.  */ \
+     __gid_t	st_gid;			/* Group ID of the file's group. */ \
+     __dev_t 	st_rdev;		/* Device number, if device.  */ \
+-    __off_t 	st_size;		/* Size of file, in bytes.  */ \
++    offtype 	st_size;		/* Size of file, in bytes.  */ \
+     __UNIXLIB_STAT_TIME \
+     __blksize_t	st_blksize;		/* Optimal block size for I/O.  */ \
+   /*  unsigned long int st_nblocks; / * Number of 512-byte blocks allocated.  */ \
+@@ -114,8 +120,12 @@ __BEGIN_DECLS
+   }
+ #define _STATBUF_ST_BLKSIZE /* Tell code we have this stat member. */
+ 
+-__DEFINE_STAT(stat);
+-__DEFINE_STAT(stat64);
++#ifndef __USE_FILE_OFFSET64
++__DEFINE_STAT(stat, __off_t);
++#else
++__DEFINE_STAT(stat, __off64_t);
++#endif
++__DEFINE_STAT(stat64, __off64_t);
+ 
+ /* Bit masks.  */
+ 
+@@ -200,22 +210,37 @@ extern int fstat (int __fd, struct stat *__buf)
+ #else
+ # ifdef __REDIRECT_NTH
+ extern int __REDIRECT_NTH (stat, (__const char *__restrict __file,
+-                                  struct stat *__restrict __buf), stat64)
++                                  struct stat *__restrict __buf),
++			   __unixlib_stat64)
+      __nonnull ((1, 2));
+-extern int __REDIRECT_NTH (fstat, (int __fd, struct stat *__buf), fstat64)
++extern int __REDIRECT_NTH (fstat, (int __fd, struct stat *__buf),
++			   __unixlib_fstat64)
+      __nonnull ((2));
+ # else
+-#  define stat stat64
+-#  define fstat fstat64
++#  define stat __unixlib_stat64
++#  define fstat __unixlib_fstat64
+ # endif
+ #endif
+ #ifdef __USE_LARGEFILE64
+-extern int stat64 (const char *__restrict __filename,
+-		   struct stat64 *__restrict __buf)
++# ifdef __REDIRECT_NTH
++extern int __REDIRECT_NTH (stat64, (__const char *__restrict __file,
++				    struct stat64 *__restrict __buf),
++			   __unixlib_stat64)
++     __nonnull ((1, 2));
++extern int __REDIRECT_NTH (fstat64, (int __fd, struct stat64 *__buf),
++			   __unixlib_fstat64)
++     __nonnull ((2));
++# else
++#  define stat64 __unixlib_stat64
++#  define fstat64 __unixlib_fstat64
++# endif
++#endif
++/* The 64-bit stat functions under their own names (see struct stat64).  */
++extern int __unixlib_stat64 (const char *__restrict __filename,
++			     struct stat64 *__restrict __buf)
+      __THROW __nonnull ((1, 2));
+-extern int fstat64 (int __fd, struct stat64 *__buf)
++extern int __unixlib_fstat64 (int __fd, struct stat64 *__buf)
+      __THROW __nonnull ((2));
+-#endif
+ 
+ #if defined __USE_BSD || defined __USE_XOPEN_EXTENDED
+ # ifndef __USE_FILE_OFFSET64
+@@ -225,16 +250,24 @@ extern int lstat (const char *__filename, struct stat *__buf)
+ #  ifdef __REDIRECT_NTH
+ extern int __REDIRECT_NTH (lstat,
+                            (__const char *__restrict __file,
+-                            struct stat *__restrict __buf), lstat64)
++                            struct stat *__restrict __buf), __unixlib_lstat64)
+      __nonnull ((1, 2));
+ #  else
+-#   define lstat lstat64
++#   define lstat __unixlib_lstat64
+ #  endif
+ # endif
+ # ifdef __USE_LARGEFILE64
+-extern int lstat64 (const char *__filename,
+-		    struct stat64 *__buf) __THROW __nonnull ((1, 2));
++#  ifdef __REDIRECT_NTH
++extern int __REDIRECT_NTH (lstat64, (__const char *__restrict __file,
++				     struct stat64 *__restrict __buf),
++			   __unixlib_lstat64)
++     __nonnull ((1, 2));
++#  else
++#   define lstat64 __unixlib_lstat64
++#  endif
+ # endif
++extern int __unixlib_lstat64 (const char *__filename,
++			      struct stat64 *__buf) __THROW __nonnull ((1, 2));
+ #endif
+ 
+ /* Set file access permissions for file to mode.  */
 diff --git a/gcc4/recipe/files/gcc/libunixlib/include/unistd.h b/gcc4/recipe/files/gcc/libunixlib/include/unistd.h
-index be382ba..e7893a6 100644
+index be382ba..e684348 100644
 --- a/gcc4/recipe/files/gcc/libunixlib/include/unistd.h
 +++ b/gcc4/recipe/files/gcc/libunixlib/include/unistd.h
-@@ -608,6 +608,10 @@ extern void sync (void) __THROW;
+@@ -608,11 +608,39 @@ extern void sync (void) __THROW;
     This function is a cancellation point.  */
  extern int fsync (int __fd);
  
@@ -368,7 +1127,58 @@ index be382ba..e7893a6 100644
 +extern int fdatasync (int __fildes);
 +
  /* Truncate FILE to LENGTH bytes.  */
++#ifndef __USE_FILE_OFFSET64
  extern int truncate (const char *__file, __off_t __length) __THROW;
++#else
++# ifdef __REDIRECT_NTH
++extern int __REDIRECT_NTH (truncate, (const char *__file, __off64_t __length),
++			   truncate64);
++# else
++#  define truncate truncate64
++# endif
++#endif
+ 
+ /* Truncate the file FD is open on to LENGTH bytes.  */
++#ifndef __USE_FILE_OFFSET64
+ extern int ftruncate (int __fd, __off_t __length) __THROW;
++#else
++# ifdef __REDIRECT_NTH
++extern int __REDIRECT_NTH (ftruncate, (int __fd, __off64_t __length),
++			   ftruncate64);
++# else
++#  define ftruncate ftruncate64
++# endif
++#endif
++
++#if defined __USE_LARGEFILE64 || defined __USE_FILE_OFFSET64
++/* 2026: the same with a 64-bit length (RISC OS files: up to 4GB-1).  */
++extern int truncate64 (const char *__file, __off64_t __length) __THROW;
++extern int ftruncate64 (int __fd, __off64_t __length) __THROW;
++#endif
+ 
+ /* Return the number of bytes in a page.  This is the system's page size,
+    which is not necessarily the same as the hardware page size.  */
+diff --git a/gcc4/recipe/files/gcc/libunixlib/locale/iconv.c b/gcc4/recipe/files/gcc/libunixlib/locale/iconv.c
+index a01ab8f..d71a429 100644
+--- a/gcc4/recipe/files/gcc/libunixlib/locale/iconv.c
++++ b/gcc4/recipe/files/gcc/libunixlib/locale/iconv.c
+@@ -38,7 +38,7 @@ SWI_Iconv_Open (const char *__tocode, const char *__fromcode, iconv_t *resultp)
+ 		    : "=r" (err), "=r" (result)
+ 		    : "r" (tocode), "r" (fromcode),
+ 		      [SWI_XIconv_Open] "i" (Iconv_Open | (1<<17))
+-		    : "r14", "cc");
++		    : "r14", "cc", "memory");
+   *resultp = result;
+   return err;
+ }
+@@ -74,7 +74,7 @@ SWI_Iconv_Close (iconv_t __cd)
+ 		    "MOVVC\tr0, #0\n\t"
+ 		    : "=r" (err)
+ 		    : "r" (cd), [SWI_XIconv_Close] "i" (Iconv_Close | (1<<17))
+-		    : "r14", "cc");
++		    : "r14", "cc", "memory");
+   return err;
+ }
  
 diff --git a/gcc4/recipe/files/gcc/libunixlib/module/pthticker.s b/gcc4/recipe/files/gcc/libunixlib/module/pthticker.s
 new file mode 100644
@@ -522,6 +1332,32 @@ index 0000000..0b7caf3
 +	MOV	pc, lr
 +
 +	.end
+diff --git a/gcc4/recipe/files/gcc/libunixlib/netlib/scl_getservbyname.c b/gcc4/recipe/files/gcc/libunixlib/netlib/scl_getservbyname.c
+index b6950c6..6537ebc 100644
+--- a/gcc4/recipe/files/gcc/libunixlib/netlib/scl_getservbyname.c
++++ b/gcc4/recipe/files/gcc/libunixlib/netlib/scl_getservbyname.c
+@@ -18,7 +18,7 @@ getservbyname (const char *__name, const char *__proto)
+ 		  : [rtrn] "=r" (rtrn)
+ 		  : "r" (name), "r" (proto),
+ 		    [SWI_XInetServices_GetServiceByName] "i" (InetServices_GetServiceByName | (1<<17))
+-		  : "r2", "r14", "cc");
++		  : "r2", "r14", "cc", "memory");
+   return rtrn;
+ }
+ 
+diff --git a/gcc4/recipe/files/gcc/libunixlib/netlib/scl_getservbyport.c b/gcc4/recipe/files/gcc/libunixlib/netlib/scl_getservbyport.c
+index 4f0199f..fd34fd4 100644
+--- a/gcc4/recipe/files/gcc/libunixlib/netlib/scl_getservbyport.c
++++ b/gcc4/recipe/files/gcc/libunixlib/netlib/scl_getservbyport.c
+@@ -20,7 +20,7 @@ getservbyport (int __port, const char *__proto)
+ 		  : [rtrn] "=r" (rtrn)
+ 		  : "r" (port), "r" (proto),
+ 		    [SWI_XInetServices_GetServiceByPort] "i" (InetServices_GetServiceByPort | (1<<17))
+-		  : "r2", "r14", "cc");
++		  : "r2", "r14", "cc", "memory");
+   return rtrn;
+ }
+ 
 diff --git a/gcc4/recipe/files/gcc/libunixlib/pthread/_context.s b/gcc4/recipe/files/gcc/libunixlib/pthread/_context.s
 index fada843..1dd8b95 100644
 --- a/gcc4/recipe/files/gcc/libunixlib/pthread/_context.s
@@ -1289,6 +2125,46 @@ index 0000000..9dcce42
 +  if (created)
 +    _swix (OS_File, _INR(0,2), 18, file, 0xFFF);	/* Text */
 +}
+diff --git a/gcc4/recipe/files/gcc/libunixlib/resolv/scl_gethostbyname.c b/gcc4/recipe/files/gcc/libunixlib/resolv/scl_gethostbyname.c
+index 1f425ed..441a6d8 100644
+--- a/gcc4/recipe/files/gcc/libunixlib/resolv/scl_gethostbyname.c
++++ b/gcc4/recipe/files/gcc/libunixlib/resolv/scl_gethostbyname.c
+@@ -16,16 +16,20 @@ gethostbyname (const char *__name)
+ {
+   register const char *name __asm ("r1") = __name;
+   const _kernel_oserror *roerr;
++  /* 2026: the SWI returns R0 = status and R1 = the hostent; both are
++     outputs.  Before, rtrn and ulerrno were never set as far as the
++     compiler knew.  */
++  register int status __asm ("r0");
+   register struct hostent *rtrn __asm ("r1");
+   __asm volatile ("SWI\t%[SWI_XResolver_GetHostByName]\n\t"
+ 		  "MOVVS\t%[roerr], r0\n\t"
+ 		  "MOVVC\t%[roerr], #0\n\t"
+-		  : [roerr] "=r" (roerr)
++		  : [roerr] "=&r" (roerr), "=r" (status), "=r" (rtrn)
+ 		  : "r" (name),
+ 		    [SWI_XResolver_GetHostByName] "i" (Resolver_GetHostByName | (1<<17))
+-		  : "r0", "r14", "cc");
++		  : "r14", "cc", "memory");
+ 
+-  int ulerrno;
++  int ulerrno = status;
+   if (roerr != NULL)
+     {
+       /* RISC OS error happened.  */
+@@ -40,7 +44,10 @@ gethostbyname (const char *__name)
+     ulerrno = NETDB_SUCCESS;
+ 
+   if (ulerrno != NETDB_SUCCESS)
+-    __set_h_errno (ulerrno);
++    {
++      __set_h_errno (ulerrno);
++      return NULL;
++    }
+ 
+   return rtrn;
+ }
 diff --git a/gcc4/recipe/files/gcc/libunixlib/sched/sched_prio.c b/gcc4/recipe/files/gcc/libunixlib/sched/sched_prio.c
 new file mode 100644
 index 0000000..09a1e5a
@@ -2380,6 +3256,164 @@ index 0000000..47cb3e8
 +  if (midi_kind != MIDI_NONE)
 +    midi_disconnect ();
 +}
+diff --git a/gcc4/recipe/files/gcc/libunixlib/stdio/err.c b/gcc4/recipe/files/gcc/libunixlib/stdio/err.c
+index d7f2f0e..0de0663 100644
+--- a/gcc4/recipe/files/gcc/libunixlib/stdio/err.c
++++ b/gcc4/recipe/files/gcc/libunixlib/stdio/err.c
+@@ -34,7 +34,8 @@ get_cli (void)
+ 		    "MOVVS\tr0, #0\n\t"
+ 		    : "=r" (cli)
+ 		    : [SWI_XOS_GetEnv] "i" (OS_GetEnv | (1<<17))
+-		    : "r14", "cc");
++		    /* 2026: OS_GetEnv also returns R1 (RAM limit) and R2.  */
++		    : "r1", "r2", "r14", "cc");
+   return cli;
+ #else
+   return _kernel_command_string ();
+diff --git a/gcc4/recipe/files/gcc/libunixlib/stdio/fgetpos.c b/gcc4/recipe/files/gcc/libunixlib/stdio/fgetpos.c
+index 9590f59..d56a0d5 100644
+--- a/gcc4/recipe/files/gcc/libunixlib/stdio/fgetpos.c
++++ b/gcc4/recipe/files/gcc/libunixlib/stdio/fgetpos.c
+@@ -67,17 +67,19 @@ fgetpos (FILE *stream, __off_t *pos)
+ 
+   return 0;
+ }
+-#if __UNIXLIB_LFS64_SUPPORT
+-#  error "64-bit LFS support missing."
+-#else
++/* 2026: RISC OS file positions are unsigned 32-bit values (files up to
++   4GB-1 bytes).  The stream keeps its position in a 32-bit __off_t, where
++   positions of 2GB and over look negative; fgetpos works out the same bits
++   (the arithmetic wraps), so read the result back as unsigned.  */
+ int
+ fgetpos64 (FILE *stream, __off64_t *pos)
+ {
+   __off_t pos32;
++  if (pos == NULL)
++    return __set_errno (EINVAL);
+   if (fgetpos (stream, &pos32) == -1)
+     return -1;
+-  *pos = pos32;
++  *pos = (unsigned long) pos32;
+   return 0;
+ }
+-#endif
+ 
+diff --git a/gcc4/recipe/files/gcc/libunixlib/stdio/fseeko.c b/gcc4/recipe/files/gcc/libunixlib/stdio/fseeko.c
+index 676be70..94d677a 100644
+--- a/gcc4/recipe/files/gcc/libunixlib/stdio/fseeko.c
++++ b/gcc4/recipe/files/gcc/libunixlib/stdio/fseeko.c
+@@ -67,15 +67,52 @@ fseeko (FILE *stream, __off_t offset, int w)
+ 
+   return 0;
+ }
+-#if __UNIXLIB_LFS64_SUPPORT
+-#  error "64-bit LFS support missing."
+-#else
++/* 2026: as fseeko, with 64-bit offsets and lseek64, so a RISC OS file can
++   be positioned anywhere up to 4GB-1.  Before, this stopped at 2GB-1.  */
+ int
+ fseeko64 (FILE *stream, __off64_t offset, int w)
+ {
+-  if (offset >= -1U && (__off_t)(offset >> 32) != -1U)
+-    return __set_errno (EOVERFLOW);
+-  return fseeko (stream, (__off_t)offset, w);
++  PTHREAD_UNSAFE
++
++  if (!__validfp (stream))
++    return __set_errno (EINVAL);
++
++  __off64_t new_offset;
++  int new_w;
++  if (w == SEEK_CUR)
++    {
++      if (fgetpos64 (stream, &new_offset) == -1)
++	return -1;
++      new_offset += offset;
++      new_w = SEEK_SET;
++    }
++  else if (w == SEEK_SET || w == SEEK_END)
++    {
++      new_offset = offset;
++      new_w = w;
++    }
++  else
++    return __set_errno (EINVAL);
++
++  /* Write out any pending data.  */
++  if (stream->__mode.__bits.__write && __flsbuf (EOF, stream) == EOF)
++    return -1;
++
++  __off64_t cur_offset = lseek64 (fileno (stream), new_offset, new_w);
++  if (cur_offset == (__off64_t)-1)
++    {
++      stream->__error = 1;
++      return -1;
++    }
++
++  /* Up to 4GB-1, kept in the 32-bit field (see fgetpos64).  */
++  stream->__offset = (__off_t) (unsigned long) cur_offset;
++
++  /* As fseeko.  */
++  stream->i_cnt = 0;
++  stream->__pushedback = 0;
++  stream->__eof = 0;
++
++  return 0;
+ }
+-#endif
+ 
+diff --git a/gcc4/recipe/files/gcc/libunixlib/stdio/fsetpos.c b/gcc4/recipe/files/gcc/libunixlib/stdio/fsetpos.c
+index d9aea66..432f2fa 100644
+--- a/gcc4/recipe/files/gcc/libunixlib/stdio/fsetpos.c
++++ b/gcc4/recipe/files/gcc/libunixlib/stdio/fsetpos.c
+@@ -50,16 +50,13 @@ fsetpos (FILE *stream, const __off_t *pos)
+ 
+   return 0;
+ }
+-#if __UNIXLIB_LFS64_SUPPORT
+-#  error "64-bit LFS support missing."
+-#else
++/* 2026: positions up to 4GB-1 (fseeko64).  The old version converted
++   the pointer POS, not the position, so it moved to a meaningless place.  */
+ int
+ fsetpos64 (FILE *stream, const __off64_t *pos)
+ {
+-  if (pos != NULL && *pos >= -1U)
+-    return __set_errno (EOVERFLOW);
+-  __off_t pos32 = (__off_t)pos;
+-  return fsetpos (stream, &pos32);
++  if (pos == NULL)
++    return __set_errno (EINVAL);
++  return fseeko64 (stream, *pos, SEEK_SET);
+ }
+-#endif
+ 
+diff --git a/gcc4/recipe/files/gcc/libunixlib/stdio/ftello.c b/gcc4/recipe/files/gcc/libunixlib/stdio/ftello.c
+index 1759e21..777f924 100644
+--- a/gcc4/recipe/files/gcc/libunixlib/stdio/ftello.c
++++ b/gcc4/recipe/files/gcc/libunixlib/stdio/ftello.c
+@@ -24,13 +24,15 @@ ftello (FILE *stream)
+   return pos;
+ }
+ 
+-#if __UNIXLIB_LFS64_SUPPORT
+-#  error "64-bit LFS support missing."
+-#else
++/* 2026: RISC OS file positions go up to 4GB-1 (unsigned 32-bit); the
++   stream keeps them in a 32-bit __off_t, so read them back as unsigned.  */
+ __off64_t
+ ftello64 (FILE *stream)
+ {
+-  return ftello (stream);
++  __off64_t pos;
++  if (fgetpos64 (stream, &pos) == -1)
++    return (__off64_t)-1;
++
++  return pos;
+ }
+-#endif
+ 
 diff --git a/gcc4/recipe/files/gcc/libunixlib/stdlib/alloc.c b/gcc4/recipe/files/gcc/libunixlib/stdlib/alloc.c
 index 46a40ba..de75f5a 100644
 --- a/gcc4/recipe/files/gcc/libunixlib/stdlib/alloc.c
@@ -2482,6 +3516,35 @@ index 3f7c274..dce7b87 100644
 +__pthread_callevery_block_size:
 +	.word	PTHREAD_CALLEVERY_STRUCT_SIZE
 +	DECLARE_OBJECT __pthread_callevery_block_size
+diff --git a/gcc4/recipe/files/gcc/libunixlib/sys/mmap64.c b/gcc4/recipe/files/gcc/libunixlib/sys/mmap64.c
+new file mode 100644
+index 0000000..1b3aa6c
+--- /dev/null
++++ b/gcc4/recipe/files/gcc/libunixlib/sys/mmap64.c
+@@ -0,0 +1,23 @@
++/* mmap64 ()
++   Copyright (c) 2026 UnixLib Developers.
++
++   2026: mmap with a 64-bit offset, for programs built with
++   _FILE_OFFSET_BITS=64 (<sys/mman.h> maps mmap to this).  Before, their
++   64-bit offset was passed to the 32-bit mmap, which read the wrong
++   argument.  Offsets must fit in 32 bits, as for mmap.  */
++
++#include <errno.h>
++#include <sys/mman.h>
++#include <sys/types.h>
++
++void *
++mmap64 (void *addr, size_t len, int prot, int flags, int fd,
++	__off64_t offset)
++{
++  if (offset != (__off64_t) (__off_t) offset)
++    {
++      errno = EOVERFLOW;
++      return MAP_FAILED;
++    }
++  return mmap (addr, len, prot, flags, fd, (__off_t) offset);
++}
 diff --git a/gcc4/recipe/files/gcc/libunixlib/time/clk_gettime.c b/gcc4/recipe/files/gcc/libunixlib/time/clk_gettime.c
 index 9927105..8cb2de5 100644
 --- a/gcc4/recipe/files/gcc/libunixlib/time/clk_gettime.c
@@ -2585,8 +3648,30 @@ index 9927105..8cb2de5 100644
  	  break;
  	}
  
+diff --git a/gcc4/recipe/files/gcc/libunixlib/time/stdtime.c b/gcc4/recipe/files/gcc/libunixlib/time/stdtime.c
+index b08fb6d..8b8c45b 100644
+--- a/gcc4/recipe/files/gcc/libunixlib/time/stdtime.c
++++ b/gcc4/recipe/files/gcc/libunixlib/time/stdtime.c
+@@ -23,10 +23,15 @@ SWI_Territory_ConvertDateAndTime (int __territory, const char *__ro_time,
+   register const char *str __asm ("r4") = __str;
+   register const _kernel_oserror *err __asm ("r0");
+   register char *term __asm ("r1");
++  /* 2026: the SWI returns R0 = buffer, R1 = terminator and R2 = bytes left
++     in the buffer, so R2 is an output too ("+r"); R3 and R4 are treated
++     the same way rather than assumed preserved.  With R2 as an input only,
++     GCC kept the result pointer in R2 and ctime() returned "bytes left"
++     (Warzone 2100 crashed in strlen at &27).  */
+   __asm__ volatile ("SWI\t%[SWI_Territory_ConvertDateAndTime]\n\t"
+ 		    "MOVVC\tr0, #0\n\t"
+-		    : "=r" (err), "=r" (term)
+-		    : "r" (territory), "r" (ro_time), "r" (buf), "r" (size), "r" (str),
++		    : "=r" (err), "=r" (term), "+r" (buf), "+r" (size), "+r" (str)
++		    : "r" (territory), "r" (ro_time),
+ 		      [SWI_Territory_ConvertDateAndTime] "i" (Territory_ConvertDateAndTime | (1<<17))
+ 		    : "r14", "cc", "memory");
+   *termp = term;
 diff --git a/gcc4/recipe/files/gcc/libunixlib/unix/dev.c b/gcc4/recipe/files/gcc/libunixlib/unix/dev.c
-index de312db..a529ff2 100644
+index de312db..20273d7 100644
 --- a/gcc4/recipe/files/gcc/libunixlib/unix/dev.c
 +++ b/gcc4/recipe/files/gcc/libunixlib/unix/dev.c
 @@ -78,6 +78,11 @@ const struct dev __dev[NDEV] = {
@@ -2611,6 +3696,256 @@ index de312db..a529ff2 100644
    {"custom", DEV_CUSTOM},
  /*   {"pipe", DEV_PIPE}, does open on /dev/pipe make sense ?  */
  /*   {"socket", DEV_SOCKET}, does open on /dev/socket make sense ?  */
+@@ -390,6 +398,43 @@ __fsclose (struct __unixlib_fd *file_desc)
+   return (!err) ? 0 : __ul_seterr (err, EOPSYS);
+ }
+ 
++#ifdef __ARM_EABI__
++/* 2026: map in the stack pages a read will fill.
++
++   ARMEABISupport maps a stack's pages in when they are first touched, from
++   its abort handler.  That works for USR mode, but a SWI (OS_GBPB) writing
++   into a page that hasn't been touched yet aborts in SVC mode, and the
++   program dies ("EMT trap" with fontconfig reading into a stack buffer,
++   Warzone 2100; GCCSDK's fontconfig port works around the same thing).
++   So before the SWI, read one byte of each page of the part of the buffer
++   that lies in a stack, here in USR mode.  Nothing is written, and buffers
++   that aren't in a stack (heap, dynamic areas) aren't touched at all.  */
++static void
++touch_stack_pages (const void *data, size_t nbyte)
++{
++  const char *lo = data, *hi = lo + nbyte;
++  const char *sp = __builtin_frame_address (0);
++  unsigned stack, base, top;
++
++  /* A buffer in a live stack frame is above the stack pointer.  */
++  if (nbyte == 0 || hi <= sp)
++    return;
++  if (_swix (ARMEABISupport_StackOp, _INR(0,1)|_OUT(1),
++	     ARMEABISUPPORT_STACKOP_GET_STACK, lo, &stack) != NULL
++      || stack == 0
++      || _swix (ARMEABISupport_StackOp, _INR(0,1)|_OUTR(1,2),
++		ARMEABISUPPORT_STACKOP_GET_BOUNDS, stack, &base, &top) != NULL)
++    return;
++  if (lo < (const char *) base)
++    lo = (const char *) base;
++  if (hi > (const char *) top)
++    hi = (const char *) top;
++  for (const char *p = lo; p < hi;
++       p = (const char *) (((unsigned) p | 4095u) + 1))
++    (void) *(const volatile char *) p;
++}
++#endif
++
+ int
+ __fsread (struct __unixlib_fd *file_desc, void *data, int nbyte)
+ {
+@@ -414,6 +459,10 @@ __fsread (struct __unixlib_fd *file_desc, void *data, int nbyte)
+     {
+       const _kernel_oserror *err;
+       unsigned not_read;
++#ifdef __ARM_EABI__
++      if (nbyte > 0)
++	touch_stack_pages (data, nbyte);
++#endif
+       if ((err = SWI_OS_GBPB_ReadBytes ((int) file_desc->devicehandle->handle,
+ 					data, nbyte, &not_read)) != NULL)
+ 	return __ul_seterr (err, EOPSYS);
+@@ -475,6 +524,44 @@ __fslseek (struct __unixlib_fd * file_desc, __off_t lpos, int whence)
+   return !err ? lpos : __ul_seterr (err, EOPSYS);
+ }
+ 
++/* 2026: RISC OS file pointers and extents are unsigned 32-bit values, so
++   files can be up to 4GB-1 bytes.  __fslseek works with a signed 32-bit
++   __off_t (2GB-1) and is unchanged for existing programs; this is the
++   64-bit version for lseek64 (_FILE_OFFSET_BITS=64).  */
++__off64_t
++__fslseek64 (struct __unixlib_fd *file_desc, __off64_t lpos, int whence)
++{
++  if (file_desc->dflag & FILE_ISDIR)
++    return 0; /* As __fslseek.  */
++
++  const _kernel_oserror *err = NULL;
++  int handle = (int) file_desc->devicehandle->handle;
++  __off_t base32 = 0;
++
++  if (whence == SEEK_CUR)
++    err = SWI_OS_Args_GetFilePtr (handle, &base32);
++  else if (whence == SEEK_END)
++    err = SWI_OS_Args_GetExtent (handle, &base32);
++  else if (whence != SEEK_SET)
++    return __set_errno (EINVAL);
++  if (err)
++    return __ul_seterr (err, EOPSYS);
++
++  __off64_t pos = (__off64_t) (unsigned long) base32 + lpos;
++  if (pos < 0)
++    return __set_errno (EINVAL);
++  if (pos > 0xFFFFFFFFLL)
++    return __set_errno (EOVERFLOW);
++
++  if (whence != SEEK_CUR || lpos != 0)
++    {
++      err = SWI_OS_Args_SetFilePtr (handle, (__off_t) (unsigned long) pos);
++      if (err)
++	return __ul_seterr (err, EOPSYS);
++    }
++  return pos;
++}
++
+ int
+ __fsstat (const char *ux_filename, struct stat *buf)
+ {
+diff --git a/gcc4/recipe/files/gcc/libunixlib/unix/fstat.c b/gcc4/recipe/files/gcc/libunixlib/unix/fstat.c
+index ec4e833..394405f 100644
+--- a/gcc4/recipe/files/gcc/libunixlib/unix/fstat.c
++++ b/gcc4/recipe/files/gcc/libunixlib/unix/fstat.c
+@@ -34,9 +34,26 @@ fstat (int fd, struct stat *buf)
+   return dev_funcall (file_desc->devicehandle->type, fstat, (fd, buf));
+ }
+ 
++/* 2026: the symbol fstat64 keeps the pre-5.0.2 layout (a 32-bit st_size,
++   the same as struct stat) for objects compiled with older headers, such
++   as libstdc++.  New code calls __unixlib_fstat64.  */
++int __fstat64_compat (int fd, struct stat *buf) __asm__ ("fstat64");
++
++int
++__fstat64_compat (int fd, struct stat *buf)
++{
++  return fstat (fd, buf);
++}
++
++/* struct stat64: a 64-bit st_size.  RISC OS file sizes are unsigned 32-bit
++   values, which struct stat holds as a (possibly negative) __off_t.  */
+ int
+-fstat64 (int fd, struct stat64 *buf)
++__unixlib_fstat64 (int fd, struct stat64 *buf)
+ {
+-  /* struct stat64 is currently the same as struct stat.  */
+-  return fstat (fd, (struct stat *)buf);
++  struct stat st;
++
++  if (fstat (fd, &st) != 0)
++    return -1;
++  __stat_to_stat64 (&st, buf);
++  return 0;
+ }
+diff --git a/gcc4/recipe/files/gcc/libunixlib/unix/lstat.c b/gcc4/recipe/files/gcc/libunixlib/unix/lstat.c
+index a5c32c7..9c1d1c5 100644
+--- a/gcc4/recipe/files/gcc/libunixlib/unix/lstat.c
++++ b/gcc4/recipe/files/gcc/libunixlib/unix/lstat.c
+@@ -35,9 +35,12 @@ lstat (const char *filename, struct stat *buf)
+   return dev_funcall (buf->st_dev, lstat, (filename, buf));
+ }
+ 
++/* 2026: the symbol lstat64 keeps the pre-5.0.2 layout (see stat.c).  */
++int __lstat64_compat (const char *filename, struct stat *buf)
++  __asm__ ("lstat64");
++
+ int
+-lstat64 (const char *filename, struct stat64 *buf)
++__lstat64_compat (const char *filename, struct stat *buf)
+ {
+-  /* struct stat64 is currently the same as struct stat.  */
+-  return lstat (filename, (struct stat *)buf);
++  return lstat (filename, buf);
+ }
+diff --git a/gcc4/recipe/files/gcc/libunixlib/unix/scl_fstat.c b/gcc4/recipe/files/gcc/libunixlib/unix/scl_fstat.c
+index 8a9b733..026219f 100644
+--- a/gcc4/recipe/files/gcc/libunixlib/unix/scl_fstat.c
++++ b/gcc4/recipe/files/gcc/libunixlib/unix/scl_fstat.c
+@@ -37,10 +37,27 @@ fstat (int fd, struct stat *buf)
+   return __stat (objtype, loadaddr, execaddr, objlen, attr, buf);
+ }
+  
++/* 2026: the symbol fstat64 keeps the pre-5.0.2 layout (a 32-bit st_size,
++   the same as struct stat) for objects compiled with older headers, such
++   as libstdc++.  New code calls __unixlib_fstat64.  */
++int __fstat64_compat (int fd, struct stat *buf) __asm__ ("fstat64");
++
++int
++__fstat64_compat (int fd, struct stat *buf)
++{
++  return fstat (fd, buf);
++}
++
++/* struct stat64: a 64-bit st_size.  RISC OS file sizes are unsigned 32-bit
++   values, which struct stat holds as a (possibly negative) __off_t.  */
+ int
+-fstat64 (int fd, struct stat64 *buf)
++__unixlib_fstat64 (int fd, struct stat64 *buf)
+ {
+-  /* struct stat64 is currently the same as struct stat.  */
+-  return fstat (fd, (struct stat *)buf);
++  struct stat st;
++
++  if (fstat (fd, &st) != 0)
++    return -1;
++  __stat_to_stat64 (&st, buf);
++  return 0;
+ }
+ 
+diff --git a/gcc4/recipe/files/gcc/libunixlib/unix/stat.c b/gcc4/recipe/files/gcc/libunixlib/unix/stat.c
+index 519f61b..58b4c9b 100644
+--- a/gcc4/recipe/files/gcc/libunixlib/unix/stat.c
++++ b/gcc4/recipe/files/gcc/libunixlib/unix/stat.c
+@@ -35,9 +35,15 @@ stat (const char *filename, struct stat *buf)
+ }
+ 
+ 
++/* 2026: the symbol stat64 keeps the pre-5.0.2 layout (a 32-bit st_size,
++   the same as struct stat) for objects compiled with older headers, such
++   as libstdc++.  New code calls __unixlib_stat64 (unix/stat64.c).  */
++int __stat64_compat (const char *filename, struct stat *buf)
++  __asm__ ("stat64");
++
+ int
+-stat64 (const char *filename, struct stat64 *buf)
++__stat64_compat (const char *filename, struct stat *buf)
+ {
+-  return stat(filename, (struct stat *)buf);
++  return stat (filename, buf);
+ }
+ 
+diff --git a/gcc4/recipe/files/gcc/libunixlib/unix/stat64.c b/gcc4/recipe/files/gcc/libunixlib/unix/stat64.c
+new file mode 100644
+index 0000000..f7d038f
+--- /dev/null
++++ b/gcc4/recipe/files/gcc/libunixlib/unix/stat64.c
+@@ -0,0 +1,33 @@
++/* __unixlib_stat64 (), __unixlib_lstat64 ()
++   Copyright (c) 2026 UnixLib Developers.
++
++   2026: struct stat64 with a 64-bit st_size.  RISC OS file sizes are
++   unsigned 32-bit values (files up to 4GB-1 bytes); struct stat keeps them
++   in a 32-bit __off_t, where sizes of 2GB and over look negative.  The
++   64-bit versions read them back as unsigned.  <sys/stat.h> maps stat64,
++   lstat64 (and stat, lstat with _FILE_OFFSET_BITS=64) to these; the old
++   symbols stat64 and lstat64 keep the old layout (see stat.c).  */
++
++#include <sys/stat.h>
++
++int
++__unixlib_stat64 (const char *filename, struct stat64 *buf)
++{
++  struct stat st;
++
++  if (stat (filename, &st) != 0)
++    return -1;
++  __stat_to_stat64 (&st, buf);
++  return 0;
++}
++
++int
++__unixlib_lstat64 (const char *filename, struct stat64 *buf)
++{
++  struct stat st;
++
++  if (lstat (filename, &st) != 0)
++    return -1;
++  __stat_to_stat64 (&st, buf);
++  return 0;
++}
 diff --git a/gcc4/recipe/files/gcc/libunixlib/unix/sync.c b/gcc4/recipe/files/gcc/libunixlib/unix/sync.c
 index f6b1a2f..8547c9f 100644
 --- a/gcc4/recipe/files/gcc/libunixlib/unix/sync.c
@@ -2649,6 +3984,73 @@ index f6b1a2f..8547c9f 100644
 +{
 +  return fsync (fd);
 +}
+diff --git a/gcc4/recipe/files/gcc/libunixlib/unix/truncate.c b/gcc4/recipe/files/gcc/libunixlib/unix/truncate.c
+index 64df871..2229aa4 100644
+--- a/gcc4/recipe/files/gcc/libunixlib/unix/truncate.c
++++ b/gcc4/recipe/files/gcc/libunixlib/unix/truncate.c
+@@ -73,3 +73,26 @@ truncate (const char *ux_file, off_t length)
+ 
+   return 0;
+ }
++
++/* 2026: 64-bit lengths.  RISC OS extents are unsigned 32-bit values, so a
++   file can be up to 4GB-1 bytes; ftruncate and truncate pass their 32-bit
++   length straight to OS_Args 3, so give them the same bits.  */
++int
++ftruncate64 (int fd, __off64_t length)
++{
++  if (length < 0)
++    return __set_errno (EINVAL);
++  if (length > 0xFFFFFFFFLL)
++    return __set_errno (EFBIG);
++  return ftruncate (fd, (__off_t) (unsigned long) length);
++}
++
++int
++truncate64 (const char *ux_file, __off64_t length)
++{
++  if (length < 0)
++    return __set_errno (EINVAL);
++  if (length > 0xFFFFFFFFLL)
++    return __set_errno (EFBIG);
++  return truncate (ux_file, (__off_t) (unsigned long) length);
++}
+diff --git a/gcc4/recipe/files/gcc/libunixlib/unix/ul_lseek.c b/gcc4/recipe/files/gcc/libunixlib/unix/ul_lseek.c
+index dee2f50..57bf85f 100644
+--- a/gcc4/recipe/files/gcc/libunixlib/unix/ul_lseek.c
++++ b/gcc4/recipe/files/gcc/libunixlib/unix/ul_lseek.c
+@@ -27,17 +27,24 @@ lseek (int fd, __off_t offset, int whence)
+ 		      (file_desc, offset, whence));
+ }
+ 
++/* 2026: RISC OS files can be up to 4GB-1 bytes (unsigned 32-bit file
++   pointers), so lseek64 reaches that far on RISC OS files.  Before, it
++   stopped at 2GB-1 like lseek.  lseek is unchanged.  */
+ __off64_t
+ lseek64 (int fd, __off64_t offset, int whence)
+ {
+-#if __UNIXLIB_LFS64_SUPPORT
+-#  error "64-bit LFS support missing."
+-#else
+-  /* Check if the __off64_t offset fits in a __off_t one.  Further
+-     checking will be done in lseek itself.  */
++  PTHREAD_UNSAFE
++
++  if (BADF (fd))
++    return __set_errno (EBADF);
++
++  struct __unixlib_fd *file_desc = getfd (fd);
++
++  if (file_desc->devicehandle->type == DEV_RISCOS)
++    return __fslseek64 (file_desc, offset, whence);
++
++  /* Other devices: as before.  */
+   if (offset != (__off64_t)(__off_t)offset)
+     return __set_errno (EOVERFLOW);
+-#endif
+-
+   return lseek (fd, (__off_t) offset, whence);
+ }
 diff --git a/gcc4/recipe/files/gcc/libunixlib/unix/unix.c b/gcc4/recipe/files/gcc/libunixlib/unix/unix.c
 index 7f47f19..ef2abb8 100644
 --- a/gcc4/recipe/files/gcc/libunixlib/unix/unix.c

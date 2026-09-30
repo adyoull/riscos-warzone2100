@@ -1,0 +1,57 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Andrew Youll <adyoull@users.noreply.github.com>
+Date: Wed, 30 Sep 2026 12:30:50 +0100
+Subject: [PATCH] RISC OS: full screen as a full window when riscos_display.c
+ asks for it
+
+With SDL_RISCOS_FULLSCREEN_WINDOW=1 (set from Warzone2100$FullWindow, along
+with a fixed render size), start-up full screen and Alt+Return use
+SDL_WINDOW_FULLSCREEN_DESKTOP: riscos-mesa 20.3.5-10's full window, a
+borderless desktop window with no mode change.
+---
+ lib/ivis_opengl/screen.c | 18 ++++++++++++++++--
+ 1 file changed, 16 insertions(+), 2 deletions(-)
+
+diff --git a/lib/ivis_opengl/screen.c b/lib/ivis_opengl/screen.c
+index 9dd05e8..5ef4eb9 100644
+--- a/lib/ivis_opengl/screen.c
++++ b/lib/ivis_opengl/screen.c
+@@ -74,6 +74,20 @@ UDWORD screenGetWindowWidth(void) { return windowWidth; }
+ UDWORD screenGetWindowHeight(void) { return windowHeight; }
+ #endif
+ 
++#if defined(WZ_OS_RISCOS)
++// Full screen as a "full window" (riscos-mesa 20.3.5-10): a borderless
++// desktop window over the whole screen, with no mode change, so the desktop
++// keeps multitasking. riscos/riscos_display.c turns it on (with a fixed
++// render size) from Warzone2100$FullWindow.
++static Uint32 wzFullscreenFlag(void)
++{
++	const char *full = getenv("SDL_RISCOS_FULLSCREEN_WINDOW");
++	return (full && full[0] == '1') ? SDL_WINDOW_FULLSCREEN_DESKTOP : SDL_WINDOW_FULLSCREEN;
++}
++#else
++#define wzFullscreenFlag() SDL_WINDOW_FULLSCREEN
++#endif
++
+ static int preview_width = 0, preview_height = 0;
+ static Vector2i player_pos[MAX_PLAYERS];
+ static BOOL mappreview = false;
+@@ -142,7 +156,7 @@ bool screenInitialise(
+ 
+ 	if (fullScreen)
+ 	{
+-		window_flags |= SDL_WINDOW_FULLSCREEN;
++		window_flags |= wzFullscreenFlag();
+ 	}
+ 
+ 	// Always ask for 8 bits per channel plus depth and stencil (the stencil
+@@ -527,7 +541,7 @@ void screenToggleMode(void)
+ 	if (screen)
+ 	{
+ 		const bool full = (SDL_GetWindowFlags(screen) & SDL_WINDOW_FULLSCREEN) != 0;
+-		(void) SDL_SetWindowFullscreen(screen, full ? 0 : SDL_WINDOW_FULLSCREEN);
++		(void) SDL_SetWindowFullscreen(screen, full ? 0 : wzFullscreenFlag());
+ 	}
+ }
+ 

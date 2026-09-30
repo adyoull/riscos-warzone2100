@@ -68,9 +68,16 @@ If "<Warzone2100$Mode>"="" Then Set Warzone2100$Mode --window
 | than 1024x768, else 640x480. Warzone2100$RenderSize chooses the size (at
 | least 640x480; it works without the overlay too, stretched by a slower
 | sprite plot), or "off" for the window's own size. Remove the | to use:
+| Full screen (Alt+Return) is then a "full window": a borderless window
+| over the whole screen, with no mode change, so other programs keep
+| running and the icon bar pops up; the overlay stretches the picture to
+| the whole screen. Warzone2100$FullWindow 0 gives the old full screen
+| (the screen mode changes and the desktop stops); 1 turns the full window
+| on even without the overlay (stretched by the slower plot).
 | Set Warzone2100$RenderSize 1024x768
 | Set Warzone2100$RenderSize off
 | Set Warzone2100$Overlay 0
+| Set Warzone2100$FullWindow 0
 RMEnsure VideoOverlay 0.00 IfThere System:Modules.VideoOverlay Then RMLoad System:Modules.VideoOverlay
 
 | --- Texture filtering ----------------------------------------------

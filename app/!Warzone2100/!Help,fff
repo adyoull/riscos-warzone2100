@@ -75,6 +75,11 @@ Things to know
   up to 1024x768), stretched to the window or screen for free.
   Warzone2100$RenderSize (in !Run) picks another size, or "off" for the
   window's own size; Warzone2100$Overlay 0 turns the overlay off.
+- With a render size, full screen (Alt+Return) is a "full window": a
+  borderless window over the whole screen, with no mode change. Other
+  programs keep running, and the icon bar pops up at the bottom of the
+  screen; click the game to bring it back to the front.
+  Warzone2100$FullWindow 0 gives the old full screen.
 - Texture filtering is cheaper than on other systems (bilinear, no
   anisotropic filtering). For more speed use unfiltered textures, for
   better quality the usual ones: see "Texture filtering" in !Run
@@ -109,7 +114,7 @@ This build contains, statically linked:
   fontconfig 2.14.1 and expat 2.2.9 (MIT), PhysicsFS 2.0.3 and zlib
   (zlib licence), libpng 1.6.37 (libpng licence), popt 1.16 (MIT),
   libogg 1.3.5, libvorbis 1.3.7 and libtheora 1.1.1 (BSD).
-- UnixLib 5.0.1 (riscos-unixlib: GCCSDK's UnixLib with the ports' fixes)
+- UnixLib 5.0.3 (riscos-unixlib: GCCSDK's UnixLib with the ports' fixes)
   and the GCC runtime from GCCSDK.
 
 Fonts: with PackMan's fontconfig installed (UnixFC), the game uses its

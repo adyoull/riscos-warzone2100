@@ -15,12 +15,12 @@ apt-get install build-essential autogen autoconf2.69 autoconf2.64 automake1.11 \
 
 Unpack a riscos-mesa devkit (github.com/adyoull/riscos-mesa releases) into
 `devkit/`. `build/env.sh` names the one this version is built with
-(`DEVKIT`, currently `riscos-mesa-devkit-10a`, the pre-release of 20.3.5-10:
-its SDL can render at a set size and use the hardware overlay, and links
-libEGL):
+(`DEVKIT`, currently `riscos-mesa-devkit-20.3.5-10`: its SDL can render at
+a set size, use the hardware overlay and make full screen a multitasking
+full window, and links libEGL):
 
 ```sh
-mkdir -p devkit && tar xzf riscos-mesa-devkit-10a.tgz -C devkit
+mkdir -p devkit && tar xzf riscos-mesa-devkit-20.3.5-10.tgz -C devkit
 ```
 
 ## 3. Build
@@ -153,7 +153,7 @@ PATH=$GCCSDK_ENV/bin:$PATH python3 tools/check-stack-probes.py src/warzone2100-2
   should stop it while the program is paged out) are in our application
   space, and crashed other tasks ("abort on instruction fetch" in
   Organizer). `patches/unixlib/unixlib-riscos.diff` (UnixLib
-  5.0.1, from riscos-unixlib) runs them from the PThreadTicker module when it's loaded
+  5.0.3, from riscos-unixlib) runs them from the PThreadTicker module when it's loaded
   (`!Run` loads the copy in the app), otherwise from a copy in the RMA.
 - **After changing `patches/unixlib`, rebuild UnixLib from clean:**
   `build/build-toolchain.sh unixlib` (a few minutes; it re-patches GCCSDK

@@ -160,8 +160,10 @@ int main(int argc, char **argv)
     var("UnixFC$Dir");
     var("Warzone2100$RenderSize");
     var("Warzone2100$Overlay");
+    var("Warzone2100$FullWindow");
     var("SDL_RISCOS_GL_RENDER_SIZE");
     var("SDL_RISCOS_GL_OVERLAY");
+    var("SDL_RISCOS_FULLSCREEN_WINDOW");
     var("HOME");
     var("LANG");
     var("UnixEnv$wzcheck$sfix");

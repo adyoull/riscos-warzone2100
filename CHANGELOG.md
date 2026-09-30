@@ -26,10 +26,19 @@
   than 1024x768 (where the window starts at 1024x768), else 640x480,
   stretched by the overlay at no cost. `Warzone2100$RenderSize` picks
   another size, or `off` for the window's own size.
-- Both come from riscos-mesa's SDL (devkit 10a, the pre-release of
-  20.3.5-10), which now links libEGL. The settings are passed to SDL for
-  this program only (`riscos/riscos_display.c`).
-- `Check` lists VideoOverlay and the two settings.
+- **Full screen that keeps multitasking.** With a render size (so with the
+  overlay, by default), full screen (Alt+Return) is a "full window": a
+  borderless window over the whole screen, with no mode change. Other
+  programs keep running, the icon bar pops up, and the overlay stretches
+  the picture to the whole screen. `Warzone2100$FullWindow 0` gives the old
+  full screen (patch 0021).
+- These come from riscos-mesa 20.3.5-10's SDL, which now links libEGL.
+  The settings are passed to SDL for this program only
+  (`riscos/riscos_display.c`).
+- **UnixLib 5.0.3:** its fixes for `ctime()` (the crash above) and for
+  `read()` into untouched stack pages (the 2.3.9-8 "EMT trap"). The game's
+  own workarounds for both stay; they're harmless.
+- `Check` lists VideoOverlay and the display settings.
 
 ## 2.3.9-10 (2026-09-29)
 

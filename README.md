@@ -86,7 +86,9 @@ See `app/!Warzone2100/!Help,fff`. In short:
   overlay whenever the VideoOverlay module is loaded (`Warzone2100$Overlay 0`
   turns it off), and then the render size defaults to 800x600 (640x480 on
   screens up to 1024x768; `Warzone2100$RenderSize off` turns that off).
-  Both are lines in `!Run`.
+  With a render size, full screen is a multitasking full window (no mode
+  change; `Warzone2100$FullWindow 0` for the old full screen). All are
+  lines in `!Run`.
 - If the game doesn't start, `!Warzone2100.Check` runs a start-up checker
   (`riscos/wzcheck.c`): the modules and variables, the heap dynamic area,
   fontconfig, FreeType, PhysicsFS and the game's data, and a stack test,
@@ -98,9 +100,9 @@ See `app/!Warzone2100/!Help,fff`. In short:
 - **Release 2.3.9-11 (2026-09-29):** playable on a Raspberry Pi 4 in a
   1024x768 desktop window, with sound and music: menus, campaign,
   skirmish, settings, quitting. Other desktop tasks are safe while it runs
-  (UnixLib 5.0.1 and PThreadTicker), and it's built for VFPv3, so it
+  (UnixLib 5.0.3 and PThreadTicker), and it's built for VFPv3, so it
   should also run on Cortex-A8/A9 boards (untested). Built with
-  riscos-mesa devkit 10a (20.3.5-10). See [CHANGELOG.md](CHANGELOG.md).
+  riscos-mesa 20.3.5-10. See [CHANGELOG.md](CHANGELOG.md).
 - **Fonts:** fontconfig 2.14.1; checked on a Pi 4 with UnixFC's setup
   (61 system fonts, DejaVu Sans from the system, UnixFC's cache).
 - **Sound:** OpenAL Soft 1.19.1 (from the riscos-mesa devkit) plays
