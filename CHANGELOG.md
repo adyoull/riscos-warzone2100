@@ -1,18 +1,29 @@
 # Changelog
 
-## 2.3.9-12 (test, 2026-10-01)
+## 2.3.9-12 (2026-10-01)
 
-Relinked with riscos-unixlib 5.0.3.1-rc8 (a pre-release); the game itself is
+Relinked with riscos-unixlib **UnixLib 5.0.3.1**; the game itself is
 unchanged from 2.3.9-11. What it brings to Warzone:
+- **The game's background threads get time.** UnixLib's thread timer was
+  stopped in every `Wimp_Poll` and restarted with a fresh 2 cs, so a program
+  that polls more often than that (SDL programs, Warzone included) hardly
+  ever switched threads: sound and loading threads waited for the main
+  one. The timer now keeps running, and threads are switched as `Wimp_Poll`
+  returns.
+- **PThreadTicker 0.03** in the application (the module that holds that
+  timer). Programs built with UnixLib 5.0.3.1 use 0.03; older programs use
+  0.01/0.02. If the other version is loaded, the game runs its own copy of
+  the routines instead, which works just as well. `!Run` still asks for
+  0.01 or later, so it never tries to replace a copy that's in use.
 - **The heap can grow past 128 MB.** RISC OS 5 caps each dynamic area at
   128 MB, so "Warzone2100 Heap" stopped there however much memory was free.
-  UnixLib now carries on in further areas placed directly after it, so the
-  heap stays one range; they're all removed when the game quits.
-- `read()` into another thread's stack buffer maps the pages first; sleeps
-  and `CLOCK_MONOTONIC` are safer with threads; `/dev/dsp` fixes (SDL opens
-  it twice when probing).
-- PThreadTicker 0.02 (counts its users with interrupts off; same interface,
-  `!Run` still asks for 0.01 or later).
+  It now continues in further areas directly after it ("Warzone2100 Heap
+  2"...), all removed when the game quits.
+- Fixes for `read()` into another thread's stack, long sleeps and sleeping
+  in critical sections, `CLOCK_MONOTONIC` across threads, and `/dev/dsp`
+  opened twice (SDL does this when probing).
+- `tools/check-unixlib.sh` reads the ticker block size from UnixLib's
+  source (640 bytes from 5.0.3.1).
 
 ## 2.3.9-11 (2026-09-30)
 

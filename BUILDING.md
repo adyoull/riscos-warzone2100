@@ -153,7 +153,7 @@ PATH=$GCCSDK_ENV/bin:$PATH python3 tools/check-stack-probes.py src/warzone2100-2
   should stop it while the program is paged out) are in our application
   space, and crashed other tasks ("abort on instruction fetch" in
   Organizer). `patches/unixlib/unixlib-riscos.diff` (UnixLib
-  5.0.3.1-rc8, from riscos-unixlib) runs them from the PThreadTicker module when it's loaded
+  5.0.3.1, from riscos-unixlib) runs them from the PThreadTicker module when it's loaded
   (`!Run` loads the copy in the app), otherwise from a copy in the RMA.
 - **After changing `patches/unixlib`, rebuild UnixLib from clean:**
   `build/build-toolchain.sh unixlib` (a few minutes; it re-patches GCCSDK

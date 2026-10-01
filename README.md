@@ -8,7 +8,7 @@ Raspberry Pi 2 onwards, and Cortex-A8/A9 boards); developed and tested on a
 Raspberry Pi 4.
 
 **Download:** the zip on the [releases page](https://github.com/adyoull/riscos-warzone2100/releases)
-(latest: 2.3.9-11).
+(latest: 2.3.9-12).
 
 How to build it: [BUILDING.md](BUILDING.md). What the patches change:
 [patches/README.md](patches/README.md).
@@ -54,7 +54,7 @@ so PackMan's fontconfig isn't required. Nothing global is set.
 | `riscos/wzcheck.c` | The start-up checker, run by `!Warzone2100.Check`. |
 | `tools/wz-patches.sh` | Edit the patch series with git (see BUILDING.md). |
 | `tools/check-unaligned.sh` | Finds code that can do unaligned loads and stores, which RISC OS traps. |
-| `tools/check-unixlib.sh` | Checks the program's UnixLib claims the full 472-byte pthread ticker block and agrees with the C side (a stale build hung the machine). |
+| `tools/check-unixlib.sh` | Checks the program's UnixLib claims the full pthread ticker block and agrees with the C side (a stale build hung the machine). |
 | `tools/check-fpu.sh` | Checks nothing in the program needs VFPv4, so it runs on Cortex-A8/A9 machines too. |
 | `tools/check-stack-probes.py` | Finds big stack frames that don't probe the stack. |
 | `tools/profile/` | Profile the renderer on Linux with the same Mesa (see its README): where the frame time goes. |
@@ -97,10 +97,10 @@ See `app/!Warzone2100/!Help,fff`. In short:
 
 ## Status
 
-- **Release 2.3.9-11 (2026-09-30):** playable on a Raspberry Pi 4 in a
+- **Release 2.3.9-12 (2026-10-01):** playable on a Raspberry Pi 4 in a
   1024x768 desktop window, with sound and music: menus, campaign,
   skirmish, settings, quitting. Other desktop tasks are safe while it runs
-  (UnixLib 5.0.3.1-rc8 and PThreadTicker), and it's built for VFPv3, so it
+  (UnixLib 5.0.3.1 and PThreadTicker 0.03), and it's built for VFPv3, so it
   should also run on Cortex-A8/A9 boards (untested). Built with
   riscos-mesa 20.3.5-10. See [CHANGELOG.md](CHANGELOG.md).
 - **Display:** on a Pi 4 with VideoOverlay the game renders at 800x600
