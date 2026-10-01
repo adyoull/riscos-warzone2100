@@ -43,9 +43,10 @@ If "<FONTCONFIG_FILE>"="/|<Warzone2100$Dir>/fonts/fonts.conf" Then Unset FONTCON
 CDir <Wimp$ScrapDir>.WZ2100fc
 
 | --- Memory ---------------------------------------------------------
-| The C heap goes in a dynamic area, "Warzone2100 Heap" (up to 512MB,
-| removed when the game quits), so the WimpSlot only has to hold the
-| program itself (about 25MB).
+| The C heap goes in a dynamic area, "Warzone2100 Heap". RISC OS 5 caps an
+| area at 128MB, so past that UnixLib adds "Warzone2100 Heap 2" and so on
+| directly after it. All are removed when the game quits. The WimpSlot
+| only has to hold the program itself (about 25MB).
 WimpSlot -min 32768K -max 32768K
 
 | --- Display ---------------------------------------------------------

@@ -1,6 +1,6 @@
 #!/bin/bash
 # Check that the linked program has riscos-unixlib's pthread ticker fix
-# (patches/unixlib/unixlib-riscos.diff, UnixLib 5.0.3) built consistently:
+# (patches/unixlib/unixlib-riscos.diff, UnixLib 5.0.3.1-rc8) built consistently:
 # the start-up code (_syslib.s) must claim the whole 472-byte pthread ticker
 # block from the RMA (counters and the RMA copy of the ticker routines,
 # used when the PThreadTicker module isn't loaded), and agree with the C
