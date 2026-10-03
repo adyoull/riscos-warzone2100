@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.3.9-13 (2026-10-03)
+
+- **The error log works.** RISC OS lets a file be open for writing only
+  once, and `riscos/riscos_output.c` opened `<Wimp$ScrapDir>.Warzone2100log`
+  twice, once for stdout and once for stderr. The second open failed and
+  left stderr closed, so everything the game writes to stderr (its errors,
+  warnings and crash backtraces) was lost, and the log stayed empty, as
+  reported from 2.3.9-4 on. The file is now opened once, for stderr, and
+  stdout shares it through `dup2()`. Found by the Freeciv port, which had
+  the same code.
+- Tried and not taken: storing QuesoGLC's glyphs as RGBA instead of
+  GL_ALPHA, to reach Mesa's faster texturing. On the host it gave the same
+  picture but was about 12% slower: the font atlas is mipmapped, so both
+  take Mesa's general path, and RGBA only adds memory traffic.
+
 ## 2.3.9-12 (2026-10-01)
 
 Relinked with riscos-unixlib **UnixLib 5.0.3.1**; the game itself is

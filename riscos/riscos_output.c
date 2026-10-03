@@ -14,6 +14,7 @@
  * rather than left to open a command window.
  */
 #include <stdio.h>
+#include <unistd.h>
 #include <stdlib.h>
 
 #ifndef OUTPUT_VAR
@@ -32,15 +33,17 @@ static void riscos_redirect_output(void)
 #else
         o = "/dev/null";
 #endif
-    /* Empty the file, then append from both streams: with stdout opened
-       "w", its writes went over what stderr had already written. */
-    if ((f = fopen(o, "w")) != NULL)
-        fclose(f);
-    else
-        o = "/dev/null";
-    if (freopen(o, "a", stdout) != NULL) {
-        setvbuf(stdout, NULL, _IOLBF, 0);
-        if (freopen(o, "a", stderr) != NULL)
-            setvbuf(stderr, NULL, _IONBF, 0);
+    /* RISC OS lets a file be open for writing only once, so it can't be
+       opened for both streams: a second freopen() failed and left stderr
+       closed, so everything written to stderr (errors, crash backtraces)
+       was lost and the log stayed empty. Open it once, for stderr, and
+       make stdout share it with dup2() (as the Freeciv port does). */
+    if ((f = freopen(o, "w", stderr)) == NULL)
+        f = freopen("/dev/null", "w", stderr);
+    if (f != NULL) {
+        setvbuf(stderr, NULL, _IONBF, 0);
+        fflush(stdout);
+        if (dup2(fileno(stderr), fileno(stdout)) >= 0)
+            setvbuf(stdout, NULL, _IOLBF, 0);
     }
 }
