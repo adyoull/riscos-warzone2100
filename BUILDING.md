@@ -15,12 +15,12 @@ apt-get install build-essential autogen autoconf2.69 autoconf2.64 automake1.11 \
 
 Unpack a riscos-mesa devkit (github.com/adyoull/riscos-mesa releases) into
 `devkit/`. `build/env.sh` names the one this version is built with
-(`DEVKIT`, currently `riscos-mesa-devkit-20.3.5-11`: its SDL can render at
+(`DEVKIT`, currently `riscos-mesa-devkit-20.3.5-12`: its SDL can render at
 a set size, use the hardware overlay and make full screen a multitasking
 full window, and links libEGL):
 
 ```sh
-mkdir -p devkit && tar xzf riscos-mesa-devkit-20.3.5-11.tgz -C devkit
+mkdir -p devkit && tar xzf riscos-mesa-devkit-20.3.5-12.tgz -C devkit
 ```
 
 ## 3. Build
@@ -194,7 +194,7 @@ can't be opened). After a normal run it's empty, so a program that stops
 at start-up still leaves its error there. For the tests, also set
 `Warzone2100$Log` (in `!Run`, or `*Set Warzone2100$Log 1`): `--debugfile`
 then writes the game's log to `<Choices$Write>.Warzone2100.WZlog` (patch
-0018: no automatic log file).
+0017: no automatic log file).
 
 ### Reading a crash
 

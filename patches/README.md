@@ -24,9 +24,15 @@ them in order with `patch -p1`. To edit them, use `tools/wz-patches.sh`
 | 0013 | A new config on RISC OS has shadows off, vsync off and "Fog Of War" instead of "Mist" (GL fog on every pixel). |
 | 0014 | Terrain textures use `GL_REPEAT` on RISC OS: swrast's fast textured-triangle path needs it (30 -> 51 fps). |
 | 0015 | Pump events (Wimp_Poll) from the loading screen callback, so the desktop keeps running while a level loads. |
-| 0016 | glFlush() before the text code pushes the texture matrix: Mesa's classic swrast doesn't flush before glPushMatrix (skirmish buttons and map preview went missing). |
-| 0017 | `GL_FASTEST` perspective hint and `GL_CLAMP_TO_EDGE` texture pages on RISC OS: riscos-mesa 7pre10's fast path covers them (52 -> 59 fps with mipmapped "fast"). |
-| 0018 | No automatic `logs/WZlog-*` file on RISC OS; `--debugfile` (passed by `!Run` when `Warzone2100$Log` is set) still logs. |
+| 0016 | `GL_FASTEST` perspective hint and `GL_CLAMP_TO_EDGE` texture pages on RISC OS: riscos-mesa 7pre10's fast path covers them (52 -> 59 fps with mipmapped "fast"). |
+| 0017 | No automatic `logs/WZlog-*` file on RISC OS; `--debugfile` (passed by `!Run` when `Warzone2100$Log` is set) still logs. |
+| 0018 | Render at the size SDL reports (riscos-mesa's render size), lay screens out at that size, and keep the window's own size in the config. |
+| 0019 | No `ctime()`/`asctime()` on RISC OS: UnixLib before 5.0.3 returned a bad pointer from them (a start-up crash on some machines). Times are formatted with `strftime()`. |
+| 0020 | Full screen as a "full window" (`SDL_WINDOW_FULLSCREEN_DESKTOP`) when `riscos/riscos_display.c` asks for it. |
+
+The earlier glFlush() before the text code's texture-matrix push (the
+skirmish screen's missing buttons) was dropped in 2.3.9-13: riscos-mesa
+20.3.5-12 flushes in `glPushMatrix()` itself.
 
 ## physfs/ (PhysicsFS 2.0.3)
 

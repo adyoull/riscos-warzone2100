@@ -2,11 +2,20 @@
 
 ## 2.3.9-13 (2026-10-05)
 
-- **Rebuilt on the latest releases:** UnixLib 5.0.3.2 (riscos-unixlib;
-  eventfd between threads, `LLONG_MIN`, `getserv*_r`; nothing Warzone
-  relies on, but it keeps the port on the current library) and riscos-mesa
-  20.3.5-11 (its libraries relinked with UnixLib 5.0.3.1). PThreadTicker is
-  still 0.03.
+- **riscos-mesa 20.3.5-12.** Faster, with the same picture (on a Pi 4, depth
+  clears cost 62% less, lit drawing 12-43% less, 2D textures 17% less).
+  Its SDL no longer repeats a held key every frame or passes title bar and
+  border clicks to the game, and its overlay and render-size code has fixes
+  from a code audit (resizing with memory short, overlays of deleted
+  windows, an uncovered window showing an old frame).
+- **Patch 0016 dropped** (the glFlush() before the text code's texture
+  matrix push, for the skirmish screen's missing buttons): Mesa now
+  flushes in `glPushMatrix()` itself. The later patches are renumbered
+  0016-0020.
+
+- **UnixLib 5.0.3.2** (riscos-unixlib; eventfd between threads,
+  `LLONG_MIN`, `getserv*_r`; nothing Warzone relies on, but it keeps the
+  port on the current library). PThreadTicker is still 0.03.
 - No build-machine path in the program: fontconfig's template folder was
   compiled in as the build's staging path. It's now `/FontConfig/share`,
   like its other folders (never used on RISC OS).
