@@ -1,6 +1,15 @@
 # Changelog
 
-## 2.3.9-13 (2026-10-03)
+## 2.3.9-13 (2026-10-05)
+
+- **Rebuilt on the latest releases:** UnixLib 5.0.3.2 (riscos-unixlib;
+  eventfd between threads, `LLONG_MIN`, `getserv*_r`; nothing Warzone
+  relies on, but it keeps the port on the current library) and riscos-mesa
+  20.3.5-11 (its libraries relinked with UnixLib 5.0.3.1). PThreadTicker is
+  still 0.03.
+- No build-machine path in the program: fontconfig's template folder was
+  compiled in as the build's staging path. It's now `/FontConfig/share`,
+  like its other folders (never used on RISC OS).
 
 - **The error log works.** RISC OS lets a file be open for writing only
   once, and `riscos/riscos_output.c` opened `<Wimp$ScrapDir>.Warzone2100log`

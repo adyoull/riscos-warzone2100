@@ -100,9 +100,9 @@ See `app/!Warzone2100/!Help,fff`. In short:
 - **Release 2.3.9-13 (2026-10-03):** playable on a Raspberry Pi 4 in a
   1024x768 desktop window, with sound and music: menus, campaign,
   skirmish, settings, quitting. Other desktop tasks are safe while it runs
-  (UnixLib 5.0.3.1 and PThreadTicker 0.03), and it's built for VFPv3, so it
+  (UnixLib 5.0.3.2 and PThreadTicker 0.03), and it's built for VFPv3, so it
   should also run on Cortex-A8/A9 boards (untested). Built with
-  riscos-mesa 20.3.5-10. See [CHANGELOG.md](CHANGELOG.md).
+  riscos-mesa 20.3.5-11. See [CHANGELOG.md](CHANGELOG.md).
 - **Display:** on a Pi 4 with VideoOverlay the game renders at 800x600
   and the overlay stretches it to the window, or to the whole screen as a
   multitasking full window ("runs really well" in testing).

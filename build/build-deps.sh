@@ -33,7 +33,7 @@ Name: sdl2
 Description: SDL 2.26 with the RISC OS Wimp driver and OSMesa GL (riscos-mesa devkit)
 Version: 2.26.0
 # libSDL2 shows GL windows through libEGL when a render size or the overlay
-# is asked for (riscos-mesa 20.3.5-10: SDL_RISCOS_GL_RENDER_SIZE/_OVERLAY).
+# is asked for (riscos-mesa 20.3.5-10 and later: SDL_RISCOS_GL_RENDER_SIZE/_OVERLAY).
 Libs: -L\${libdir} -lSDL2 -lGLU -lEGL -lOSMesa -lstdc++ -lz -lm
 Cflags: -I\${includedir}/SDL2 -D_REENTRANT
 EOT
@@ -104,6 +104,7 @@ cd fontconfig-2.14.1; fresh_config_sub .
 # UnixLib has no <sys/statfs.h>-style fs type probing; fontconfig copes.
 ./configure $HOSTARGS --disable-docs --disable-nls --disable-cache-build \
   --with-expat="$STAGE" --sysconfdir=/FontConfig --localstatedir=/FontConfig/var \
+  --datadir=/FontConfig/share \
   --with-default-fonts=/Warzone2100/fonts \
   FREETYPE_CFLAGS="-I$STAGE/include/freetype2" FREETYPE_LIBS="-L$STAGE/lib -lfreetype -lpng -lz" \
   > ../fontconfig.log
