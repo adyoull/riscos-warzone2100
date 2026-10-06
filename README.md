@@ -8,7 +8,7 @@ Raspberry Pi 2 onwards, and Cortex-A8/A9 boards); developed and tested on a
 Raspberry Pi 4.
 
 **Download:** the zip on the [releases page](https://github.com/adyoull/riscos-warzone2100/releases)
-(latest: 2.3.9-13).
+(latest: 2.3.9-14).
 
 How to build it: [BUILDING.md](BUILDING.md). What the patches change:
 [patches/README.md](patches/README.md).
@@ -97,10 +97,10 @@ See `app/!Warzone2100/!Help,fff`. In short:
 
 ## Status
 
-- **Release 2.3.9-13 (2026-10-06):** playable on a Raspberry Pi 4 in a
+- **Release 2.3.9-14 (2026-10-06):** playable on a Raspberry Pi 4 in a
   1024x768 desktop window, with sound and music: menus, campaign,
   skirmish, settings, quitting. Other desktop tasks are safe while it runs
-  (UnixLib 5.0.3.2 and PThreadTicker 0.03), and it's built for VFPv3, so it
+  (UnixLib 5.0.3.3 and PThreadTicker 0.03), and it's built for VFPv3, so it
   should also run on Cortex-A8/A9 boards (untested). Built with
   riscos-mesa 20.3.5-12. See [CHANGELOG.md](CHANGELOG.md).
 - **Display:** on a Pi 4 with VideoOverlay the game renders at 800x600

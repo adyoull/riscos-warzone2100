@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.3.9-14 (2026-10-06)
+
+- **UnixLib 5.0.3.3** (riscos-unixlib; fixes from a code audit: threads
+  waiting in `/dev/dsp`, `/dev/midi` and eventfd, `fork()` with threads,
+  the services database, a heap gap that capped later heap areas,
+  `swprintf` `%ls`, exit codes 128-255). Warzone uses none of these
+  directly; it's a relink to keep the port on the current release.
+  PThreadTicker is still 0.03 (the module is byte-identical), and the
+  pthread RMA block is still 640 bytes. Still riscos-mesa 20.3.5-12.
+
 ## 2.3.9-13 (2026-10-06)
 
 - **riscos-mesa 20.3.5-12.** Faster, with the same picture (on a Pi 4, depth
