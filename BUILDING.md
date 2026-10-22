@@ -15,12 +15,12 @@ apt-get install build-essential autogen autoconf2.69 autoconf2.64 automake1.11 \
 
 Unpack a riscos-mesa devkit (github.com/adyoull/riscos-mesa releases) into
 `devkit/`. `build/env.sh` names the one this version is built with
-(`DEVKIT`, currently `riscos-mesa-devkit-20.3.5-12`: its SDL can render at
+(`DEVKIT`, currently `riscos-mesa-devkit-20.3.5-17`: its SDL can render at
 a set size, use the hardware overlay and make full screen a multitasking
 full window, and links libEGL):
 
 ```sh
-mkdir -p devkit && tar xzf riscos-mesa-devkit-20.3.5-12.tgz -C devkit
+mkdir -p devkit && tar xzf riscos-mesa-devkit-20.3.5-17.tgz -C devkit
 ```
 
 ## 3. Build

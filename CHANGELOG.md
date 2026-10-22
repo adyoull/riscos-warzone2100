@@ -1,14 +1,28 @@
 # Changelog
 
-## 2.3.9-14 (2026-10-06)
+## 2.3.9-14 (2026-10-22)
 
+- **riscos-mesa 20.3.5-17.** Since 20.3.5-12:
+  - faster 3D on machines with NEON (every Pi 2 and later), with the same
+    picture: NEON bilinear textures and alpha blending (14), NEON depth
+    testing and a direct route for depth-tested rows, with hidden pixels
+    left untextured (15);
+  - EGL/GLUT windows the right size on 180 dpi desktops (16);
+  - full screen (the full window) no longer brings up the icon bar when
+    the pointer reaches the bottom of the screen: the pointer stops 2
+    pixels above the bottom (`SDL$PointerMargin`; Shift-F12 still brings
+    the icon bar forward) (17);
+  - `*Show EGL$OverlayStatus` says how the last run was shown (overlay or
+    plotted, and why) (17).
+  In an A/B test on a Pi, the release candidate with the NEON textures
+  and blending gave 16 fps where 20.3.5-13 gave 14.
 - **UnixLib 5.0.3.3** (riscos-unixlib; fixes from a code audit: threads
   waiting in `/dev/dsp`, `/dev/midi` and eventfd, `fork()` with threads,
   the services database, a heap gap that capped later heap areas,
   `swprintf` `%ls`, exit codes 128-255). Warzone uses none of these
   directly; it's a relink to keep the port on the current release.
   PThreadTicker is still 0.03 (the module is byte-identical), and the
-  pthread RMA block is still 640 bytes. Still riscos-mesa 20.3.5-12.
+  pthread RMA block is still 640 bytes.
 
 ## 2.3.9-13 (2026-10-06)
 

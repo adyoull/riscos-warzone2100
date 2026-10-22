@@ -77,9 +77,13 @@ Things to know
   window's own size; Warzone2100$Overlay 0 turns the overlay off.
 - With a render size, full screen (Alt+Return) is a "full window": a
   borderless window over the whole screen, with no mode change. Other
-  programs keep running, and the icon bar pops up at the bottom of the
-  screen; click the game to bring it back to the front.
+  programs keep running. The pointer stops 2 pixels above the bottom of
+  the screen so the icon bar doesn't pop up over the game; Shift-F12
+  brings it forward (*Set SDL$PointerMargin 0 to turn this off).
   Warzone2100$FullWindow 0 gives the old full screen.
+- After a run, *Show EGL$OverlayStatus says whether the hardware overlay
+  was used, and if not, why. (RDPServer turns overlays off while a client
+  is connected, so check on the Pi's own screen.)
 - Texture filtering is cheaper than on other systems (bilinear, no
   anisotropic filtering). For more speed use unfiltered textures, for
   better quality the usual ones: see "Texture filtering" in !Run

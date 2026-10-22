@@ -71,10 +71,14 @@ If "<Warzone2100$Mode>"="" Then Set Warzone2100$Mode --window
 | sprite plot), or "off" for the window's own size. Remove the | to use:
 | Full screen (Alt+Return) is then a "full window": a borderless window
 | over the whole screen, with no mode change, so other programs keep
-| running and the icon bar pops up; the overlay stretches the picture to
+| running; the overlay stretches the picture to
 | the whole screen. Warzone2100$FullWindow 0 gives the old full screen
 | (the screen mode changes and the desktop stops); 1 turns the full window
 | on even without the overlay (stretched by the slower plot).
+| In the full window the pointer stops 2 pixels above the bottom of the
+| screen, so the icon bar doesn't pop up (Shift-F12 still brings it
+| forward); *Set SDL$PointerMargin 0 turns that off. After a run,
+| *Show EGL$OverlayStatus says whether the overlay was used, and why not.
 | Set Warzone2100$RenderSize 1024x768
 | Set Warzone2100$RenderSize off
 | Set Warzone2100$Overlay 0
