@@ -13,11 +13,13 @@ apt-get install build-essential autogen autoconf2.69 autoconf2.64 automake1.11 \
 
 ## 2. The riscos-mesa devkit
 
-Unpack a riscos-mesa devkit (github.com/adyoull/riscos-mesa releases) into
-`devkit/`. `build/env.sh` names the one this version is built with
-(`DEVKIT`, currently `riscos-mesa-devkit-20.3.5-17`: its SDL can render at
-a set size, use the hardware overlay and make full screen a multitasking
-full window, and links libEGL):
+`.riscos-deps` names the riscos-mesa release this version is built with
+(now `riscos-mesa v20.3.5-17`: its SDL can render at a set size, use the
+hardware overlay and make full screen a multitasking full window, and links
+libEGL). `build/fetch-sources.sh` downloads that release's devkit, checks it
+against `build/SHA256SUMS.txt` and unpacks it into `devkit/`, unless
+riscos-crossdev's devkit (`$RISCOS_DEVKIT`) is already that version. To use
+one you have, unpack it there yourself:
 
 ```sh
 mkdir -p devkit && tar xzf riscos-mesa-devkit-20.3.5-17.tgz -C devkit
@@ -28,6 +30,7 @@ mkdir -p devkit && tar xzf riscos-mesa-devkit-20.3.5-17.tgz -C devkit
 ```sh
 build/fetch-sources.sh     # downloads to dl/, checks SHA256SUMS.txt, unpacks and patches into src/
 build/build-toolchain.sh   # GCCSDK GCC 10.2 + UnixLib into $GCCSDK_ENV (~/gccsdk/env), and elf2aif
+                           #   (not needed with riscos-crossdev's toolchain: see below)
 build/build-deps.sh        # static libraries into stage/
 build/build-wz.sh          # configure + make: src/warzone2100-2.3.9/src/warzone2100
 build/package.sh           # dist/!Warzone2100 and dist/Warzone2100-<VERSION>.zip
@@ -40,8 +43,8 @@ has already built (delete `stage/lib/libX.a` to force one).
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `GCCSDK_ENV` | `~/gccsdk/env` | the cross compiler (`bin/arm-riscos-gnueabihf-gcc`) |
-| `DEVKIT` | `devkit/riscos-mesa-devkit-…` | riscos-mesa devkit |
+| `GCCSDK_ENV` | `$RISCOS_TOOLCHAIN`, else `~/gccsdk/env` | the cross compiler (`bin/arm-riscos-gnueabihf-gcc`) |
+| `DEVKIT` | `$RISCOS_DEVKIT` if it's the `.riscos-deps` version, else `devkit/riscos-mesa-devkit-<version>` | riscos-mesa devkit |
 | `STAGE`, `SRC` | `stage/`, `src/` | built libraries, unpacked sources |
 | `DL` | `dl/` | downloaded tarballs |
 | `JOBS` | `nproc` | parallel make |
@@ -53,17 +56,52 @@ elsewhere.
 
 ### Restricted networks
 
-`fetch-sources.sh` downloads from archive.ubuntu.com and GitHub. If the
+`fetch-sources.sh` downloads from archive.ubuntu.com, deb.debian.org and GitHub. If the
 build machine can't reach one of them, fetch those files on another machine
 and put them in `dl/`. The script only downloads what's missing, and checks
 everything. The files and URLs are listed in the script.
 
 ### A prebuilt toolchain
 
-`build-toolchain.sh` builds into `$GCCSDK_ENV`. The result is relocatable
-only to the same path, so a tarball of `~/gccsdk/env` can be reused on
-another machine as the same user. `elf2aif` is always built from
-`tools/elf2aif` (`build-toolchain.sh elf2aif` builds only that).
+riscos-crossdev's toolchain is the same GCCSDK GCC 10.2 with riscos-unixlib
+(its `toolchain/SOURCES` names the UnixLib release), and has `elf2aif`
+with the same large-image fix and the PThreadTicker module. With
+`RISCOS_TOOLCHAIN` set to it (riscos-crossdev's `env.sh` and container
+image set it), the build uses it and `build-toolchain.sh` isn't needed;
+`fetch-sources.sh` then skips the toolchain's sources too (`FETCH_TOOLCHAIN=1`
+fetches them anyway).
+
+Otherwise `build-toolchain.sh` builds into `$GCCSDK_ENV`, with UnixLib from
+`patches/unixlib/`. The result is relocatable only to the same path, so a
+tarball of `~/gccsdk/env` can be reused on another machine as the same user.
+`elf2aif` is always built from `tools/elf2aif` (`build-toolchain.sh elf2aif`
+builds only that).
+
+### Building on GitHub
+
+`.github/workflows/` has riscos-crossdev's two workflows (its `docs/CI.md`):
+
+- **`riscos-build.yml`** builds every push and pull request in
+  `ghcr.io/adyoull/riscos-crossdev:<version>` (the `riscos-crossdev` line of
+  `.riscos-deps`), runs riscos-crossdev's checks on the program
+  (`checks/check-all.sh`: static, stack probes, FPU, UnixLib), and keeps
+  `dist/Warzone2100-ci.zip` on the run's page. `dl/` is cached between runs.
+- **`riscos-deps-update.yml`** looks every day for newer releases of what
+  `.riscos-deps` names. When there is one it moves the pin
+  (`ci/riscos-deps-hook.sh` puts a new devkit's sha256 in
+  `build/SHA256SUMS.txt`), builds, and opens a pull request saying whether
+  that passed. Nothing is merged or released by itself.
+
+The same build on any machine with Docker:
+
+```sh
+docker run --rm -v "$PWD":/src ghcr.io/adyoull/riscos-crossdev:1.8.2 sh -c \
+  'build/fetch-sources.sh && build/build-deps.sh && build/build-wz.sh && build/package.sh'
+```
+
+The repository's Settings > Actions > General need "Workflow permissions:
+Read and write" and "Allow GitHub Actions to create and approve pull
+requests" for the update workflow.
 
 ## 4. Changing the game's source
 

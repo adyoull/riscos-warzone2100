@@ -43,10 +43,12 @@ so PackMan's fontconfig isn't required. Nothing global is set.
 
 | Path | What |
 |---|---|
+| `.riscos-deps` | The releases it's built with: riscos-crossdev (the container image GitHub builds in) and riscos-mesa (the devkit). |
+| `.github/workflows/`, `ci/` | Builds on GitHub, and a daily pull request when something in `.riscos-deps` has a new release (BUILDING.md, "Building on GitHub"). |
 | `build/` | `env.sh` (settings) and the build steps, in order: `fetch-sources.sh`, `build-toolchain.sh`, `build-deps.sh`, `build-wz.sh`, `package.sh`. `SHA256SUMS.txt` pins every source. |
 | `patches/warzone2100/` | The changes to Warzone 2100, as a git patch series against upstream v2.3.9. |
 | `patches/fontconfig`, `patches/physfs`, `patches/quesoglc` | Changes to three libraries (fontconfig's are the RISC OS changes from GCCSDK's recipe). |
-| `patches/unixlib/` | UnixLib changes (from the RISC OS OpenTTD port), applied when the toolchain is built. |
+| `patches/unixlib/` | riscos-unixlib's change set, applied when `build-toolchain.sh` builds the toolchain (riscos-crossdev's toolchain already has it). |
 | `app/!Warzone2100/` | `!Run`, `!Boot`, `!Help`, `!Sprites` and the fontconfig setup. `package.sh` adds the program, the game data and the fonts. |
 | `riscos/riscos_output.c` | Sends stdout/stderr to the file named by `Warzone2100$Output` (from riscos-mesa, MIT). |
 | `riscos/riscos_display.c` | `Warzone2100$RenderSize` / `$Overlay` to SDL's render size and overlay hints, for this program only. |

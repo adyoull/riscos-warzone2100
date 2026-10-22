@@ -1,17 +1,35 @@
 # Source this. Settings shared by the riscos-warzone2100 build scripts.
-# GCCSDK_ENV: the GCCSDK GCC 10 install (contains bin/arm-riscos-gnueabihf-gcc),
-#   e.g. built by build/build-toolchain.sh (riscos-mesa build/TOOLCHAIN.md).
-# DEVKIT: the unpacked riscos-mesa devkit (lib/libOSMesa.a, lib/libSDL2.a, ...).
+# GCCSDK_ENV: the GCCSDK GCC 10 install (contains bin/arm-riscos-gnueabihf-gcc):
+#   riscos-crossdev's toolchain ($RISCOS_TOOLCHAIN, set in its container
+#   image) when there is one, else one built by build/build-toolchain.sh.
+# DEVKIT: the unpacked riscos-mesa devkit (lib/libOSMesa.a, lib/libSDL2.a, ...)
+#   of the riscos-mesa release named in .riscos-deps: riscos-crossdev's
+#   ($RISCOS_DEVKIT) if it's that version, else devkit/riscos-mesa-devkit-<v>
+#   (build/fetch-sources.sh downloads it there).
 REPO_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-: "${GCCSDK_ENV:=$HOME/gccsdk/env}"
-: "${DEVKIT:=$REPO_DIR/devkit/riscos-mesa-devkit-20.3.5-17}"
+MESA_VERSION=$(awk '$1 == "riscos-mesa" || $1 == "adyoull/riscos-mesa" {sub(/^v/, "", $2); print $2}' "$REPO_DIR/.riscos-deps")
+[ -n "$MESA_VERSION" ] || { echo "env.sh: .riscos-deps has no riscos-mesa line" >&2; return 1 2>/dev/null || exit 1; }
+if [ -z "${GCCSDK_ENV:-}" ]; then
+  if [ -n "${RISCOS_TOOLCHAIN:-}" ] && [ -x "$RISCOS_TOOLCHAIN/bin/arm-riscos-gnueabihf-gcc" ]; then
+    GCCSDK_ENV=$RISCOS_TOOLCHAIN
+  else
+    GCCSDK_ENV=$HOME/gccsdk/env
+  fi
+fi
+if [ -z "${DEVKIT:-}" ]; then
+  if [ -n "${RISCOS_DEVKIT:-}" ] && [ "$(awk '{print $NF; exit}' "$RISCOS_DEVKIT/VERSION" 2>/dev/null)" = "$MESA_VERSION" ]; then
+    DEVKIT=$RISCOS_DEVKIT
+  else
+    DEVKIT=$REPO_DIR/devkit/riscos-mesa-devkit-$MESA_VERSION
+  fi
+fi
 : "${STAGE:=$REPO_DIR/stage}"     # install prefix for the libraries built here
 : "${SRC:=$REPO_DIR/src}"         # downloaded, unpacked sources
 : "${JOBS:=$(nproc)}"
-export REPO_DIR GCCSDK_ENV DEVKIT STAGE SRC JOBS
+export REPO_DIR GCCSDK_ENV DEVKIT MESA_VERSION STAGE SRC JOBS
 # autoconf/libtool can't cope with spaces in --prefix, -I/-L flags or LIBS, so
 # STAGE, SRC, DEVKIT and GCCSDK_ENV must be space-free even if the repo isn't
-# (e.g. under "Claude outputs"): point them elsewhere or at a symlink.
+# (e.g. a folder name with a space in it): point them elsewhere or at a symlink.
 case "$STAGE|$SRC|$DEVKIT|$GCCSDK_ENV" in *" "*)
   echo "env.sh: STAGE, SRC, DEVKIT and GCCSDK_ENV must not contain spaces" >&2
   echo "  (try: ln -s \"$REPO_DIR\" ~/wz && cd ~/wz)" >&2

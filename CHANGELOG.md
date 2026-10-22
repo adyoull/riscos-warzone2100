@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+- **Builds on GitHub** (riscos-crossdev 1.8.2's workflows): every push is
+  built in riscos-crossdev's container image, checked
+  (`checks/check-all.sh`) and zipped; every day, a new release of
+  riscos-crossdev or riscos-mesa opens a pull request with the pin moved,
+  built and checked. `.riscos-deps` names them.
+- The build uses riscos-crossdev's toolchain (`$RISCOS_TOOLCHAIN`: GCCSDK
+  GCC 10.2 with UnixLib 5.0.3.3, elf2aif and PThreadTicker) when it's
+  there; `build-toolchain.sh` is still there for building without it.
+- The riscos-mesa devkit is now the one `.riscos-deps` names, downloaded
+  and checked by `fetch-sources.sh` (or riscos-crossdev's, if it's the
+  same version). `fetch-sources.sh` stops at the first failed download, and
+  skips the toolchain's sources when there's a toolchain already.
+
 ## 2.3.9-14 (2026-10-22)
 
 - **riscos-mesa 20.3.5-17.** Since 20.3.5-12:

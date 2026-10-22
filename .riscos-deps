@@ -1,0 +1,6 @@
+# NAME TAG: the releases this port is built with (github.com/adyoull).
+# The riscos-crossdev line chooses the container image GitHub builds in
+# (.github/workflows/, docs in riscos-crossdev's docs/CI.md); the
+# riscos-mesa line chooses the devkit (build/env.sh, build/fetch-sources.sh).
+riscos-crossdev v1.8.2
+riscos-mesa v20.3.5-17

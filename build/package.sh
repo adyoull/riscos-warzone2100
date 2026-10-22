@@ -3,10 +3,22 @@
 #   package.sh            (after build-deps.sh and build-wz.sh)
 . "$(dirname "$0")/env.sh"
 : "${WZ_SRC:=$SRC/warzone2100-2.3.9}"
-# elf2aif (with the >32MB image fix; tools/elf2aif), built by
-# build/build-toolchain.sh (all, or just: build-toolchain.sh elf2aif).
-: "${ELF2AIF:=$REPO_DIR/toolchain/elf2aif}"
+# elf2aif with the >32MB image fix (tools/elf2aif): riscos-crossdev's
+# toolchain has it (the same fix), else build/build-toolchain.sh builds it
+# (all, or just: build-toolchain.sh elf2aif).
+if [ -z "${ELF2AIF:-}" ]; then
+  ELF2AIF=$REPO_DIR/toolchain/elf2aif
+  [ -x "$GCCSDK_ENV/bin/elf2aif" ] && ELF2AIF=$GCCSDK_ENV/bin/elf2aif
+fi
 [ -x "$ELF2AIF" ] || { echo "no $ELF2AIF: run build/build-toolchain.sh elf2aif" >&2; exit 1; }
+# The PThreadTicker module (riscos-unixlib, built with UnixLib; BSD
+# licence): riscos-crossdev's toolchain has it in riscos/, else
+# build-toolchain.sh builds it.
+if [ -z "${PTHTICKER:-}" ]; then
+  PTHTICKER=$REPO_DIR/toolchain/gcc-10.2.0/cross-build/arm-riscos-gnueabihf/libunixlib/pthticker
+  [ -f "$GCCSDK_ENV/riscos/PThrTicker,ffa" ] && PTHTICKER=$GCCSDK_ENV/riscos/PThrTicker,ffa
+fi
+[ -f "$PTHTICKER" ] || { echo "no PThreadTicker module ($PTHTICKER)" >&2; exit 1; }
 : "${DEJAVU:=$SRC/dejavu-fonts-ttf-2.37}"
 VERSION=${VERSION:-2.3.9-14}
 OUT="$REPO_DIR/dist"; APP="$OUT/!Warzone2100"
@@ -22,9 +34,8 @@ $STRIP -o "$OUT/wzcheck.elf" "$STAGE/bin/wzcheck"
 "$ELF2AIF" -e "$OUT/wzcheck.elf" "$APP/wzcheck,ff8"
 rm "$OUT/wzcheck.elf"
 
-# PThreadTicker module (riscos-unixlib, built with UnixLib by
-# build-toolchain.sh; BSD licence), loaded by !Run.
-cp "$REPO_DIR/toolchain/gcc-10.2.0/cross-build/arm-riscos-gnueabihf/libunixlib/pthticker" "$APP/PThrTicker,ffa"
+# The PThreadTicker module, loaded by !Run.
+cp "$PTHTICKER" "$APP/PThrTicker,ffa"
 
 # Game data (zip archives, typed Data so SparkFS leaves them alone).
 mkdir -p "$APP/data/music"
