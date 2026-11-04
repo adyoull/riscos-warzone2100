@@ -14,6 +14,9 @@
   and checked by `fetch-sources.sh` (or riscos-crossdev's, if it's the
   same version). `fetch-sources.sh` stops at the first failed download, and
   skips the toolchain's sources when there's a toolchain already.
+- `build-deps.sh` stops when a library fails to build. Before, a failure
+  inside `have libX.a || { ... }` was ignored (bash -e is off there), and
+  the build went on to fail later at the link.
 
 ## 2.3.9-14 (2026-10-22)
 
