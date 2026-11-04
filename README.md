@@ -8,7 +8,7 @@ Raspberry Pi 2 onwards, and Cortex-A8/A9 boards); developed and tested on a
 Raspberry Pi 4.
 
 **Download:** the zip on the [releases page](https://github.com/adyoull/riscos-warzone2100/releases)
-(latest: 2.3.9-14).
+(latest: 2.3.9-15).
 
 How to build it: [BUILDING.md](BUILDING.md). What the patches change:
 [patches/README.md](patches/README.md).
@@ -19,7 +19,7 @@ How to build it: [BUILDING.md](BUILDING.md). What the patches change:
 Warzone 2100 2.3.9 source (upstream, unmodified) + patches/warzone2100
         |  SDL2 (window, input)          OpenGL 2.1
         v                                v
-riscos-mesa devkit: SDL 2.26 with a RISC OS Wimp driver, OSMesa 20.3.5 (swrast), GLU
+riscos-mesa devkit: SDL 2.32 with a RISC OS Wimp driver, OSMesa 20.3.5 (swrast), GLU
         |
 UnixLib + GCCSDK GCC 10.2 (arm-riscos-gnueabihf), statically linked
         |
@@ -100,12 +100,12 @@ See `app/!Warzone2100/!Help,fff`. In short:
 
 ## Status
 
-- **Release 2.3.9-14 (2026-10-06):** playable on a Raspberry Pi 4 in a
+- **Release 2.3.9-15 (2026-11-04):** playable on a Raspberry Pi 4 in a
   1024x768 desktop window, with sound and music: menus, campaign,
   skirmish, settings, quitting. Other desktop tasks are safe while it runs
-  (UnixLib 5.0.3.3 and PThreadTicker 0.03), and it's built for VFPv3, so it
+  (UnixLib 5.0.3.6 and PThreadTicker 0.03), and it's built for VFPv3, so it
   should also run on Cortex-A8/A9 boards (untested). Built with
-  riscos-mesa 20.3.5-17. See [CHANGELOG.md](CHANGELOG.md).
+  riscos-mesa 20.3.5-18 and riscos-crossdev 1.10. See [CHANGELOG.md](CHANGELOG.md).
 - **Display:** on a Pi 4 with VideoOverlay the game renders at 800x600
   and the overlay stretches it to the window, or to the whole screen as a
   multitasking full window ("runs really well" in testing).

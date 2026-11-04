@@ -20,7 +20,7 @@ if [ -z "${PTHTICKER:-}" ]; then
 fi
 [ -f "$PTHTICKER" ] || { echo "no PThreadTicker module ($PTHTICKER)" >&2; exit 1; }
 : "${DEJAVU:=$SRC/dejavu-fonts-ttf-2.37}"
-VERSION=${VERSION:-2.3.9-14}
+VERSION=${VERSION:-2.3.9-15}
 OUT="$REPO_DIR/dist"; APP="$OUT/!Warzone2100"
 rm -rf "$OUT"; mkdir -p "$OUT"
 cp -a "$REPO_DIR/app/!Warzone2100" "$APP"

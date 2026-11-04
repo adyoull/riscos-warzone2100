@@ -32,8 +32,8 @@ prefix=$STAGE
 libdir=\${prefix}/lib
 includedir=\${prefix}/include
 Name: sdl2
-Description: SDL 2.26 with the RISC OS Wimp driver and OSMesa GL (riscos-mesa devkit)
-Version: 2.26.0
+Description: SDL 2.32 with the RISC OS Wimp driver and OSMesa GL (riscos-mesa devkit)
+Version: 2.32.10
 # libSDL2 shows GL windows through libEGL when a render size or the overlay
 # is asked for (riscos-mesa 20.3.5-10 and later: SDL_RISCOS_GL_RENDER_SIZE/_OVERLAY).
 Libs: -L\${libdir} -lSDL2 -lGLU -lEGL -lOSMesa -lstdc++ -lz -lm

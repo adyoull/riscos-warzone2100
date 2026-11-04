@@ -14,7 +14,7 @@ apt-get install build-essential autogen autoconf2.69 autoconf2.64 automake1.11 \
 ## 2. The riscos-mesa devkit
 
 `.riscos-deps` names the riscos-mesa release this version is built with
-(now `riscos-mesa v20.3.5-17`: its SDL can render at a set size, use the
+(now `riscos-mesa v20.3.5-18`: its SDL can render at a set size, use the
 hardware overlay and make full screen a multitasking full window, and links
 libEGL). `build/fetch-sources.sh` downloads that release's devkit, checks it
 against `build/SHA256SUMS.txt` and unpacks it into `devkit/`, unless
@@ -22,7 +22,7 @@ riscos-crossdev's devkit (`$RISCOS_DEVKIT`) is already that version. To use
 one you have, unpack it there yourself:
 
 ```sh
-mkdir -p devkit && tar xzf riscos-mesa-devkit-20.3.5-17.tgz -C devkit
+mkdir -p devkit && tar xzf riscos-mesa-devkit-20.3.5-18.tgz -C devkit
 ```
 
 ## 3. Build
@@ -95,7 +95,7 @@ builds only that).
 The same build on any machine with Docker:
 
 ```sh
-docker run --rm -v "$PWD":/src ghcr.io/adyoull/riscos-crossdev:1.8.2 sh -c \
+docker run --rm -v "$PWD":/src ghcr.io/adyoull/riscos-crossdev:1.10 sh -c \
   'build/fetch-sources.sh && build/build-deps.sh && build/build-wz.sh && build/package.sh'
 ```
 
@@ -191,7 +191,7 @@ PATH=$GCCSDK_ENV/bin:$PATH python3 tools/check-stack-probes.py src/warzone2100-2
   should stop it while the program is paged out) are in our application
   space, and crashed other tasks ("abort on instruction fetch" in
   Organizer). `patches/unixlib/unixlib-riscos.diff` (UnixLib
-  5.0.3.3, from riscos-unixlib) runs them from the PThreadTicker module when it's loaded
+  5.0.3.6, from riscos-unixlib) runs them from the PThreadTicker module when it's loaded
   (`!Run` loads the copy in the app), otherwise from a copy in the RMA.
 - **After changing `patches/unixlib`, rebuild UnixLib from clean:**
   `build/build-toolchain.sh unixlib` (a few minutes; it re-patches GCCSDK

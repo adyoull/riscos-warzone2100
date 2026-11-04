@@ -1,7 +1,21 @@
 # Changelog
 
-## Unreleased
+## 2.3.9-15 (2026-11-04)
 
+- **riscos-mesa 20.3.5-18** and **riscos-crossdev 1.10** (UnixLib 5.0.3.6).
+  This is the first release built with riscos-crossdev's toolchain (the same
+  GCCSDK GCC 10.2) instead of a private one.
+  - **Semaphores work** in UnixLib 5.0.3.6: the path-finding thread and
+    OpenAL's background thread sleep while they wait instead of spinning,
+    and `sem_wait` no longer leaks memory on every call (slow growth in
+    long games).
+  - **SDL 2.32.10**, with keyboard focus events: clicking another window
+    releases held keys and stops edge scrolling until you click back. The
+    game pauses then only if `PauseOnFocusLoss=1` is in its config (off by
+    default).
+  - **The game can move the pointer** (`SDL_WarpMouseInWindow`): dragging
+    the Options sliders and the unit-driving mode work as intended.
+  - OpenAL mixes with NEON.
 - **Steadier sound** (as riscos-openttd 14.1-riscos8): the sound broke up
   when the game was busy, because only about 70 ms was queued.
   - OpenAL mixes 4096 samples at a time instead of 1024, so SDL's RISC OS
@@ -12,13 +26,13 @@
     it yields once a frame, so the sound thread mixes on time.
   - `riscos_sound.o` is a new object in configure's `LIBS`: delete
     `src/warzone2100-2.3.9/Makefile` before rebuilding an existing tree.
-- **Builds on GitHub** (riscos-crossdev 1.8.2's workflows): every push is
+- **Builds on GitHub** (riscos-crossdev's workflows): every push is
   built in riscos-crossdev's container image, checked
   (`checks/check-all.sh`) and zipped; every day, a new release of
   riscos-crossdev or riscos-mesa opens a pull request with the pin moved,
   built and checked. `.riscos-deps` names them.
 - The build uses riscos-crossdev's toolchain (`$RISCOS_TOOLCHAIN`: GCCSDK
-  GCC 10.2 with UnixLib 5.0.3.3, elf2aif and PThreadTicker) when it's
+  GCC 10.2 with UnixLib 5.0.3.6, elf2aif and PThreadTicker) when it's
   there; `build-toolchain.sh` is still there for building without it.
 - The riscos-mesa devkit is now the one `.riscos-deps` names, downloaded
   and checked by `fetch-sources.sh` (or riscos-crossdev's, if it's the
@@ -27,6 +41,9 @@
 - `build-deps.sh` stops when a library fails to build. Before, a failure
   inside `have libX.a || { ... }` was ignored (bash -e is off there), and
   the build went on to fail later at the link.
+- `patches/unixlib/unixlib-riscos.diff` is UnixLib 5.0.3.6 (the same as
+  riscos-crossdev 1.10's), for building the toolchain without
+  riscos-crossdev.
 
 ## 2.3.9-14 (2026-10-22)
 
