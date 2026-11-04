@@ -1,0 +1,40 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Andrew Youll <adyoull@users.noreply.github.com>
+Date: Wed, 4 Nov 2026 11:16:31 +0000
+Subject: [PATCH] RISC OS: let the sound thread run when the frame rate is
+ behind
+
+SDL_framerateDelay() doesn't wait at all when the game is slower than
+its frame limit (always, on a Pi), so the main thread never gave way and
+the sound thread mixing OpenAL's output only ran when the thread ticker
+preempted it. Call sched_yield() then, as riscos-openttd and VCMI do
+after each frame.
+---
+ lib/framework/SDL_framerate.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/lib/framework/SDL_framerate.c b/lib/framework/SDL_framerate.c
+index 0f97ac1..3a04193 100644
+--- a/lib/framework/SDL_framerate.c
++++ b/lib/framework/SDL_framerate.c
+@@ -8,6 +8,9 @@
+  */
+ 
+ #include "SDL_framerate.h"
++#if defined(__riscos__)
++#include <sched.h>
++#endif
+ 
+ /* 
+    Initialize the framerate manager
+@@ -80,5 +83,10 @@ void SDL_framerateDelay(FPSmanager * manager)
+     } else {
+ 	manager->framecount = 0;
+ 	manager->lastticks = SDL_GetTicks();
++#if defined(__riscos__)
++	/* Behind the target rate there's no delay, so nothing else ran:
++	 * give SDL's sound thread (OpenAL's mixer) a turn every frame. */
++	sched_yield();
++#endif
+     }
+ }

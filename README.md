@@ -52,6 +52,7 @@ so PackMan's fontconfig isn't required. Nothing global is set.
 | `app/!Warzone2100/` | `!Run`, `!Boot`, `!Help`, `!Sprites` and the fontconfig setup. `package.sh` adds the program, the game data and the fonts. |
 | `riscos/riscos_output.c` | Sends stdout/stderr to the file named by `Warzone2100$Output` (from riscos-mesa, MIT). |
 | `riscos/riscos_display.c` | `Warzone2100$RenderSize` / `$Overlay` to SDL's render size and overlay hints, for this program only. |
+| `riscos/riscos_sound.c` | Points OpenAL Soft at `!Warzone2100.alsoft/conf` (a bigger sound buffer), for this program only. |
 | `riscos/riscos_fontconfig.c` | Chooses the fontconfig setup (UnixFC's or the game's own), for this program only. |
 | `riscos/wzcheck.c` | The start-up checker, run by `!Warzone2100.Check`. |
 | `tools/wz-patches.sh` | Edit the patch series with git (see BUILDING.md). |

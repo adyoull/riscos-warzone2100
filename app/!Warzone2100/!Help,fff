@@ -100,6 +100,9 @@ Things to know
   SharedSound, in !System on most machines); without them the game is
   silent. Volume is in Options > Sound. Sound costs a little speed: to
   turn it off, set sound=0 in <Choices$Write>.Warzone2100.config.
+  About a quarter of a second of sound is kept queued, so it carries on
+  while the game is busy; alsoft/conf in !Warzone2100 sets the amount
+  (period_size: smaller responds sooner but may break up).
 - The campaign videos (sequences.wz) are a separate download and are
   not included. The game runs without them.
 - Multiplayer over the internet used a lobby server that no longer exists.

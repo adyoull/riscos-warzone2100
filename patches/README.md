@@ -29,6 +29,7 @@ them in order with `patch -p1`. To edit them, use `tools/wz-patches.sh`
 | 0018 | Render at the size SDL reports (riscos-mesa's render size), lay screens out at that size, and keep the window's own size in the config. |
 | 0019 | No `ctime()`/`asctime()` on RISC OS: UnixLib before 5.0.3 returned a bad pointer from them (a start-up crash on some machines). Times are formatted with `strftime()`. |
 | 0020 | Full screen as a "full window" (`SDL_WINDOW_FULLSCREEN_DESKTOP`) when `riscos/riscos_display.c` asks for it. |
+| 0021 | `sched_yield()` when the frame limiter has no time to wait (on a Pi, always), so SDL's sound thread (OpenAL's mixer) gets a turn every frame. |
 
 The earlier glFlush() before the text code's texture-matrix push (the
 skirmish screen's missing buttons) was dropped in 2.3.9-13: riscos-mesa

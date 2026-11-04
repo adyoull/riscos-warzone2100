@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- **Steadier sound** (as riscos-openttd 14.1-riscos8): the sound broke up
+  when the game was busy, because only about 70 ms was queued.
+  - OpenAL mixes 4096 samples at a time instead of 1024, so SDL's RISC OS
+    driver keeps about 280 ms queued in SharedSoundBuffer.
+    `riscos/riscos_sound.c` points OpenAL Soft at `!Warzone2100.alsoft/conf`
+    (`period_size`), for this program only.
+  - Patch 0021: when the game is behind its frame limit (always, on a Pi)
+    it yields once a frame, so the sound thread mixes on time.
+  - `riscos_sound.o` is a new object in configure's `LIBS`: delete
+    `src/warzone2100-2.3.9/Makefile` before rebuilding an existing tree.
 - **Builds on GitHub** (riscos-crossdev 1.8.2's workflows): every push is
   built in riscos-crossdev's container image, checked
   (`checks/check-all.sh`) and zipped; every day, a new release of
