@@ -25,10 +25,22 @@ OUT="$REPO_DIR/dist"; APP="$OUT/!Warzone2100"
 rm -rf "$OUT"; mkdir -p "$OUT"
 cp -a "$REPO_DIR/app/!Warzone2100" "$APP"
 
-# Program: stripped, then Absolute (AIF) so it needs no ELF loader.
-$STRIP -o "$OUT/warzone2100.elf" "$WZ_SRC/src/warzone2100"
-"$ELF2AIF" -e "$OUT/warzone2100.elf" "$APP/warzone2100,ff8"
-rm "$OUT/warzone2100.elf"
+if [ "${MIXED:-0}" = 1 ]; then
+  # A mixed program (build-wz.sh with MIXED=1): it stays an ELF file,
+  # stripped, which !SharedLibs runs; OpenGL, EGL, GLU, SDL and OpenAL come
+  # from !MesaLibs. !Run gets the !SharedLibs/!MesaLibs lines instead of the
+  # Absolute's (riscos/mixed-run.py).
+  readelf -d "$WZ_SRC/src/warzone2100" 2>/dev/null | grep -q NEEDED ||
+    $HOST-readelf -d "$WZ_SRC/src/warzone2100" | grep -q NEEDED ||
+    { echo "MIXED=1, but the program isn't mixed: run MIXED=1 build/build-wz.sh" >&2; exit 1; }
+  $STRIP -o "$APP/warzone2100,e1f" "$WZ_SRC/src/warzone2100"
+  python3 "$REPO_DIR/riscos/mixed-run.py" "$APP/!Run,feb"
+else
+  # Program: stripped, then Absolute (AIF) so it needs no ELF loader.
+  $STRIP -o "$OUT/warzone2100.elf" "$WZ_SRC/src/warzone2100"
+  "$ELF2AIF" -e "$OUT/warzone2100.elf" "$APP/warzone2100,ff8"
+  rm "$OUT/warzone2100.elf"
+fi
 # The start-up checker (built by build-wz.sh), run by the Check Obey file.
 $STRIP -o "$OUT/wzcheck.elf" "$STAGE/bin/wzcheck"
 "$ELF2AIF" -e "$OUT/wzcheck.elf" "$APP/wzcheck,ff8"

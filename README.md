@@ -54,6 +54,7 @@ so PackMan's fontconfig isn't required. Nothing global is set.
 | `riscos/riscos_display.c` | `Warzone2100$RenderSize` / `$Overlay` to SDL's render size and overlay hints, for this program only. |
 | `riscos/riscos_sound.c` | Points OpenAL Soft at `!Warzone2100.alsoft/conf` (a bigger sound buffer), for this program only. |
 | `riscos/riscos_fontconfig.c` | Chooses the fontconfig setup (UnixFC's or the game's own), for this program only. |
+| `riscos/mixed-run.py` | Gives `!Run` the mixed build's `!SharedLibs`/`!MesaLibs` lines (`MIXED=1 build/package.sh`). |
 | `riscos/wzcheck.c` | The start-up checker, run by `!Warzone2100.Check`. |
 | `tools/wz-patches.sh` | Edit the patch series with git (see BUILDING.md). |
 | `tools/check-unaligned.sh` | Finds code that can do unaligned loads and stores, which RISC OS traps. |

@@ -77,6 +77,28 @@ tarball of `~/gccsdk/env` can be reused on another machine as the same user.
 `elf2aif` is always built from `tools/elf2aif` (`build-toolchain.sh elf2aif`
 builds only that).
 
+### The mixed build (a test)
+
+With riscos-crossdev 1.11 or later and a riscos-mesa devkit that has
+`lib/shared` (20.3.5-19 on), the game can be linked as a *mixed* program:
+UnixLib and the game's own libraries linked in, OpenGL, EGL, GLU, SDL 2
+and OpenAL loaded from `!MesaLibs` through `!SharedLibs` (riscos-crossdev's
+`docs/MIXED.md`, the devkit's `docs/porting/mixed.md`).
+
+```sh
+build/build-wz.sh                 # as usual (static)
+MIXED=1 build/build-wz.sh         # relinks src/warzone2100-2.3.9/src/warzone2100 mixed
+$RCD_DIR/checks/check-all.sh src/warzone2100-2.3.9/src/warzone2100
+$RCD_DIR/checks/check-mixed-package.sh src/warzone2100-2.3.9/src/warzone2100 "$DEVKIT/riscos/!MesaLibs/lib"
+MIXED=1 VERSION=<v>-mixed build/package.sh
+```
+
+configure and the first link stay static; `MIXED=1` only relinks the
+program (`-rdynamic`, `lib/shared` before `stage/lib`, `-ldl` for SDL).
+`package.sh` then ships it as `warzone2100,e1f` (stripped ELF, not an
+Absolute) and `riscos/mixed-run.py` gives `!Run` the `!SharedLibs` and
+`!MesaLibs` lines and a 20MB WimpSlot. The checker stays static.
+
 ### Building on GitHub
 
 `.github/workflows/` has riscos-crossdev's two workflows (its `docs/CI.md`):

@@ -84,6 +84,14 @@ Things to know
 - After a run, *Show EGL$OverlayStatus says whether the hardware overlay
   was used, and if not, why. (RDPServer turns overlays off while a client
   is connected, so check on the Pi's own screen.)
+- With RISC3D (a GPU driver for riscos-mesa) installed, the game is drawn
+  by the graphics chip instead of in software; riscos-mesa picks it by
+  itself. *Set LIBGL_ALWAYS_SOFTWARE 1 (or RISC3D$Disable 1) before
+  starting the game goes back to software, to compare.
+- The mixed build (warzone2100 is an ELF file, not an Absolute) loads
+  OpenGL, EGL, GLU, SDL and OpenAL from !MesaLibs through !SharedLibs:
+  both go in !Boot.Resources. After installing a new !MesaLibs, restart
+  the machine before running the game.
 - Clicking another window releases any keys held in the game and stops
   edge scrolling until you click back in it. To pause the game while
   it's in the background, set PauseOnFocusLoss=1 in
