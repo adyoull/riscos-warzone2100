@@ -14,7 +14,7 @@ apt-get install build-essential autogen autoconf2.69 autoconf2.64 automake1.11 \
 ## 2. The riscos-mesa devkit
 
 `.riscos-deps` names the riscos-mesa release this version is built with
-(now `riscos-mesa v20.3.5-18`: its SDL can render at a set size, use the
+(now `riscos-mesa v20.3.5-19`: its SDL can render at a set size, use the
 hardware overlay and make full screen a multitasking full window, and links
 libEGL). `build/fetch-sources.sh` downloads that release's devkit, checks it
 against `build/SHA256SUMS.txt` and unpacks it into `devkit/`, unless
@@ -22,7 +22,7 @@ riscos-crossdev's devkit (`$RISCOS_DEVKIT`) is already that version. To use
 one you have, unpack it there yourself:
 
 ```sh
-mkdir -p devkit && tar xzf riscos-mesa-devkit-20.3.5-18.tgz -C devkit
+mkdir -p devkit && tar xzf riscos-mesa-devkit-20.3.5-19.tgz -C devkit
 ```
 
 ## 3. Build
@@ -80,7 +80,7 @@ builds only that).
 ### The mixed build (a test)
 
 With riscos-crossdev 1.11 or later and a riscos-mesa devkit that has
-`lib/shared` (20.3.5-19 on), the game can be linked as a *mixed* program:
+`lib/shared` (20.3.5-19 on, the one `.riscos-deps` names), the game can be linked as a *mixed* program:
 UnixLib and the game's own libraries linked in, OpenGL, EGL, GLU, SDL 2
 and OpenAL loaded from `!MesaLibs` through `!SharedLibs` (riscos-crossdev's
 `docs/MIXED.md`, the devkit's `docs/porting/mixed.md`).
@@ -117,7 +117,7 @@ Absolute) and `riscos/mixed-run.py` gives `!Run` the `!SharedLibs` and
 The same build on any machine with Docker:
 
 ```sh
-docker run --rm -v "$PWD":/src ghcr.io/adyoull/riscos-crossdev:1.10 sh -c \
+docker run --rm -v "$PWD":/src ghcr.io/adyoull/riscos-crossdev:1.11.2 sh -c \
   'build/fetch-sources.sh && build/build-deps.sh && build/build-wz.sh && build/package.sh'
 ```
 

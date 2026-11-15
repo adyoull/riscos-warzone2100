@@ -7,12 +7,14 @@
   `!SharedLibs`, so it shares them with other programs and the program file is
   6.5MB instead of 16MB. It's an ELF file
   (`warzone2100,e1f`), and `!Run` boots and checks both library packs.
-- **RISC3D:** built against riscos-mesa's RISC3D devkit (test build r3d8,
-  RISC3D client 0.8), both builds draw with the GPU through RISC3D where
-  there's a driver for it, and in software elsewhere or with
-  `LIBGL_ALWAYS_SOFTWARE` / `RISC3D$Disable` set. No game change was
-  needed: SDL's GL windows go through EGL, which picks RISC3D. `!Help`
-  explains both.
+- **riscos-mesa 20.3.5-19** and **riscos-crossdev 1.11.2** (UnixLib
+  5.0.3.7). With 20.3.5-19 both builds draw with the GPU through RISC3D
+  where there's a driver for it (RISC OS on Linux with riscos-risc3d on a
+  Pi 4), and in software elsewhere or with `LIBGL_ALWAYS_SOFTWARE` /
+  `RISC3D$Disable` set. No game change was needed: SDL's GL windows go
+  through EGL, which picks RISC3D. `!Help` explains both. The mixed
+  build uses 20.3.5-19's `!MesaLibs`.
+
 ## 2.3.9-15 (2026-11-04)
 
 - **riscos-mesa 20.3.5-18** and **riscos-crossdev 1.10** (UnixLib 5.0.3.6).
