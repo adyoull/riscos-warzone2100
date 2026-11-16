@@ -49,6 +49,12 @@ if [ "${MIXED:-0}" = 1 ]; then
   rm -f warzone2100
   # lib/shared before $STAGE/lib, so -lSDL2 -lEGL -lOSMesa -lGLU -lopenal
   # find the shared libraries; -ldl after them for SDL's SDL_LoadObject.
+  # With a devkit that has libMesaGPU (riscos-mesa 20.3.5-20 on), -lMesaGPU
+  # after -lOSMesa: the program then names libMesaGPU.so.1 too, and on
+  # native RISC OS EGL and OSMesa draw on the GPU through it when RISC3D
+  # (loaded by !RISC3D at boot) has a GPU driver. RISC3D decides; the
+  # program names no driver and needs nothing in !Run for it.
+  GPU=; [ -f "$DEVKIT/lib/shared/libMesaGPU.so" ] && GPU=-lMesaGPU
   make warzone2100 LDFLAGS="-L$DEVKIT/lib/shared ${LDFLAGS} -rdynamic -Wl,-rpath-link=$STUBS" \
-    LIBS="$(sed -n 's/^LIBS = //p' Makefile) -ldl"
+    LIBS="$(sed -n 's/^LIBS = //p' Makefile) $GPU -ldl"
 fi

@@ -90,8 +90,11 @@ Things to know
   starting the game goes back to software, to compare.
 - The mixed build (warzone2100 is an ELF file, not an Absolute) loads
   OpenGL, EGL, GLU, SDL and OpenAL from !MesaLibs through !SharedLibs:
-  both go in !Boot.Resources. After installing a new !MesaLibs, restart
-  the machine before running the game.
+  both go in !Boot.Resources. With !RISC3D in !Boot.Resources too, it
+  also draws with the GPU on RISC OS itself (a Pi 4 with V3DRender), not
+  only on RISC OS on Linux: RISC3D picks the graphics driver, and the
+  game needs nothing else. After installing a new !MesaLibs, restart the
+  machine before running the game.
 - Clicking another window releases any keys held in the game and stops
   edge scrolling until you click back in it. To pause the game while
   it's in the background, set PauseOnFocusLoss=1 in

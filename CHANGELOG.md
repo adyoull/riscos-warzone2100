@@ -14,6 +14,13 @@
   `RISC3D$Disable` set. No game change was needed: SDL's GL windows go
   through EGL, which picks RISC3D. `!Help` explains both. The mixed
   build uses 20.3.5-19's `!MesaLibs`.
+- **The GPU on RISC OS itself** (with riscos-mesa 20.3.5-20's `libMesaGPU`):
+  the mixed build also links `-lMesaGPU`, so with `!RISC3D` in
+  `!Boot.Resources` it draws on a Pi 4's GPU through V3DRender, not only
+  on RISC OS on Linux. RISC3D picks the graphics driver; the game and its
+  `!Run` name none. `build-wz.sh` adds it when the devkit has
+  `lib/shared/libMesaGPU.so`. The static build doesn't link the GPU
+  library (it would add about 15MB).
 
 ## 2.3.9-15 (2026-11-04)
 

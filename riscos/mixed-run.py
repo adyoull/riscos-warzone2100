@@ -28,8 +28,9 @@ swap('''| Built with GCCSDK GCC 10.2 (arm-riscos-gnueabihf), statically linked w
 | program (warzone2100, an ELF file) has UnixLib and its other libraries
 | linked in, and loads OpenGL, EGL, GLU, SDL 2 and OpenAL from !MesaLibs,
 | through !SharedLibs. Both go in !Boot.Resources. riscos-mesa then draws
-| with the GPU through RISC3D where there's a driver for it, else in
-| software, as the ordinary (Absolute) build does.''')
+| with the GPU through RISC3D where there's a driver for it (!RISC3D in
+| !Boot.Resources loads it at start-up and picks the driver; the game
+| names none), else in software.''')
 
 swap('''| directly after it. All are removed when the game quits. The WimpSlot
 | only has to hold the program itself (about 25MB).
