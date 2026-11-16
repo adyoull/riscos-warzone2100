@@ -38,7 +38,7 @@ permissions:
   pull-requests: write
 
 env:
-  BUILD: build/fetch-sources.sh && build/build-deps.sh && build/build-wz.sh && $RCD_DIR/checks/check-all.sh src/warzone2100-2.3.9/src/warzone2100 && VERSION=ci build/package.sh
+  BUILD: build/fetch-sources.sh && build/build-deps.sh && build/build-wz.sh && build/check-wz.sh && VERSION=ci build/package.sh
   PACKAGES: ""
 
 jobs:

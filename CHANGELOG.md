@@ -1,26 +1,24 @@
 # Changelog
 
-## Unreleased
+## Unreleased (2.3.9-16)
 
-- **A mixed build** (`MIXED=1`, a test; BUILDING, "The mixed build"): the
-  game loads OpenGL, EGL, GLU, SDL 2 and OpenAL from `!MesaLibs` through
-  `!SharedLibs`, so it shares them with other programs and the program file is
-  6.5MB instead of 16MB. It's an ELF file
-  (`warzone2100,e1f`), and `!Run` boots and checks both library packs.
-- **riscos-mesa 20.3.5-19** and **riscos-crossdev 1.11.2** (UnixLib
-  5.0.3.7). With 20.3.5-19 both builds draw with the GPU through RISC3D
-  where there's a driver for it (RISC OS on Linux with riscos-risc3d on a
-  Pi 4), and in software elsewhere or with `LIBGL_ALWAYS_SOFTWARE` /
-  `RISC3D$Disable` set. No game change was needed: SDL's GL windows go
-  through EGL, which picks RISC3D. `!Help` explains both. The mixed
-  build uses 20.3.5-19's `!MesaLibs`.
-- **The GPU on RISC OS itself** (with riscos-mesa 20.3.5-20's `libMesaGPU`):
-  the mixed build also links `-lMesaGPU`, so with `!RISC3D` in
-  `!Boot.Resources` it draws on a Pi 4's GPU through V3DRender, not only
-  on RISC OS on Linux. RISC3D picks the graphics driver; the game and its
-  `!Run` name none. `build-wz.sh` adds it when the devkit has
-  `lib/shared/libMesaGPU.so`. The static build doesn't link the GPU
-  library (it would add about 15MB).
+- **The game is now a mixed program**, the only build: `warzone2100` is an
+  ELF file that loads OpenGL, EGL, GLU, SDL 2, OpenAL and the GPU library
+  from riscos-mesa's `!MesaLibs` through `!SharedLibs`. Programs using the
+  same `!MesaLibs` share one copy, and the program file is 6.5MB instead
+  of 16MB. `!Run` boots `!SharedLibs` and `!MesaLibs` and stops with an
+  error if either is missing.
+- **The GPU through RISC3D:** with `!RISC3D` in `!Boot.Resources`, the game
+  is drawn by the graphics chip: on a Pi 4 running RISC OS through
+  V3DRender (riscos-mesa 20.3.5-20's `libMesaGPU`), and on RISC OS on Linux
+  through Linux3D. RISC3D picks the driver; the game and its `!Run` name
+  none. Elsewhere, or with `LIBGL_ALWAYS_SOFTWARE` / `RISC3D$Disable` set,
+  it draws in software as before. No game change was needed: SDL's GL
+  windows go through EGL, which picks RISC3D.
+- **riscos-crossdev 1.11.2** (UnixLib 5.0.3.7).
+- Build: `build-wz.sh` relinks the program mixed (`MIXED=0` for the old
+  static Absolute), `build/check-wz.sh` runs the checks including
+  `check-mixed-package.sh`, and GitHub's build does the same.
 
 ## 2.3.9-15 (2026-11-04)
 

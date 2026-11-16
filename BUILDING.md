@@ -77,27 +77,35 @@ tarball of `~/gccsdk/env` can be reused on another machine as the same user.
 `elf2aif` is always built from `tools/elf2aif` (`build-toolchain.sh elf2aif`
 builds only that).
 
-### The mixed build (a test)
+### The mixed program
 
-With riscos-crossdev 1.11 or later and a riscos-mesa devkit that has
-`lib/shared` (20.3.5-19 on, the one `.riscos-deps` names), the game can be linked as a *mixed* program:
-UnixLib and the game's own libraries linked in, OpenGL, EGL, GLU, SDL 2
-and OpenAL loaded from `!MesaLibs` through `!SharedLibs` (riscos-crossdev's
+The game is built as a *mixed* program (riscos-crossdev 1.11 or later,
+and a riscos-mesa devkit with `lib/shared`: the one `.riscos-deps` names):
+UnixLib and the game's own libraries are linked in, and OpenGL, EGL, GLU,
+SDL 2, OpenAL and the GPU library (`libMesaGPU`, riscos-mesa 20.3.5-20 on)
+are loaded from `!MesaLibs` through `!SharedLibs` (riscos-crossdev's
 `docs/MIXED.md`, the devkit's `docs/porting/mixed.md`).
 
 ```sh
-build/build-wz.sh                 # as usual (static)
-MIXED=1 build/build-wz.sh         # relinks src/warzone2100-2.3.9/src/warzone2100 mixed
-$RCD_DIR/checks/check-all.sh src/warzone2100-2.3.9/src/warzone2100
-$RCD_DIR/checks/check-mixed-package.sh src/warzone2100-2.3.9/src/warzone2100 "$DEVKIT/riscos/!MesaLibs/lib"
-MIXED=1 VERSION=<v>-mixed build/package.sh
+build/build-wz.sh      # configure, make (static), then relink the program mixed
+build/check-wz.sh      # riscos-crossdev's checks, and that !MesaLibs has every library it needs
+build/package.sh       # dist/!Warzone2100 (warzone2100,e1f) and the zip
 ```
 
-configure and the first link stay static; `MIXED=1` only relinks the
-program (`-rdynamic`, `lib/shared` before `stage/lib`, `-ldl` for SDL).
-`package.sh` then ships it as `warzone2100,e1f` (stripped ELF, not an
-Absolute) and `riscos/mixed-run.py` gives `!Run` the `!SharedLibs` and
-`!MesaLibs` lines and a 20MB WimpSlot. The checker stays static.
+- configure and the first link stay static (configure's test links can't
+  be `-rdynamic`); `build-wz.sh` then relinks only the program:
+  `-rdynamic`, `lib/shared` before `stage/lib`, `-lMesaGPU` when the
+  devkit has it, `-ldl` for SDL.
+- `package.sh` ships it as `warzone2100,e1f` (stripped ELF, not an
+  Absolute), and `riscos/mixed-run.py` gives `!Run` the `!SharedLibs` and
+  `!MesaLibs` lines and a 20MB WimpSlot. The checker (`wzcheck`) stays a
+  static Absolute.
+- The game names no graphics driver, and `!Run` loads nothing for RISC3D:
+  `!RISC3D` (in `!Boot.Resources`) loads it at start-up, and RISC3D picks
+  the driver (V3DRender natively, Linux3D on RISC OS on Linux); riscos-mesa
+  draws through it, or in software.
+- `MIXED=0` (for both `build-wz.sh` and `package.sh`) still makes the old
+  static Absolute, and `MESAGPU=0` leaves out the GPU library.
 
 ### Building on GitHub
 
@@ -106,7 +114,8 @@ Absolute) and `riscos/mixed-run.py` gives `!Run` the `!SharedLibs` and
 - **`riscos-build.yml`** builds every push and pull request in
   `ghcr.io/adyoull/riscos-crossdev:<version>` (the `riscos-crossdev` line of
   `.riscos-deps`), runs riscos-crossdev's checks on the program
-  (`checks/check-all.sh`: static, stack probes, FPU, UnixLib), and keeps
+  (`build/check-wz.sh`: mixed, stack probes, FPU, UnixLib, and the
+  libraries in `!MesaLibs`), and keeps
   `dist/Warzone2100-ci.zip` on the run's page. `dl/` is cached between runs.
 - **`riscos-deps-update.yml`** looks every day for newer releases of what
   `.riscos-deps` names. When there is one it moves the pin

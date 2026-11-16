@@ -34,14 +34,15 @@ SOUND=--enable-sound; [ "${WZ_SOUND:-1}" = 0 ] && SOUND=--disable-sound
   CPPFLAGS_FOR_BUILD= LDFLAGS_FOR_BUILD=
 make -j$JOBS "$@"
 
-# MIXED=1: relink the game as a *mixed* program (riscos-crossdev 1.11 or
-# later, riscos-mesa devkit with lib/shared): UnixLib, libstdc++ and the
+# The game is a *mixed* program (riscos-crossdev 1.11 or later, a
+# riscos-mesa devkit with lib/shared; MIXED=0 keeps the old static one):
+# UnixLib, libstdc++ and the
 # game's other libraries stay linked in, but OpenGL, EGL, GLU, SDL 2 and
 # OpenAL come from !MesaLibs at run time, through !SharedLibs. configure and
 # the first link stay static (configure's test links can't be -rdynamic:
 # binutils 2.30's ld crashes on a dynamic link with no shared library);
 # only the program is linked again. The checker (wzcheck) stays static.
-if [ "${MIXED:-0}" = 1 ]; then
+if [ "${MIXED:-1}" = 1 ]; then
   [ -f "$DEVKIT/lib/shared/libOSMesa.so" ] || { echo "MIXED=1: $DEVKIT has no lib/shared" >&2; exit 1; }
   STUBS=$($CC -print-file-name=mixed-stubs)
   [ -d "$STUBS" ] || { echo "MIXED=1: the toolchain has no mixed-stubs (riscos-crossdev 1.11 or later)" >&2; exit 1; }
@@ -54,7 +55,7 @@ if [ "${MIXED:-0}" = 1 ]; then
   # native RISC OS EGL and OSMesa draw on the GPU through it when RISC3D
   # (loaded by !RISC3D at boot) has a GPU driver. RISC3D decides; the
   # program names no driver and needs nothing in !Run for it.
-  GPU=; [ -f "$DEVKIT/lib/shared/libMesaGPU.so" ] && GPU=-lMesaGPU
+  GPU=; [ -f "$DEVKIT/lib/shared/libMesaGPU.so" ] && [ "${MESAGPU:-1}" != 0 ] && GPU=-lMesaGPU
   make warzone2100 LDFLAGS="-L$DEVKIT/lib/shared ${LDFLAGS} -rdynamic -Wl,-rpath-link=$STUBS" \
     LIBS="$(sed -n 's/^LIBS = //p' Makefile) $GPU -ldl"
 fi

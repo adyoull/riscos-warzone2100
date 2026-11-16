@@ -21,13 +21,20 @@ Warzone 2100 2.3.9 source (upstream, unmodified) + patches/warzone2100
         v                                v
 riscos-mesa devkit: SDL 2.32 with a RISC OS Wimp driver, OSMesa 20.3.5 (swrast), GLU
         |
-UnixLib + GCCSDK GCC 10.2 (arm-riscos-gnueabihf), statically linked
+UnixLib + GCCSDK GCC 10.2 (arm-riscos-gnueabihf), linked in
         |
-elf2aif -> !Warzone2100.warzone2100,ff8 (Absolute: needs no !SharedLibs)
+!Warzone2100.warzone2100,e1f (a mixed ELF program)
+        |  loads OpenGL, EGL, GLU, SDL 2, OpenAL and libMesaGPU
+        v
+!MesaLibs (riscos-mesa), through !SharedLibs; the GPU through RISC3D
 ```
 
-Everything is linked statically into one program. It needs SharedUnixLibrary
-and ARMEABISupport, both from PackMan. For sound it also needs
+The game is a *mixed* program: UnixLib and its own libraries are linked
+in, and riscos-mesa's libraries come from `!MesaLibs`, which other
+programs share. It needs `!SharedLibs` (with `ld-riscos/so/2`, as Iris
+installs) and `!MesaLibs` in `!Boot.Resources`, SharedUnixLibrary and
+ARMEABISupport from PackMan, and for the GPU `!RISC3D` (RISC3D picks the
+driver: V3DRender on a Pi 4 running RISC OS, Linux3D on RISC OS on Linux). For sound it also needs
 SharedSoundBuffer and StreamManager, John Duffell's freeware: the `ssb.zip`
 download on [Andrew Sellors' RDPClient page](https://orac.co.uk/software/rdpclient/rdpclient.html)
 (merge its `!System` into yours). John Duffell's own site is on the Internet
@@ -54,7 +61,8 @@ so PackMan's fontconfig isn't required. Nothing global is set.
 | `riscos/riscos_display.c` | `Warzone2100$RenderSize` / `$Overlay` to SDL's render size and overlay hints, for this program only. |
 | `riscos/riscos_sound.c` | Points OpenAL Soft at `!Warzone2100.alsoft/conf` (a bigger sound buffer), for this program only. |
 | `riscos/riscos_fontconfig.c` | Chooses the fontconfig setup (UnixFC's or the game's own), for this program only. |
-| `riscos/mixed-run.py` | Gives `!Run` the mixed build's `!SharedLibs`/`!MesaLibs` lines (`MIXED=1 build/package.sh`). |
+| `riscos/mixed-run.py` | Gives `!Run` the `!SharedLibs`/`!MesaLibs` lines (`build/package.sh`). |
+| `build/check-wz.sh` | riscos-crossdev's checks on the program, and that `!MesaLibs` has every library it needs. |
 | `riscos/wzcheck.c` | The start-up checker, run by `!Warzone2100.Check`. |
 | `tools/wz-patches.sh` | Edit the patch series with git (see BUILDING.md). |
 | `tools/check-unaligned.sh` | Finds code that can do unaligned loads and stores, which RISC OS traps. |

@@ -25,14 +25,14 @@ OUT="$REPO_DIR/dist"; APP="$OUT/!Warzone2100"
 rm -rf "$OUT"; mkdir -p "$OUT"
 cp -a "$REPO_DIR/app/!Warzone2100" "$APP"
 
-if [ "${MIXED:-0}" = 1 ]; then
-  # A mixed program (build-wz.sh with MIXED=1): it stays an ELF file,
+if [ "${MIXED:-1}" = 1 ]; then
+  # The mixed program (build-wz.sh; MIXED=0 for the static one): an ELF file,
   # stripped, which !SharedLibs runs; OpenGL, EGL, GLU, SDL and OpenAL come
   # from !MesaLibs. !Run gets the !SharedLibs/!MesaLibs lines instead of the
   # Absolute's (riscos/mixed-run.py).
   readelf -d "$WZ_SRC/src/warzone2100" 2>/dev/null | grep -q NEEDED ||
     $HOST-readelf -d "$WZ_SRC/src/warzone2100" | grep -q NEEDED ||
-    { echo "MIXED=1, but the program isn't mixed: run MIXED=1 build/build-wz.sh" >&2; exit 1; }
+    { echo "the program isn't mixed: run build/build-wz.sh (or package with MIXED=0)" >&2; exit 1; }
   $STRIP -o "$APP/warzone2100,e1f" "$WZ_SRC/src/warzone2100"
   python3 "$REPO_DIR/riscos/mixed-run.py" "$APP/!Run,feb"
 else

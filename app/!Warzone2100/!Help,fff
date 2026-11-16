@@ -17,10 +17,20 @@ Requirements
   or an i.MX6 board. A Pi 4 is recommended: everything is drawn in
   software, so slower machines need a small window (640x480).
 - SharedUnixLibrary 1.16 or later and ARMEABISupport (both from PackMan).
+- !SharedLibs with ld-riscos/so/2 (GCCSDK 8 or later; Iris installs one)
+  and riscos-mesa's !MesaLibs (20.3.5-20 or later), both in
+  !Boot.Resources. The game (warzone2100, an ELF file) loads OpenGL, EGL,
+  GLU, SDL and OpenAL from !MesaLibs, so it shares them with other
+  programs. After installing a new !MesaLibs, restart before running the
+  game: libraries already loaded stay in use until then.
+- For the GPU: !RISC3D in !Boot.Resources (optional). It loads RISC3D at
+  start-up, which picks the graphics driver: V3DRender on a Pi 4 running
+  RISC OS, or Linux3D on RISC OS on Linux. Without it, or with no driver,
+  everything is drawn in software.
 - The PThreadTicker module is included, and !Run loads it (or a newer
   copy from !System). It runs the code that switches between the game's
   threads, so it's paged in whichever program is running.
-- About 32MB of free memory for the program, plus the game's heap, which
+- About 20MB of free memory for the program, plus the game's heap, which
   goes in a dynamic area called "Warzone2100 Heap".
 - For sound: SharedSoundBuffer, StreamManager and SharedSound. Without
   them the game runs silently. SharedSound is part of RISC OS (in !System
@@ -84,17 +94,11 @@ Things to know
 - After a run, *Show EGL$OverlayStatus says whether the hardware overlay
   was used, and if not, why. (RDPServer turns overlays off while a client
   is connected, so check on the Pi's own screen.)
-- With RISC3D (a GPU driver for riscos-mesa) installed, the game is drawn
-  by the graphics chip instead of in software; riscos-mesa picks it by
-  itself. *Set LIBGL_ALWAYS_SOFTWARE 1 (or RISC3D$Disable 1) before
-  starting the game goes back to software, to compare.
-- The mixed build (warzone2100 is an ELF file, not an Absolute) loads
-  OpenGL, EGL, GLU, SDL and OpenAL from !MesaLibs through !SharedLibs:
-  both go in !Boot.Resources. With !RISC3D in !Boot.Resources too, it
-  also draws with the GPU on RISC OS itself (a Pi 4 with V3DRender), not
-  only on RISC OS on Linux: RISC3D picks the graphics driver, and the
-  game needs nothing else. After installing a new !MesaLibs, restart the
-  machine before running the game.
+- With RISC3D (!RISC3D in !Boot.Resources) and a GPU driver, the game is
+  drawn by the graphics chip instead of in software; riscos-mesa and
+  RISC3D pick it by themselves, and the game names no driver.
+  *Set LIBGL_ALWAYS_SOFTWARE 1 (or RISC3D$Disable 1) before starting the
+  game goes back to software, to compare.
 - Clicking another window releases any keys held in the game and stops
   edge scrolling until you click back in it. To pause the game while
   it's in the background, set PauseOnFocusLoss=1 in
