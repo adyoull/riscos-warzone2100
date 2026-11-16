@@ -14,7 +14,7 @@ apt-get install build-essential autogen autoconf2.69 autoconf2.64 automake1.11 \
 ## 2. The riscos-mesa devkit
 
 `.riscos-deps` names the riscos-mesa release this version is built with
-(now `riscos-mesa v20.3.5-19`: its SDL can render at a set size, use the
+(now `riscos-mesa v20.3.5-20`: its SDL can render at a set size, use the
 hardware overlay and make full screen a multitasking full window, and links
 libEGL). `build/fetch-sources.sh` downloads that release's devkit, checks it
 against `build/SHA256SUMS.txt` and unpacks it into `devkit/`, unless
@@ -22,7 +22,7 @@ riscos-crossdev's devkit (`$RISCOS_DEVKIT`) is already that version. To use
 one you have, unpack it there yourself:
 
 ```sh
-mkdir -p devkit && tar xzf riscos-mesa-devkit-20.3.5-19.tgz -C devkit
+mkdir -p devkit && tar xzf riscos-mesa-devkit-20.3.5-20.tgz -C devkit
 ```
 
 ## 3. Build

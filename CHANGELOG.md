@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (2.3.9-16)
+## 2.3.9-16 (2026-11-16)
 
 - **The game is now a mixed program**, the only build: `warzone2100` is an
   ELF file that loads OpenGL, EGL, GLU, SDL 2, OpenAL and the GPU library
@@ -15,7 +15,7 @@
   none. Elsewhere, or with `LIBGL_ALWAYS_SOFTWARE` / `RISC3D$Disable` set,
   it draws in software as before. No game change was needed: SDL's GL
   windows go through EGL, which picks RISC3D.
-- **riscos-crossdev 1.11.2** (UnixLib 5.0.3.7).
+- **riscos-mesa 20.3.5-20** and **riscos-crossdev 1.11.2** (UnixLib 5.0.3.7).
 - Build: `build-wz.sh` relinks the program mixed (`MIXED=0` for the old
   static Absolute), `build/check-wz.sh` runs the checks including
   `check-mixed-package.sh`, and GitHub's build does the same.
