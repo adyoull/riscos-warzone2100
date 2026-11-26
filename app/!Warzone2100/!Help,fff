@@ -1,4 +1,4 @@
-Warzone 2100 2.3.9 for RISC OS (release 2.3.9-16)
+Warzone 2100 2.3.9 for RISC OS (release 2.3.9-17)
 =================================================
 
 Warzone 2100 is a real-time strategy game, originally released by Pumpkin
@@ -18,7 +18,7 @@ Requirements
   software, so slower machines need a small window (640x480).
 - SharedUnixLibrary 1.16 or later and ARMEABISupport (both from PackMan).
 - !SharedLibs with ld-riscos/so/2 (GCCSDK 8 or later; Iris installs one)
-  and riscos-mesa's !MesaLibs (20.3.5-20 or later), both in
+  and riscos-mesa's !MesaLibs (20.3.5-23 or later), both in
   !Boot.Resources. The game (warzone2100, an ELF file) loads OpenGL, EGL,
   GLU, SDL and OpenAL from !MesaLibs, so it shares them with other
   programs. After installing a new !MesaLibs, restart before running the
@@ -143,7 +143,7 @@ This build contains, linked in:
   fontconfig 2.14.1 and expat 2.2.9 (MIT), PhysicsFS 2.0.3 and zlib
   (zlib licence), libpng 1.6.37 (libpng licence), popt 1.16 (MIT),
   libogg 1.3.5, libvorbis 1.3.7 and libtheora 1.1.1 (BSD).
-- UnixLib 5.0.3.7 (riscos-unixlib: GCCSDK's UnixLib with the ports' fixes)
+- UnixLib 5.0.3.12 (riscos-unixlib: GCCSDK's UnixLib with the ports' fixes)
   and the GCC runtime from GCCSDK.
 
 Fonts: with PackMan's fontconfig installed (UnixFC), the game uses its

@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.3.9-17 (2026-11-26)
+
+- **riscos-crossdev 1.14 (UnixLib 5.0.3.12):** fixes for first-touch
+  stack aborts in `memcpy`/`setjmp` and several thread fixes, faster
+  string functions and `pthread_getspecific`, and UnixLib's data aligned.
+  `thread_local` is now one per thread. The PThreadTicker module in the
+  app is now 0.04 (riscos-unixlib).
+- **riscos-mesa 20.3.5-23:** the mixed program now needs `!MesaLibs`
+  20.3.5-23 or later (the one it's checked against). Rendering through
+  RISC3D and in software is as in 20.3.5-20.
+- `patches/unixlib/unixlib-riscos.diff` is UnixLib 5.0.3.12's (the same as
+  riscos-crossdev 1.14's), for building the toolchain without crossdev.
+
 ## 2.3.9-16 (2026-11-16)
 
 - **The game is now a mixed program**, the only build: `warzone2100` is an
